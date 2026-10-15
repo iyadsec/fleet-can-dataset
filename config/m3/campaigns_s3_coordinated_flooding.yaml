@@ -1,0 +1,13 @@
+# Milestone 3 campaign file. Membership is defined here only (never inferred from timing).
+# Times are logical SUMO seconds. Schema: src/campaign_scheduler.py
+# coordinated flooding 1600 frames/s, delays 0/0.5/1.0 s
+campaigns:
+  - campaign_id: C005
+    attack_type: flooding
+    coordinated: true
+    targets: [vehicle_01, vehicle_02, vehicle_03]
+    start_s: 10.0
+    delay_pattern: fixed
+    relative_delays_s: [0.0, 0.5, 1.0]
+    duration_s: 5.0
+    params: {can_id: 0x000, rate_hz: 1600, dlc: 8, payload: zeros}

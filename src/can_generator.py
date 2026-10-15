@@ -38,6 +38,7 @@ class TxFrame:
     node: str = ""                       # transmitting node on the vehicle bus (DBC sender or ATTACKER)
     attack_id: str | None = None
     attack_type: str | None = None
+    campaign_id: str | None = None       # set only for attacks created by the campaign scheduler
     ref: dict | None = field(default=None, compare=False, hash=False)   # attack ground-truth details
 
 

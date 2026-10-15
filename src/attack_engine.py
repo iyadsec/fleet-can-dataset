@@ -8,7 +8,8 @@ Rules
   * Times are on the SUMO timeline. An attack generates frames whose generation time lies in
     [start, end). All attack frames pass through the same CAN bus timing model as benign frames.
   * Randomness: one numpy Generator per attack, seeded from (experiment seed, attack_id).
-  * No campaigns: campaign_id stays None in Milestone 2.
+  * Campaign membership: attacks created by src/campaign_scheduler.py carry their campaign_id;
+    attacks from an attacks file (isolated, S1) have none. The engine never assigns campaigns.
 """
 
 from __future__ import annotations
@@ -66,6 +67,7 @@ class Attack:
     params: dict
     seed: int
     rng: np.random.Generator = field(repr=False, default=None)
+    campaign_id: str | None = None
     generated: int = 0
     skipped_inactive: int = 0
     requested_rate_hz: float | None = None
@@ -74,7 +76,7 @@ class Attack:
         self.generated += 1
         return TxFrame(sim_time_ns, self.vehicle_id, self.channel, can_id, len(data), data, message,
                        source="attack_injection", node=ATTACKER_NODE, attack_id=self.attack_id,
-                       attack_type=self.attack_type, ref=ref)
+                       attack_type=self.attack_type, campaign_id=self.campaign_id, ref=ref)
 
     def _grid(self, t0: int, t1: int, period: int, phase_ns: int = 0):
         """Times start + phase + k*period that fall in [t0, t1) and inside the attack window."""
@@ -233,7 +235,7 @@ class Malfunction(Attack):
         data, expected, actual = self._forge(frame.data, frame.sim_time_ns, None)
         self.generated += 1
         return replace(frame, data=data, source="attack_modification", attack_id=self.attack_id,
-                       attack_type=self.attack_type, ref={
+                       attack_type=self.attack_type, campaign_id=self.campaign_id, ref={
                            "message": self.msg.name, "signal": self.sig.name, "expected_value": expected,
                            "malicious_value": actual, "original_payload": frame.data.hex().upper()})
 
@@ -242,32 +244,41 @@ class Replay(Attack):
     def setup(self, ctx):
         p = self.params
         self.source_vehicle = p.get("source_vehicle", self.vehicle_id)
-        w0, w1 = p["window_s"]
-        self.w0, self.w1 = round(float(w0) * 1e9), round(float(w1) * 1e9)
+        if "window_ns" in p:                         # exact window from the campaign scheduler
+            self.w0, self.w1 = int(p["window_ns"][0]), int(p["window_ns"][1])
+        else:
+            w0, w1 = p["window_s"]
+            self.w0, self.w1 = round(float(w0) * 1e9), round(float(w1) * 1e9)
         self.offset_ns = round(float(p.get("time_offset_ms", 0.0)) * 1e6)
         ids = p.get("can_ids", "all")
         self.ids = None if ids == "all" else {int(i) for i in ids}
-        if not (0 <= self.w0 < self.w1 < self.start_ns):
-            raise AttackConfigError(f"{self.attack_id}: need 0 <= window start < window end < replay start")
-        self.end_ns = self.start_ns + (self.w1 - self.w0) + self.offset_ns + 1
+        if not (0 <= self.w0 < self.w1 <= self.start_ns) or self.start_ns - self.w0 < 100_000_000:
+            raise AttackConfigError(f"{self.attack_id}: need 0 <= window start < window end <= replay start "
+                                    f"and window start >= 100 ms before replay start")
+        # Replayed frames are generated at start + (tx_end - w0) + offset with w0 <= tx_end < w1.
+        self.end_ns = self.start_ns + (self.w1 - self.w0) + self.offset_ns
         self._queue = None
 
     def inject(self, t0, t1, ctx):
         if t1 <= self.start_ns or t0 >= self.end_ns:
             return []
         if self._queue is None:
-            # Frames the attacker saw on the source bus in the window (by observed bus time).
-            seen = [tx for tx in ctx.transmitted(self.source_vehicle)
-                    if self.w0 <= tx.end_ns < self.w1 and tx.frame.source == "benign_generator"
-                    and (self.ids is None or tx.frame.can_id in self.ids)]
-            self._queue = [(self.start_ns + (tx.end_ns - self.w0) + self.offset_ns, tx) for tx in seen]
-            self._idx = 0
+            self._queue, self._idx, self._seen = [], 0, 0
+        # Incremental: add frames newly observed on the source bus. A frame needed for replay time
+        # < t1 ended before w0 + (t1 - start) <= t0 (start - w0 >= 100 ms > one step), so its bus
+        # decision is already final when it is needed.
+        seen = ctx.transmitted(self.source_vehicle)
+        for tx in seen[self._seen:]:
+            if (self.w0 <= tx.end_ns < self.w1 and tx.frame.source == "benign_generator"
+                    and (self.ids is None or tx.frame.can_id in self.ids)):
+                self._queue.append((self.start_ns + (tx.end_ns - self.w0) + self.offset_ns, tx))
+        self._seen = len(seen)
         out = []
         while self._idx < len(self._queue) and self._queue[self._idx][0] < t1:
             t, tx = self._queue[self._idx]
             self._idx += 1
             if t < t0:
-                continue
+                raise AttackConfigError(f"{self.attack_id}: replay frame at {t} ns observed too late")
             o = tx.frame
             out.append(self._tag(t, o.can_id, o.data, o.message, {
                 "original_frame": o, "original_sim_time_ns": o.sim_time_ns, "original_tx_end_ns": tx.end_ns,
@@ -311,7 +322,8 @@ class AttackContext:
 
 
 class AttackEngine:
-    def __init__(self, attack_cfgs: list[dict], fleet, profiles_by_vehicle: dict, experiment_seed: int):
+    def __init__(self, attack_cfgs: list[dict], fleet, profiles_by_vehicle: dict, experiment_seed: int,
+                 campaign_ids: set[str] | None = None):
         self.ctx = AttackContext(profiles_by_vehicle)
         self.transmitted: dict[str, int] = {}
         chan = {a.vehicle_id: a.channel for a in fleet}
@@ -325,14 +337,15 @@ class AttackEngine:
                 raise AttackConfigError(f"{aid}: unknown type {typ}")
             if vid not in chan:
                 raise AttackConfigError(f"{aid}: unknown vehicle {vid}")
-            if c.get("campaign_id") not in (None, "None", ""):
-                raise AttackConfigError(f"{aid}: campaigns are not part of Milestone 2")
+            cid = c.get("campaign_id") or None
+            if cid is not None and cid not in (campaign_ids or set()):
+                raise AttackConfigError(f"{aid}: campaign {cid} is not defined by the campaign scheduler")
             seen.add(aid)
-            start = round(float(c["start_s"]) * 1e9)
-            end = start + round(float(c.get("duration_s", 0)) * 1e9)
+            start = int(c["start_ns"]) if "start_ns" in c else round(float(c["start_s"]) * 1e9)
+            end = start + (int(c["duration_ns"]) if "duration_ns" in c else round(float(c.get("duration_s", 0)) * 1e9))
             seed = attack_seed(experiment_seed, aid)
             a = CLASSES[typ](aid, typ, vid, chan[vid], start, end, dict(c.get("params") or {}), seed,
-                             np.random.default_rng(seed))
+                             np.random.default_rng(seed), campaign_id=cid)
             a.setup(self.ctx)
             if a.end_ns <= a.start_ns:
                 raise AttackConfigError(f"{aid}: duration must be > 0")
@@ -365,11 +378,12 @@ class AttackEngine:
 
     def describe(self) -> list[dict]:
         return [{"attack_id": a.attack_id, "attack_type": a.attack_type, "vehicle_id": a.vehicle_id,
+                 "campaign_id": a.campaign_id,
                  "channel": a.channel, "start_ns": a.start_ns, "end_ns": a.end_ns, "seed": a.seed,
                  "requested_rate_hz": a.requested_rate_hz, "generated": a.generated,
                  "skipped_inactive": a.skipped_inactive, "params": a.params_json}
                 for a in self.attacks]
 
 
-def build_attacks(attack_configs, fleet=None, profiles_by_vehicle=None, seed=0) -> AttackEngine:
-    return AttackEngine(attack_configs or [], fleet or [], profiles_by_vehicle or {}, seed)
+def build_attacks(attack_configs, fleet=None, profiles_by_vehicle=None, seed=0, campaign_ids=None) -> AttackEngine:
+    return AttackEngine(attack_configs or [], fleet or [], profiles_by_vehicle or {}, seed, campaign_ids)

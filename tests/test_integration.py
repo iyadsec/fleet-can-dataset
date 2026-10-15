@@ -63,3 +63,21 @@ def test_benign_contention_follows_id_priority_and_back_to_back_timing(tmp_path)
         assert g.capture_time_ns.is_monotonic_increasing                   # vCAN capture keeps bus order
         checked += 1
     assert checked > 100
+
+
+@pytest.mark.skipif(not HAVE_VCAN, reason="vcan0..vcan2 not up (sudo scripts/setup_vcan.sh 3)")
+def test_end_to_end_mixed_campaign_over_vcan(tmp_path):
+    """Short live run: coordinated C201 (vehicle_01+02, 0.5 s stagger) + independent C202 (vehicle_03)."""
+    cfg = load_experiment("config/m3/experiment_s3_mixed_replay.yaml")
+    for c in cfg.campaigns:                       # shrink timeline: replay windows [start-1 s, start)
+        c["start_s"] = 2.0 if c["campaign_id"] == "C201" else 2.3
+        c["params"]["window_relative_s"] = [-1.0, 0.0]
+    cfg.duration_s, cfg.output_root = 4.5, tmp_path
+    sid, overall = run(cfg, session_id="TEST_M3_MIXED")
+    assert overall == "PASS"
+    m = pd.read_csv(tmp_path / "ground_truth" / sid / "campaign_membership.csv")
+    assert dict(zip(m.vehicle_id, m.campaign_id)) == {"vehicle_01": "C201", "vehicle_02": "C201", "vehicle_03": "C202"}
+    assert list(m.relative_delay_ns) == [0, 500_000_000, 0]
+    lab = pd.read_csv(tmp_path / "ground_truth" / sid / "frame_labels.csv", keep_default_na=False)
+    mal = lab[lab.frame_label == "malicious"]
+    assert set(mal.campaign_id) == {"C201", "C202"} and set(lab[lab.frame_label == "benign"].campaign_id) == {"None"}

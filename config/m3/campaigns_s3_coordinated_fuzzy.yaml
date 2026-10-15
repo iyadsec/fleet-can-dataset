@@ -1,0 +1,12 @@
+# Milestone 3 campaign file. Membership is defined here only (never inferred from timing).
+# Times are logical SUMO seconds. Schema: src/campaign_scheduler.py
+# coordinated fuzzy (random IDs + payloads), simultaneous; payloads differ per vehicle (own seeds)
+campaigns:
+  - campaign_id: C006
+    attack_type: fuzzy
+    coordinated: true
+    targets: [vehicle_01, vehicle_02, vehicle_03]
+    start_s: 10.0
+    delay_pattern: simultaneous
+    duration_s: 5.0
+    params: {mode: both, rate_hz: 1000, id_range: [0x000, 0x7FF], dlc: random}

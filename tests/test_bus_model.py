@@ -170,3 +170,66 @@ def test_utilization_bins_split_intervals():
     u = utilization_bins([(50, 150), (300, 400)], 0, 400, 100)
     assert u == [0.5, 0.5, 0.0, 1.0]
     assert all(0 <= x <= 1 for x in u)
+
+
+# --- frame expiry (Milestone 3) ---------------------------------------------------------------
+def test_retain_policy_is_default_and_keeps_stale_frames():
+    assert BusConfig().expiry_policy == "retain"
+    m = CanBusModel(BusConfig(queue_limit=1000))                # large queue: no queue drops
+    for k in range(0, 50_000 * US, 200 * US):            # attacker keeps the bus busy for 50 ms
+        m.submit(F(k, 0x000), "ATT")
+    m.submit(F(0, 0x100), "ECU")
+    txs, drops = m.drain()
+    ecu = [t for t in txs if t.node == "ECU"]
+    assert len(ecu) == 1 and ecu[0].queue_delay_ns > 40_000 * US and not drops
+
+
+def test_deadline_policy_expires_frames_at_exact_deadline():
+    cfg = BusConfig(expiry_policy="deadline", max_frame_age_ms=5.0)
+    m = CanBusModel(cfg)
+    for k in range(0, 50_000 * US, 200 * US):
+        m.submit(F(k, 0x000), "ATT")
+    m.submit(F(1 * US, 0x100, tag="victim"), "ECU")
+    txs, drops = m.drain()
+    assert not [t for t in txs if t.node == "ECU"]
+    (d,) = [d for d in drops if d.node == "ECU"]
+    assert d.kind == "expired_drop" and d.drop_ns == 1 * US + 5_000 * US and d.reason == "expired_max_age"
+    assert m.stats.expired_drops >= 1 and m.stats.queue_drops == 0
+    assert all(t.queue_delay_ns <= 5_000 * US for t in txs)     # nothing transmitted after its deadline
+
+
+def test_queue_and_expired_drops_counted_separately():
+    m = CanBusModel(BusConfig(expiry_policy="deadline", max_frame_age_ms=2.0, queue_limit=2))
+    m.submit(F(0, 0x000), "BLOCK")
+    for i in range(5):
+        m.submit(F(1 + i, 0x100, tag=f"a{i}"), "A")             # 2 queued, 3 rejected (queue full)
+    txs, drops = m.drain()
+    kinds = sorted(d.kind for d in drops)
+    assert kinds.count("queue_drop") == 3 and m.stats.queue_drops == 3
+    assert m.stats.expired_drops == kinds.count("expired_drop")
+
+
+def test_deadline_stepwise_equals_one_shot():
+    rnd = random.Random(11)
+    frames = [(F(rnd.randint(0, 40_000) * US, rnd.choice([0x000, 0x100, 0x7FF]), bytes(8), str(i)), rnd.choice("AB"))
+              for i in range(4000)]
+    frames.sort(key=lambda fn: fn[0].sim_time_ns)
+
+    def run(step):
+        m = CanBusModel(BusConfig(expiry_policy="deadline", max_frame_age_ms=3.0, queue_limit=8))
+        tx, dr, i = [], [], 0
+        for t in range(0, 50_000 * US, step):
+            while i < len(frames) and frames[i][0].sim_time_ns < t + step:
+                m.submit(*frames[i]); i += 1
+            a, b = m.advance_until(t + step)
+            tx += [(x.frame.tag, x.start_ns) for x in a]
+            dr += [(x.frame.tag, x.drop_ns, x.kind) for x in b]
+        a, b = m.drain()
+        return tx + [(x.frame.tag, x.start_ns) for x in a], sorted(dr + [(x.frame.tag, x.drop_ns, x.kind) for x in b])
+
+    assert run(10_000 * US) == run(1_000 * US) == run(50_000 * US)
+
+
+def test_deadline_requires_max_age():
+    with pytest.raises(ValueError):
+        BusConfig(expiry_policy="deadline")

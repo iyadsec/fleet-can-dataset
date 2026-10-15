@@ -11,6 +11,10 @@ MODELLED
   * Arbitration: among frames ready when the bus becomes free, the lowest CAN ID wins.
     Each node offers its own highest-priority (or oldest, if configured) pending frame.
   * Queueing per node (ECU / attacker) with a configurable limit and drop policy.
+  * Frame expiry (optional): with expiry_policy=deadline a frame that has not WON arbitration
+    within max_frame_age_ms of its generation is dropped as `expired_drop` at exactly
+    generation + max_frame_age. expiry_policy=retain (default, Milestone 2 behaviour) keeps
+    every queued frame until it is transmitted, however stale.
   * Bus utilization (busy time / elapsed time), queueing delay, drops.
 
 NOT MODELLED (documented limitations)
@@ -39,8 +43,14 @@ class BusConfig:
     drop_policy: str = "drop_newest"     # drop_newest (reject arrival) | drop_oldest (evict oldest)
     node_queue_order: str = "priority"   # priority (lowest ID first) | fifo
     enabled: bool = True                 # False: ideal bus, frame "transmitted" at its ready time
+    expiry_policy: str = "retain"        # retain (never expire) | deadline (drop after max_frame_age_ms)
+    max_frame_age_ms: float | None = None
 
     def __post_init__(self):
+        if self.expiry_policy not in ("retain", "deadline"):
+            raise ValueError(f"expiry_policy {self.expiry_policy}")
+        if self.expiry_policy == "deadline" and not (self.max_frame_age_ms and self.max_frame_age_ms > 0):
+            raise ValueError("expiry_policy=deadline needs max_frame_age_ms > 0")
         if self.bitrate <= 0 or self.queue_limit < 1:
             raise ValueError("bitrate must be > 0 and queue_limit >= 1")
         if self.stuffing not in ("exact", "worst_case", "none"):
@@ -53,6 +63,10 @@ class BusConfig:
     @property
     def bit_time_ns(self) -> float:
         return 1e9 / self.bitrate
+
+    @property
+    def max_age_ns(self) -> int | None:
+        return round(self.max_frame_age_ms * 1e6) if self.expiry_policy == "deadline" else None
 
 
 def _bits(value: int, width: int) -> list[int]:
@@ -122,11 +136,17 @@ class BusDrop:
     drop_ns: int
     reason: str
 
+    @property
+    def kind(self) -> str:
+        return "expired_drop" if self.reason.startswith("expired") else "queue_drop"
+
 
 @dataclass
 class BusStats:
     transmitted: int = 0
     dropped: int = 0
+    queue_drops: int = 0
+    expired_drops: int = 0
     busy_ns: int = 0
     same_id_contention: int = 0
     max_queue_len: dict = field(default_factory=dict)
@@ -154,18 +174,38 @@ class CanBusModel:
         self._node_order.setdefault(node, len(self._node_order))
         heapq.heappush(self._arrivals, (ready, next(self._seq), frame, node))
 
+    def _drop(self, drops: list, d: BusDrop) -> None:
+        drops.append(d)
+        self.stats.dropped += 1
+        if d.kind == "expired_drop":
+            self.stats.expired_drops += 1
+        else:
+            self.stats.queue_drops += 1
+
+    def _expire(self, node: str, t: int, drops: list) -> None:
+        """Deadline policy: remove frames of `node` whose age at time t exceeds max age."""
+        max_age = self.cfg.max_age_ns
+        q = self._queues.get(node)
+        if max_age is None or not q:
+            return
+        stale = [e for e in q if t - e[2] > max_age]
+        if stale:
+            for e in sorted(stale, key=lambda e: (e[2], e[1])):
+                self._drop(drops, BusDrop(e[3], node, e[2], e[2] + max_age, "expired_max_age"))
+            q[:] = [e for e in q if t - e[2] <= max_age]
+            heapq.heapify(q)
+
     def _enqueue(self, ready, seq, frame, node, drops: list) -> None:
+        self._expire(node, ready, drops)          # occupancy seen by an arriving frame excludes expired ones
         q = self._queues.setdefault(node, [])
         if len(q) >= self.cfg.queue_limit:
             if self.cfg.drop_policy == "drop_newest":
-                drops.append(BusDrop(frame, node, ready, ready, "queue_full_drop_newest"))
-                self.stats.dropped += 1
+                self._drop(drops, BusDrop(frame, node, ready, ready, "queue_full_drop_newest"))
                 return
             oldest = min(q, key=lambda e: (e[2], e[1]))
             q.remove(oldest)
             heapq.heapify(q)
-            drops.append(BusDrop(oldest[3], node, oldest[2], ready, "queue_full_drop_oldest"))
-            self.stats.dropped += 1
+            self._drop(drops, BusDrop(oldest[3], node, oldest[2], ready, "queue_full_drop_oldest"))
         key = frame.can_id if self.cfg.node_queue_order == "priority" else ready
         heapq.heappush(q, (key, seq, ready, frame))
         self.stats.max_queue_len[node] = max(self.stats.max_queue_len.get(node, 0), len(q))
@@ -187,6 +227,12 @@ class CanBusModel:
         while True:
             t = self.now_ns
             self._admit_until(t, drops)
+            if t >= t_end and any(self._queues.values()):
+                # The decision at t belongs to a later call: frames ready at <= t may still be
+                # submitted, and must be admitted before anything expires at t.
+                break
+            for n in self._queues:
+                self._expire(n, t, drops)
             heads = [(q[0][3].can_id, q[0][2], self._node_order[n], n) for n, q in self._queues.items() if q]
             if not heads:
                 if not self._arrivals:

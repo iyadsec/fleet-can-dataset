@@ -24,7 +24,7 @@ import numpy as np
 from . import ground_truth, recorder, validator
 from .attack_engine import build_attacks
 from .bus_model import CanBusModel, utilization_bins
-from .campaign_scheduler import build_schedule
+from .campaign_scheduler import attack_configs, build_schedule, check_scenario, describe
 from .can_bus import make_transport
 from .can_generator import VehicleCanGenerator
 from .config import ExperimentConfig, load_experiment
@@ -70,6 +70,8 @@ def bus_statistics(cfg, buses, all_txs, all_drops, engine, sim_end_ns) -> dict:
         intervals = [(t.start_ns, t.end_ns) for t in txs]
         out["channels"][ch] = {
             "config": vars(bus.cfg), "transmitted": len(txs), "dropped": len(all_drops[ch]),
+            "queue_drops": sum(d.kind == "queue_drop" for d in all_drops[ch]),
+            "expired_drops": sum(d.kind == "expired_drop" for d in all_drops[ch]),
             "busy_ns": sum(e - s for s, e in intervals), "span_ns": span_end,
             "utilization_overall": sum(e - s for s, e in intervals) / span_end if span_end else 0.0,
             "utilization_bins": utilization_bins(intervals, 0, span_end, UTIL_BIN_NS),
@@ -89,10 +91,12 @@ def bus_statistics(cfg, buses, all_txs, all_drops, engine, sim_end_ns) -> dict:
             return {"start_ns": lo, "end_ns": hi, "utilization": busy / (hi - lo),
                     "benign_generated": len(ben_tx) + len(ben_drop), "benign_transmitted": len(ben_tx),
                     "benign_dropped": len(ben_drop),
+                    "benign_queue_dropped": sum(d.kind == "queue_drop" for d in ben_drop),
+                    "benign_expired_dropped": sum(d.kind == "expired_drop" for d in ben_drop),
                     "benign_queue_delay_us": _q([t.queue_delay_ns / 1e3 for t in ben_tx])}
 
         base_lo = max(0, s - (e - s))
-        out["attack_windows"].append({"attack_id": a.attack_id, "channel": ch,
+        out["attack_windows"].append({"attack_id": a.attack_id, "campaign_id": a.campaign_id, "channel": ch,
                                       "baseline": window(base_lo, s) if s > base_lo else None,
                                       "during": window(s, e)})
     return out
@@ -100,8 +104,13 @@ def bus_statistics(cfg, buses, all_txs, all_drops, engine, sim_end_ns) -> dict:
 
 def run(cfg: ExperimentConfig, session_id: str | None = None, validate: bool = True) -> tuple[str, str]:
     profiles_by_vehicle = {a.vehicle_id: cfg.profiles[a.profile] for a in cfg.fleet}
-    engine = build_attacks(cfg.attacks, cfg.fleet, profiles_by_vehicle, cfg.seed)
-    build_schedule(cfg.campaigns, cfg.seed)                 # raises if campaigns configured
+    campaigns = build_schedule(cfg.campaigns, cfg.seed, [a.vehicle_id for a in cfg.fleet])
+    problems = check_scenario(cfg.scenario_id, cfg.attacks, campaigns)
+    if problems:
+        raise SystemExit(f"scenario {cfg.scenario_id} inconsistent with configuration: {problems}")
+    all_attacks = list(cfg.attacks) + attack_configs(campaigns)
+    engine = build_attacks(all_attacks, cfg.fleet, profiles_by_vehicle, cfg.seed,
+                           campaign_ids={c.campaign_id for c in campaigns})
 
     wall_start = datetime.now(timezone.utc)
     session_id = session_id or f"{cfg.experiment_id}_{wall_start:%Y%m%dT%H%M%SZ}"
@@ -148,7 +157,7 @@ def run(cfg: ExperimentConfig, session_id: str | None = None, validate: bool = T
     anchor_wall_ns, anchor_perf_ns = time.time_ns(), time.perf_counter_ns()   # SUMO t=0 <-> wall clock
     print(f"[{session_id}] SUMO {sumo.version}; {cfg.duration_s:.1f} s simulated "
           f"({'real-time' if cfg.realtime else 'as fast as possible'}), bus model={cfg.bus_model}, "
-          f"attacks={[a.attack_id for a in engine.attacks]}, vehicles -> {dict((a.vehicle_id, a.channel) for a in cfg.fleet)}")
+          f"campaigns={[c.campaign_id for c in campaigns]}, attacks={[a.attack_id for a in engine.attacks]}, vehicles -> {dict((a.vehicle_id, a.channel) for a in cfg.fleet)}")
     held = []                                        # modelled frames not yet due for sending
     try:
         while sumo.sim_time_ns < cfg.duration_ns:
@@ -202,8 +211,10 @@ def run(cfg: ExperimentConfig, session_id: str | None = None, validate: bool = T
             ground_truth.attack_rows(engine, pairs, drops, cfg.scenario_id, session_id))
     w.write(gt / "attack_frames", ground_truth.ATTACK_FRAME_COLUMNS, attack_detail)
     w.write(gt / "replay_map", ground_truth.REPLAY_COLUMNS, replay_map)
-    w.write(gt / "campaigns", ground_truth.CAMPAIGN_COLUMNS,
-            ground_truth.campaign_rows(cfg.campaigns, cfg.scenario_id, session_id))
+    c_rows, m_rows, o_rows = ground_truth.campaign_rows(campaigns, cfg.scenario_id, session_id)
+    w.write(gt / "campaigns", ground_truth.CAMPAIGN_COLUMNS, c_rows)
+    w.write(gt / "campaign_membership", ground_truth.MEMBERSHIP_COLUMNS, m_rows)
+    w.write(gt / "campaign_overlap", ground_truth.OVERLAP_COLUMNS, o_rows)
 
     bstats = bus_statistics(cfg, buses, all_txs, all_drops, engine, sim_end_ns)
     write_json(bstats, md / "bus_stats.json")
@@ -214,7 +225,12 @@ def run(cfg: ExperimentConfig, session_id: str | None = None, validate: bool = T
         "wall_start_utc": wall_start.isoformat(), "wall_end_utc": wall_end.isoformat(),
         "match_stats": {"per_channel": stats.per_channel, "total": stats.total},
         "bus_totals": {ch: {"generated": len(all_txs[ch]) + len(all_drops[ch]), "transmitted": len(all_txs[ch]),
-                            "dropped": len(all_drops[ch])} for ch in channels},
+                            "dropped": len(all_drops[ch]),
+                            "queue_dropped": sum(d.kind == "queue_drop" for d in all_drops[ch]),
+                            "expired_dropped": sum(d.kind == "expired_drop" for d in all_drops[ch])}
+                       for ch in channels},
+        "attack_configuration": all_attacks,
+        "campaign_schedule": describe(campaigns),
         "model_stats": {"values_clamped_to_dbc_range": {v: g.clamped for v, g in gens.items()}},
         "attacks": engine.describe(),
     }

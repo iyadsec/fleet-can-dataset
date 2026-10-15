@@ -19,8 +19,9 @@ import pandas as pd
 
 from .bus_model import frame_bits, utilization_bins
 from .config import PROJECT_ROOT
+from .campaign_scheduler import build_schedule, check_scenario, pair_overlaps
 from .ground_truth import (ATTACK_COLUMNS, ATTACK_FRAME_COLUMNS, CAMPAIGN_COLUMNS, DROP_COLUMNS,
-                           LABEL_COLUMNS, REPLAY_COLUMNS)
+                           LABEL_COLUMNS, MEMBERSHIP_COLUMNS, OVERLAP_COLUMNS, REPLAY_COLUMNS)
 from .metadata import sha256
 from .recorder import FRAME_COLUMNS, STATE_COLUMNS, fmt_time
 
@@ -65,7 +66,8 @@ def session_paths(data: Path, sid: str) -> dict[str, Path]:
             "unmatched": raw / "unmatched_captures.csv", "labels": gt / "frame_labels.csv",
             "drops": gt / "dropped_frames.csv", "attacks": gt / "attacks.csv",
             "attack_frames": gt / "attack_frames.csv", "replay": gt / "replay_map.csv",
-            "campaigns": gt / "campaigns.csv", "metadata": md / "metadata.json",
+            "campaigns": gt / "campaigns.csv", "membership": gt / "campaign_membership.csv",
+            "overlap": gt / "campaign_overlap.csv", "metadata": md / "metadata.json",
             "bus_stats": md / "bus_stats.json", "snapshot": md / "config_snapshot",
             "out_dir": data / "validation" / sid}
 
@@ -92,7 +94,7 @@ def validate(sid: str, data: Path) -> Report:
     r = Report()
     p = session_paths(data, sid)
     need = ["frames", "states", "unmatched", "labels", "drops", "attacks", "attack_frames", "replay",
-            "campaigns", "metadata", "bus_stats"]
+            "campaigns", "membership", "overlap", "metadata", "bus_stats"]
     missing = [k for k in need if not p[k].exists()]
     r.ok("V01", "required files exist", not missing, "all present", f"missing: {missing}")
     if missing:
@@ -110,6 +112,8 @@ def validate(sid: str, data: Path) -> Report:
     afr = pd.read_csv(p["attack_frames"], dtype=str, **LIT)
     rep = pd.read_csv(p["replay"], dtype=str, **LIT)
     camp = pd.read_csv(p["campaigns"], dtype=str, **LIT)
+    memb = pd.read_csv(p["membership"], dtype=str, **LIT)
+    ovl = pd.read_csv(p["overlap"], dtype=str, **LIT)
     unm = pd.read_csv(p["unmatched"], dtype=str, **LIT)
     fleet = {v["vehicle_id"]: v for v in meta["fleet"]["vehicles"]}
     profiles = meta["fleet"]["profiles"]
@@ -133,6 +137,7 @@ def validate(sid: str, data: Path) -> Report:
                "labels": (lab.columns, LABEL_COLUMNS), "drops": (drops.columns, DROP_COLUMNS),
                "attacks": (att.columns, ATTACK_COLUMNS), "attack_frames": (afr.columns, ATTACK_FRAME_COLUMNS),
                "replay_map": (rep.columns, REPLAY_COLUMNS), "campaigns": (camp.columns, CAMPAIGN_COLUMNS),
+               "campaign_membership": (memb.columns, MEMBERSHIP_COLUMNS), "campaign_overlap": (ovl.columns, OVERLAP_COLUMNS),
                "states": (st.columns, STATE_COLUMNS)}
     bad_schema = [k for k, (got, want) in schemas.items() if list(got) != want]
     r.ok("V02", "schemas match", not bad_schema, "frames, labels, drops, attacks, attack_frames, replay_map, campaigns, states",
@@ -260,6 +265,7 @@ def validate(sid: str, data: Path) -> Report:
                    for ch, c in bstats["channels"].items()), f"max diff {util_diff}")
     ql_ok = all(max(c["max_queue_len"].values() or [0]) <= c["config"]["queue_limit"] for c in bstats["channels"].values())
     r.ok("B06", "node queues never exceeded the configured limit", ql_ok, "within queue_limit", "queue limit exceeded")
+    _expiry_checks(r, f, drops, fleet, profiles, bt)
 
     # ======================= DBC / counters / SUMO consistency (benign ECU frames) ===================
     dec_err, ctr_err, speed = 0, 0, []
@@ -300,9 +306,16 @@ def validate(sid: str, data: Path) -> Report:
     r.ok("V19", "labels follow provenance: no benign frame labelled malicious and vice versa", bool(consistent),
          f"benign={int((f.frame_label == 'benign').sum())}, malicious={int((f.frame_label == 'malicious').sum())}",
          "label/provenance mismatch")
-    r.ok("V20", "campaign_id empty (None) for every frame, drop and attack (no campaigns before Milestone 3)",
-         set(lab.campaign_id) <= {"None"} and set(att.campaign_id) <= {"None"} and camp.empty, "all None",
-         "unexpected campaign IDs")
+    att_camp = dict(zip(att.attack_id, att.campaign_id))
+    chain_bad = int((f[f.frame_label == "benign"].campaign_id != "None").sum())
+    mal_f = f[f.frame_label == "malicious"]
+    chain_bad += int((mal_f.campaign_id != mal_f.attack_id.map(att_camp)).sum())
+    if len(drops):
+        chain_bad += int((drops[drops.frame_label == "benign"].campaign_id != "None").sum())
+        md_ = drops[drops.frame_label == "malicious"]
+        chain_bad += int((md_.campaign_id != md_.attack_id.map(att_camp)).sum())
+    r.ok("V20", "frame -> attack -> campaign chain: benign frames/drops have no campaign; malicious ones carry their attack's campaign",
+         chain_bad == 0, f"{len(mal_f)} malicious frames traced", f"{chain_bad} broken links")
 
     mal = f[f.frame_label == "malicious"]
     if not attack_cfg and mal.empty:
@@ -311,6 +324,7 @@ def validate(sid: str, data: Path) -> Report:
             r.na(cid, name, "no attacks configured")
     else:
         _attack_checks(r, f, drops, att, afr, rep, attack_cfg, fleet, profiles)
+    _campaign_checks(r, meta, f, drops, att, camp, memb, ovl, attack_cfg)
 
     # ======================= reproducibility ======================================================
     absent = [k for k in REQUIRED_METADATA if _get(meta, k) in (None, "", {}, [])]
@@ -358,11 +372,15 @@ def _attack_checks(r, f, drops, att, afr, rep, attack_cfg, fleet, profiles):
     win_err = []
     for a in att.itertuples():
         c = attack_cfg[a.attack_id]
-        start = round(float(c["start_s"]) * 1e9)
+        start = _start_ns(c)
         if int(a.start_ns) != start:
             win_err.append(f"{a.attack_id} start")
-        if c["type"] != "replay" and int(a.end_ns) != start + round(float(c["duration_s"]) * 1e9):
-            win_err.append(f"{a.attack_id} end")
+        if "duration_ns" in c or c["type"] != "replay":
+            dur = int(c["duration_ns"]) if "duration_ns" in c else round(float(c["duration_s"]) * 1e9)
+            if int(a.end_ns) != start + dur:
+                win_err.append(f"{a.attack_id} end")
+        if a.campaign_id != (c.get("campaign_id") or "None"):
+            win_err.append(f"{a.attack_id} campaign")
         gen = pd.concat([mal[mal.attack_id == a.attack_id].sim_time_ns,
                          drops[drops.attack_id == a.attack_id].sim_time_ns]) if len(drops) else mal[mal.attack_id == a.attack_id].sim_time_ns
         if len(gen) and not (gen.min() >= int(a.start_ns) and gen.max() < int(a.end_ns)):
@@ -377,7 +395,8 @@ def _attack_checks(r, f, drops, att, afr, rep, attack_cfg, fleet, profiles):
         n_cap = int((mal.attack_id == a.attack_id).sum())
         n_drop = int((drops.attack_id == a.attack_id).sum()) if len(drops) else 0
         if not (int(a.generated) == int(a.transmitted) + int(a.dropped) and int(a.captured) == n_cap
-                and int(a.dropped) == n_drop and int(a.transmitted) == n_cap):
+                and int(a.dropped) == n_drop and int(a.transmitted) == n_cap
+                and int(a.queue_dropped) + int(a.expired_dropped) == int(a.dropped)):
             cnt_err.append(f"{a.attack_id}: gen={a.generated} tx={a.transmitted} drop={a.dropped}/{n_drop} cap={a.captured}/{n_cap}")
     r.ok("A03", "per attack: generated = transmitted + dropped; transmitted = captured; matches frame files",
          not cnt_err, "; ".join(f"{a.attack_id}: gen={a.generated} tx={a.transmitted} drop={a.dropped}" for a in att.itertuples()),
@@ -437,8 +456,8 @@ def _attack_checks(r, f, drops, att, afr, rep, attack_cfg, fleet, profiles):
             msg = _dbc(prof["dbc"]).get_message_by_name(p["message"])
             sig = msg.get_signal_by_name(p["signal"])
             g = mal[mal.attack_id == aid].merge(afr[["frame_uid", "expected_value", "malicious_value", "original_payload"]], on="frame_uid")
-            s0 = round(float(c["start_s"]) * 1e9)
-            dur = round(float(c["duration_s"]) * 1e9)
+            s0 = _start_ns(c)
+            dur = int(c["duration_ns"]) if "duration_ns" in c else round(float(c["duration_s"]) * 1e9)
             for row in g.itertuples():
                 n += 1
                 d = msg.decode(bytes.fromhex(row.payload), decode_choices=False)
@@ -472,12 +491,12 @@ def _attack_checks(r, f, drops, att, afr, rep, attack_cfg, fleet, profiles):
         for row in ok.itertuples():
             o, rpl = fi.loc[row.original_frame_uid], fi.loc[row.replay_frame_uid]
             c = attack_cfg[row.attack_id]["params"]
-            w0 = round(float(c["window_s"][0]) * 1e9)
-            start = round(float(attack_cfg[row.attack_id]["start_s"]) * 1e9)
+            w0, w1 = _window_ns(c)
+            start = _start_ns(attack_cfg[row.attack_id])
             off = round(float(c.get("time_offset_ms", 0)) * 1e6)
             bad += int(o.frame_label != "benign" or o.vehicle_id != row.source_vehicle or rpl.vehicle_id != row.target_vehicle)
             bad += int(o.payload != rpl.payload or o.can_id != rpl.can_id or row.original_payload != row.replayed_payload)
-            bad += int(not (w0 <= o.tx_end_ns < round(float(c["window_s"][1]) * 1e9)))
+            bad += int(not (w0 <= o.tx_end_ns < w1))
             bad += int(rpl.sim_time_ns != start + (o.tx_end_ns - w0) + off)
         n_replay = int((mal.attack_type == "replay").sum())
         r.ok("A07", "replay frames reference valid benign originals in the window; same ID+payload; exact time shift",
@@ -485,6 +504,154 @@ def _attack_checks(r, f, drops, att, afr, rep, attack_cfg, fleet, profiles):
              f"{bad} violations, {missing} missing originals, map={len(rp)} vs frames={n_replay}")
     else:
         r.na("A07", "replay", "no replay attack")
+
+
+def _start_ns(c: dict) -> int:
+    return int(c["start_ns"]) if "start_ns" in c else round(float(c["start_s"]) * 1e9)
+
+
+def _window_ns(p: dict) -> tuple[int, int]:
+    if "window_ns" in p:
+        return int(p["window_ns"][0]), int(p["window_ns"][1])
+    return round(float(p["window_s"][0]) * 1e9), round(float(p["window_s"][1]) * 1e9)
+
+
+def _expiry_checks(r, f, drops, fleet, profiles, bus_totals):
+    bad, n_exp = 0, 0
+    pol = {v: profiles[fleet[v]["profile"]]["bus"] for v in fleet}
+    qd = f.tx_start_ns - f.sim_time_ns
+    for v, cfg in pol.items():
+        if cfg.get("expiry_policy", "retain") == "deadline":
+            bad += int((qd[f.vehicle_id == v] > round(cfg["max_frame_age_ms"] * 1e6)).sum())
+    if len(drops):
+        for d in drops.itertuples():
+            cfg = pol[d.vehicle_id]
+            if d.drop_kind == "expired_drop":
+                n_exp += 1
+                bad += int(cfg.get("expiry_policy", "retain") != "deadline"
+                           or int(d.drop_time_ns) != int(d.sim_time_ns) + round(cfg["max_frame_age_ms"] * 1e6)
+                           or not d.reason.startswith("expired"))
+            else:
+                bad += int(d.drop_kind != "queue_drop" or not d.reason.startswith("queue_full"))
+    totals_ok = all(v.get("queue_dropped", 0) + v.get("expired_dropped", 0) == v["dropped"] for v in bus_totals.values())
+    policies = sorted({f"{c.get('expiry_policy', 'retain')}"
+                       + (f"({c['max_frame_age_ms']} ms)" if c.get("expiry_policy") == "deadline" else "") for c in pol.values()})
+    r.ok("B07", "frame expiry: no frame transmitted after its deadline; expired drops at generation + max age; "
+                "queue_drop / expired_drop counted separately", bad == 0 and totals_ok,
+         f"policy {policies}; expired drops={n_exp}, queue drops={len(drops) - n_exp}", f"{bad} violations, totals_ok={totals_ok}")
+
+
+def _campaign_checks(r, meta, f, drops, att, camp, memb, ovl, attack_cfg):
+    raw = meta.get("campaign_configuration") or []
+    sched = build_schedule(raw, meta["random_seed"], list({v["vehicle_id"] for v in meta["fleet"]["vehicles"]}))
+    iso = [a for a in attack_cfg.values() if not a.get("campaign_id")]
+    probs = check_scenario(meta["scenario_id"], iso, sched)
+    r.ok("C00", f"scenario {meta['scenario_id']} consistent with its definition", not probs,
+         f"{len(sched)} campaigns ({sum(c.coordinated for c in sched)} coordinated), {len(iso)} isolated attacks", probs)
+    if not raw:
+        r.na("C01", "campaign checks", "no campaigns configured")
+        r.ok("C02", "no campaign ground truth without campaign configuration",
+             camp.empty and memb.empty and ovl.empty and set(att.campaign_id) <= {"None"}, "empty", "unexpected campaign rows")
+        return
+    want = {c.campaign_id: c for c in sched}
+    r.ok("C01", "every configured campaign exists exactly once in campaigns.csv (and nothing else)",
+         sorted(camp.campaign_id) == sorted(want), sorted(want), f"file={sorted(camp.campaign_id)}")
+
+    # membership: exactly the configured targets, one attack each, attacks.csv agrees
+    exp_m = {(m.campaign_id, m.vehicle_id, m.attack_id) for c in sched for m in c.members}
+    got_m = set(zip(memb.campaign_id, memb.vehicle_id, memb.attack_id))
+    att_m = {(a.campaign_id, a.vehicle_id, a.attack_id) for a in att.itertuples() if a.campaign_id != "None"}
+    r.ok("C02", "membership = configured targets; every attack referencing a campaign is a member (no merging, no omission)",
+         exp_m == got_m == att_m and not memb.duplicated(["campaign_id", "vehicle_id"]).any(),
+         f"{len(exp_m)} memberships", f"config-only={exp_m - got_m}, file-only={got_m - exp_m}, attacks={att_m ^ exp_m}")
+
+    # logical timing exactly as configured (independent of queueing / capture)
+    t_err = []
+    for c in sched:
+        row = camp[camp.campaign_id == c.campaign_id].iloc[0]
+        if int(row.campaign_start_ns) != c.start_ns or int(row.campaign_end_ns) != c.end_ns:
+            t_err.append(f"{c.campaign_id} campaign start/end")
+        if row.coordinated != str(c.coordinated).lower() or int(row.vehicle_count) != len(c.members):
+            t_err.append(f"{c.campaign_id} attributes")
+        for m in c.members:
+            mr = memb[(memb.campaign_id == c.campaign_id) & (memb.vehicle_id == m.vehicle_id)].iloc[0]
+            if (int(mr.vehicle_attack_start_ns), int(mr.vehicle_attack_end_ns), int(mr.relative_delay_ns)) != (m.start_ns, m.end_ns, m.relative_delay_ns):
+                t_err.append(f"{c.campaign_id}/{m.vehicle_id}")
+            a = att[att.attack_id == m.attack_id].iloc[0]
+            if (int(a.start_ns), int(a.end_ns)) != (m.start_ns, m.end_ns):
+                t_err.append(f"{m.attack_id} attack window")
+        cfgc = c.raw
+        if c.delay_pattern == "simultaneous" and any(m.relative_delay_ns for m in c.members):
+            t_err.append(f"{c.campaign_id} simultaneous but non-zero delay")
+        if c.delay_pattern == "fixed" and [m.relative_delay_ns for m in c.members] != [round(float(x) * 1e9) for x in cfgc["relative_delays_s"]]:
+            t_err.append(f"{c.campaign_id} fixed delays differ from configuration")
+    r.ok("C03", "campaign/member start, end and relative delays equal configuration exactly (ns), simultaneous => 0, fixed => configured",
+         not t_err, "all exact", t_err)
+
+    # the injected traffic really starts on the logical timeline at the configured time
+    obs_err, layer = [], {}
+    gen = pd.concat([f[["attack_id", "sim_time_ns"]], drops[["attack_id", "sim_time_ns"]]]) if len(drops) else f[["attack_id", "sim_time_ns"]]
+    gen = gen[gen.attack_id != "None"]
+    first_gen = gen.groupby("attack_id").sim_time_ns.min()
+    last_gen = gen.groupby("attack_id").sim_time_ns.max()
+    mal = f[f.attack_id != "None"]
+    first_tx, first_cap = mal.groupby("attack_id").tx_start_ns.min(), mal.groupby("attack_id").capture_time_ns.min()
+    for c in sched:
+        rows = []
+        for m in c.members:
+            fg = first_gen.get(m.attack_id)
+            if fg is None:
+                obs_err.append(f"{m.attack_id} produced no frames")
+                continue
+            if c.attack_type in ("flooding", "fuzzy") or (c.attack_type == "malfunction" and m.params.get("mode", "inject") == "inject"):
+                phase = round(float(m.params.get("phase_ms", 0)) * 1e6)
+                if fg != m.start_ns + phase:
+                    obs_err.append(f"{m.attack_id} first generation {fg} != start {m.start_ns}+{phase}")
+            elif fg < m.start_ns:
+                obs_err.append(f"{m.attack_id} generated before start")
+            if last_gen[m.attack_id] >= m.end_ns:
+                obs_err.append(f"{m.attack_id} generated after end")
+            rows.append((m.vehicle_id, m.relative_delay_ns, fg, first_tx.get(m.attack_id), first_cap.get(m.attack_id)))
+        if len(rows) > 1:
+            g0, t0, c0 = rows[0][2], rows[0][3], rows[0][4]
+            layer[c.campaign_id] = [{"vehicle_id": v, "configured_delay_s": rel / 1e9,
+                                     "first_generation_delay_s": (g - g0) / 1e9,
+                                     "first_transmission_delay_s": None if t is None or t0 is None else (t - t0) / 1e9,
+                                     "first_capture_delay_s": None if cp is None or c0 is None else (cp - c0) / 1e9}
+                                    for v, rel, g, t, cp in rows]
+    r.ok("C04", "observed attack traffic lies inside each member's logical window; grid attacks start exactly at the configured time",
+         not obs_err, f"{len(first_gen)} attacks checked", obs_err)
+    r.info["campaign_delay_by_layer"] = layer
+    # timing-layer independence: ground truth equals configuration even where transmission/capture delays differ
+    diffs = [abs(x["first_capture_delay_s"] - x["configured_delay_s"]) for v in layer.values() for x in v
+             if x["first_capture_delay_s"] is not None]
+    r.ok("C05", "ground-truth delays come from the logical timeline only (unchanged by CAN queueing and capture jitter)",
+         not t_err, f"GT delay == configured for all members; capture-layer delays deviate up to "
+                    f"{max(diffs) * 1e3 if diffs else 0:.3f} ms and are NOT used", "see C03")
+
+    indep_bad = [c.campaign_id for c in sched if not c.coordinated and len(c.members) != 1]
+    shared = att[att.campaign_id != "None"].groupby("campaign_id").vehicle_id.nunique()
+    merged = [cid for cid, n in shared.items() if n > 1 and not want[cid].coordinated]
+    r.ok("C06", "independent campaigns are single-vehicle and never merged into a shared campaign",
+         not indep_bad and not merged, f"{sum(not c.coordinated for c in sched)} independent campaigns",
+         f"multi-vehicle independent={indep_bad}, merged={merged}")
+
+    ov_bad = 0
+    for c in sched:
+        for o in pair_overlaps(c):
+            g = ovl[(ovl.campaign_id == c.campaign_id) & (ovl.vehicle_a == o["vehicle_a"]) & (ovl.vehicle_b == o["vehicle_b"])]
+            ov_bad += int(len(g) != 1 or int(g.iloc[0].start_delay_ns) != o["start_delay_ns"]
+                          or abs(float(g.iloc[0].jaccard) - o["jaccard"]) > 1e-6)
+    r.ok("C07", "pairwise start delays and interval overlaps (overlap, overlap/min duration, Jaccard) recomputed from configuration",
+         ov_bad == 0 and len(ovl) == sum(len(pair_overlaps(c)) for c in sched), f"{len(ovl)} vehicle pairs", f"{ov_bad} mismatches")
+
+    if len(drops):
+        md_ = drops[drops.frame_label == "malicious"]
+        ok = (md_.attack_id != "None").all() and md_.attack_id.isin(att.attack_id).all()
+        r.ok("C08", "dropped/expired attack frames remain in ground truth with attack_id and campaign_id",
+             bool(ok), f"{len(md_)} malicious drops ({int((md_.drop_kind == 'expired_drop').sum())} expired)", "unmapped drops")
+    else:
+        r.add("C08", "dropped/expired attack frames remain in ground truth", "PASS", "no drops occurred")
 
 
 def write_report(r: Report, sid: str, out_dir: Path):

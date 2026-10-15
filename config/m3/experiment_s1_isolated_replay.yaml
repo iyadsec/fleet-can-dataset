@@ -1,0 +1,26 @@
+# Experiment configuration (Milestone 1: benign fleet, scenario S0).
+experiment:
+  experiment_id: M3_S1_ISOLATED_REPLAY
+  scenario_id: S1            # see docs/dataset_schema.md
+  description: "Milestone 3: isolated replay on vehicle_01, no campaign"
+  seed: 42                   # passed to SUMO (--seed) and to every Python RNG
+
+simulation:
+  sumo_config: sumo/scenarios/s0_three_vehicles.sumocfg
+  step_length_s: 0.01        # SUMO step = 10 ms; SUMO time is the master clock
+  duration_s: 40.0           # simulated seconds to run
+  realtime: true             # pace frame transmission to SUMO time (needed for meaningful capture jitter)
+
+can:
+  transport: socketcan       # socketcan | (later: virtual, hardware, trace replay)
+  bus_model: logical         # logical: CAN timing/arbitration model before vCAN | ideal: no bus timing
+  frame_format: classical    # 11-bit IDs, DLC 0..8
+  capture_drain_s: 0.5       # keep capturing this long after the last frame is sent
+
+output:
+  root: data                 # data/{raw,ground_truth,metadata,validation}/<session_id>/
+  format: csv                # csv now; parquet planned (recorder has a writer abstraction)
+
+fleet_config: config/m3/vehicles_3.yaml
+attacks_config: config/m3/attacks_s1_isolated_replay.yaml
+campaigns_config: config/campaigns.yaml

@@ -72,7 +72,9 @@ def build_metadata(cfg: ExperimentConfig, session_id: str, run: dict, config_has
             "attacks": ("none" if not cfg.attacks else
                         "injected/modified by src/attack_engine.py from config; see ground_truth/attacks.csv"),
             "bus_timing": "logical CAN bus model (src/bus_model.py); NOT a physical-layer simulation",
-            "campaigns": "none (no campaigns before Milestone 3)",
+            "campaigns": ("none" if not cfg.campaigns else
+                          "constructed from configuration by src/campaign_scheduler.py; membership is configured, "
+                          "never inferred from timing; see ground_truth/campaigns.csv and campaign_membership.csv"),
         },
         "simulation": {
             "sumo_version": run["sumo_version"],
@@ -115,8 +117,9 @@ def build_metadata(cfg: ExperimentConfig, session_id: str, run: dict, config_has
                              "per-profile bitrate drives src/bus_model.py"),
             "bus_totals": run["bus_totals"],
         },
-        "attack_configuration": cfg.attacks,
+        "attack_configuration": run["attack_configuration"],
         "attacks_runtime": run["attacks"],
+        "campaign_schedule": run["campaign_schedule"],
         "campaign_configuration": cfg.campaigns,
         "software": {
             "python": sys.version.split()[0],

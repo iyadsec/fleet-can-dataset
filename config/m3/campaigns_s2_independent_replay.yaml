@@ -1,0 +1,26 @@
+# Milestone 3 campaign file. Membership is defined here only (never inferred from timing).
+# Times are logical SUMO seconds. Schema: src/campaign_scheduler.py
+# independent same-type replay attacks on 3 vehicles, close in time and overlapping, different campaigns
+campaigns:
+  - campaign_id: C101
+    # negative control: same behaviour, similar time, DIFFERENT campaign
+    attack_type: replay
+    coordinated: false
+    targets: [vehicle_01]
+    start_s: 10.0
+    delay_pattern: simultaneous
+    params: {window_relative_s: [-5.0, 0.0], source_vehicle: self, time_offset_ms: 0.25, can_ids: all}
+  - campaign_id: C102
+    attack_type: replay
+    coordinated: false
+    targets: [vehicle_02]
+    start_s: 10.2
+    delay_pattern: simultaneous
+    params: {window_relative_s: [-5.0, 0.0], source_vehicle: self, time_offset_ms: 0.25, can_ids: all}
+  - campaign_id: C103
+    attack_type: replay
+    coordinated: false
+    targets: [vehicle_03]
+    start_s: 10.5
+    delay_pattern: simultaneous
+    params: {window_relative_s: [-5.0, 0.0], source_vehicle: self, time_offset_ms: 0.25, can_ids: all}

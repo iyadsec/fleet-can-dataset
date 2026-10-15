@@ -1,0 +1,11 @@
+# Milestone 3 campaign file. Membership is defined here only (never inferred from timing).
+# Times are logical SUMO seconds. Schema: src/campaign_scheduler.py
+# coordinated replay, all three vehicles start at 10.000 s
+campaigns:
+  - campaign_id: C001
+    attack_type: replay
+    coordinated: true
+    targets: [vehicle_01, vehicle_02, vehicle_03]
+    start_s: 10.0
+    delay_pattern: simultaneous
+    params: {window_relative_s: [-5.0, 0.0], source_vehicle: self, time_offset_ms: 0.25, can_ids: all}

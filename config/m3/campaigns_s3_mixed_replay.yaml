@@ -1,0 +1,20 @@
+# Milestone 3 campaign file. Membership is defined here only (never inferred from timing).
+# Times are logical SUMO seconds. Schema: src/campaign_scheduler.py
+# mixed: vehicle_01 + vehicle_02 coordinated (C201), vehicle_03 independent (C202) at a similar time
+campaigns:
+  - campaign_id: C201
+    attack_type: replay
+    coordinated: true
+    targets: [vehicle_01, vehicle_02]
+    start_s: 10.0
+    delay_pattern: fixed
+    relative_delays_s: [0.0, 0.5]
+    params: {window_relative_s: [-5.0, 0.0], source_vehicle: self, time_offset_ms: 0.25, can_ids: all}
+  - campaign_id: C202
+    # independent, similar behaviour and time as C201, NOT a member
+    attack_type: replay
+    coordinated: false
+    targets: [vehicle_03]
+    start_s: 10.3
+    delay_pattern: simultaneous
+    params: {window_relative_s: [-5.0, 0.0], source_vehicle: self, time_offset_ms: 0.25, can_ids: all}
