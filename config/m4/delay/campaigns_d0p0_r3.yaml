@@ -1,0 +1,11 @@
+# Milestone 4 temporal-resolution experiment: coordinated replay, 2 vehicles.
+# Configured inter-vehicle delay 0.0 s; repetition 3 (seed 44, start phase 10.071 s).
+campaigns:
+  - campaign_id: C_DELAY
+    attack_type: replay
+    coordinated: true
+    targets: [vehicle_01, vehicle_02]
+    start_s: 10.071
+    delay_pattern: fixed
+    relative_delays_s: [0.0, 0.0]
+    params: {window_relative_s: [-5.0, 0.0], source_vehicle: self, time_offset_ms: 0.25, can_ids: all}

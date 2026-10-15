@@ -81,3 +81,13 @@ def test_end_to_end_mixed_campaign_over_vcan(tmp_path):
     lab = pd.read_csv(tmp_path / "ground_truth" / sid / "frame_labels.csv", keep_default_na=False)
     mal = lab[lab.frame_label == "malicious"]
     assert set(mal.campaign_id) == {"C201", "C202"} and set(lab[lab.frame_label == "benign"].campaign_id) == {"None"}
+
+    # Milestone 4: analysis layer on the live session; ground truth only in the separate labels file
+    from analysis.descriptor_schema import FEATURE_COLUMNS, PROHIBITED_FIELDS
+    from analysis.run_session import analyse
+    r = analyse(sid, tmp_path)
+    assert r["overall"] == "PASS"
+    d = pd.read_csv(tmp_path / "analysis" / sid / "descriptors.csv")
+    dl = pd.read_csv(tmp_path / "analysis" / sid / "descriptor_labels.csv", keep_default_na=False)
+    assert not set(d.columns) & PROHIBITED_FIELDS and len([c for c in d.columns if c in FEATURE_COLUMNS]) == 24
+    assert set(dl.descriptor_id) == set(d.descriptor_id) and {"C201", "C202"} <= set(dl.campaign_ids)
