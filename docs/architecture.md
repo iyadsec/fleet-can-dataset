@@ -10,7 +10,7 @@
 | `src/can_bus.py` | `CanTransport` / `CanCapture` interfaces; SocketCAN implementation (ECU + attacker sockets) | no |
 | `src/recorder.py` | Associate captured frames with transmissions; write observation tables | no |
 | `src/ground_truth.py` | Frame labels from provenance; campaign table from config | yes (only module) |
-| `src/campaign_scheduler.py` | *(Milestone 3+)* simultaneous / staggered / random / overlap / independent | n/a |
+| `src/campaign_scheduler.py` | Campaigns from config: membership, simultaneous / fixed / seeded-random delays, exact ns windows, overlap metrics, scenario rules S0-S3 | defines campaign membership (config only) |
 | `src/metadata.py` | Versions, seeds, hashes, config snapshot | no |
 | `src/validator.py` | Automatic checks → JSON + Markdown report | reads both, checks consistency |
 | `src/orchestrator.py` | Runs the pipeline for one session | no |

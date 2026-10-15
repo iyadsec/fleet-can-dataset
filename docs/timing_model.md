@@ -10,6 +10,9 @@ Three distinct times are kept for every frame. They must never be confused:
 
 `queue_delay_us = tx_start − generation` (CAN queueing/arbitration, modelled).
 `capture_offset_us = capture_time − (wall_anchor + tx_end)` (host/VM execution jitter, measured).
+Campaign ground truth (start, end, relative delay, overlaps) is defined ONLY on the generation timeline.
+Validator checks C03-C05 confirm it equals configuration exactly, while the first-transmission and
+first-capture delays per member are reported (not used) to show the size of the other layers.
 Later research can therefore separate **campaign propagation delay** (configured on the SUMO
 timeline), **CAN queueing delay** (`queue_delay_us`) and **testbed jitter** (`capture_offset_us`).
 
@@ -34,7 +37,12 @@ Frames enter the model at their generation time and leave it with a modelled tra
 * One frame on the bus at a time (non-preemptive); arbitration only when the bus is free.
 * Arbitration: among frames ready at that moment, lowest CAN ID wins.
 * Per-node transmit queues (each DBC sender ECU, plus `ATTACKER`), ordered by priority (or FIFO),
-  limited to `queue_limit` frames; overflow handled by `drop_newest` or `drop_oldest`.
+  limited to `queue_limit` frames; overflow handled by `drop_newest` or `drop_oldest` (`queue_drop`).
+* Frame expiry: `expiry_policy: retain` (default; Milestone 2 behaviour, stale frames are eventually
+  sent) or `deadline` with `max_frame_age_ms` (Milestone 3 fleets: 100 ms). Under `deadline` a frame that
+  has not won arbitration by `generation + max age` is dropped as `expired_drop` with drop time exactly
+  `generation + max age`; no frame is ever transmitted later than its deadline. Expiry is applied only
+  when an arbitration decision is made, after every frame ready by then has been admitted.
 * Bus utilization (busy time / time) per 100 ms bin and overall; queue delay; drops.
 
 **Not modelled**

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Milestone 3 scalability scenario, 5 vehicles. Step length, seed and end time are passed by the orchestrator. -->
+<configuration>
+    <input>
+        <net-file value="../network/grid4x4.net.xml"/>
+        <route-files value="../routes/fleet_5.rou.xml"/>
+    </input>
+    <processing>
+        <collision.action value="warn"/>
+        <time-to-teleport value="-1"/>
+    </processing>
+    <report>
+        <no-step-log value="true"/>
+        <duration-log.disable value="true"/>
+    </report>
+</configuration>

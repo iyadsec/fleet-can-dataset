@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Milestone 3 scalability: 2 vehicles vehicle_01..vehicle_02, all depart at t=0 from distinct
+     start edges on closed loops (perimeter clockwise P, counter-clockwise R, inner signalised loop I). -->
+<routes>
+    <vType id="car_a" vClass="passenger" accel="2.6" decel="4.5" sigma="0.5" length="4.5" maxSpeed="40"/>
+    <route id="r01_P0" edges="A0B0 B0C0 C0D0 D0D1 D1D2 D2D3 D3C3 C3B3 B3A3 A3A2 A2A1 A1A0 A0B0 B0C0 C0D0 D0D1 D1D2 D2D3 D3C3 C3B3 B3A3 A3A2 A2A1 A1A0"/>
+    <route id="r02_P3" edges="D0D1 D1D2 D2D3 D3C3 C3B3 B3A3 A3A2 A2A1 A1A0 A0B0 B0C0 C0D0 D0D1 D1D2 D2D3 D3C3 C3B3 B3A3 A3A2 A2A1 A1A0 A0B0 B0C0 C0D0"/>
+    <vehicle id="vehicle_01" type="car_a" route="r01_P0" depart="0" departSpeed="0"/>
+    <vehicle id="vehicle_02" type="car_a" route="r02_P3" depart="0" departSpeed="0"/>
+</routes>

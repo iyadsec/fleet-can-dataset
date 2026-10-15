@@ -1,0 +1,17 @@
+# Milestone 3 scalability campaign file.
+campaigns:
+  - campaign_id: C305
+    attack_type: replay
+    coordinated: true
+    targets: [vehicle_01, vehicle_02, vehicle_03, vehicle_04]
+    start_s: 10.0
+    delay_pattern: fixed
+    relative_delays_s: [0.00, 0.25, 0.50, 0.75]
+    params: {window_relative_s: [-5.0, 0.0], source_vehicle: self, time_offset_ms: 0.25, can_ids: all}
+  - campaign_id: C405
+    attack_type: replay
+    coordinated: false
+    targets: [vehicle_05]
+    start_s: 10.3
+    delay_pattern: simultaneous
+    params: {window_relative_s: [-5.0, 0.0], source_vehicle: self, time_offset_ms: 0.25, can_ids: all}

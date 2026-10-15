@@ -1,0 +1,65 @@
+# Milestone 3 scalability fleet (10 vehicles): same profile as config/vehicles.yaml but with the frame-expiry
+# DEADLINE policy for final experiments. Milestone 2 configs keep `retain` and are unchanged.
+# Vehicle profiles (CAN configuration + synthetic physical model) and fleet assignment.
+# All values are SYNTHETIC modelling assumptions, not measurements of a real vehicle.
+
+profiles:
+  model_A:
+    description: "Generic synthetic passenger car (Milestone 1 common profile)"
+    dbc: dbc/generic_vehicle.dbc
+    nominal_bitrate: 500000          # bit rate used by the logical bus timing model (vCAN itself has none)
+    bus:                             # logical CAN bus timing/arbitration model (src/bus_model.py)
+      stuffing: exact                # exact | worst_case | none
+      queue_limit: 32                # frames waiting per transmitting node (ECU / attacker)
+      drop_policy: drop_newest       # drop_newest | drop_oldest when a node queue is full
+      node_queue_order: priority     # priority (lowest ID first) | fifo
+      expiry_policy: deadline        # retain | deadline
+      max_frame_age_ms: 100.0        # ASSUMPTION: a frame not on the bus within 100 ms (10x the fastest
+                                     # 10 ms period) is stale and is dropped as expired_drop
+    powertrain:
+      idle_rpm: 800
+      wheel_radius_m: 0.31
+      final_drive: 3.9
+      gear_ratios: [3.6, 2.1, 1.4, 1.0, 0.8, 0.65]
+      upshift_speeds_kmh: [15, 30, 50, 70, 90]   # gear n+1 engaged at/above these speeds
+      max_accel_mps2: 2.6                        # pedal 100% reference (matches SUMO vType accel)
+      pedal_cruise_pct: 15.0                     # pedal when moving at constant speed
+      brake_threshold_mps2: 0.3                  # deceleration above this => BrakeActive
+    chassis:
+      wheelbase_m: 2.7
+      steering_ratio: 15.0
+    messages:                                    # name must exist in the DBC
+      - name: ENGINE_STATUS
+        period_ms: 10
+        offset_ms: 0.0
+        signals: {EngineRPM: engine_rpm, Gear: gear, Counter: counter}
+      - name: VEHICLE_SPEED
+        period_ms: 20
+        offset_ms: 1.0
+        signals: {VehicleSpeed: speed_kmh, LongAccel: accel_mps2, Counter: counter}
+      - name: ACCEL_PEDAL
+        period_ms: 20
+        offset_ms: 3.0
+        signals: {AccelPedalPos: pedal_pct, Counter: counter}
+      - name: BRAKE_STATUS
+        period_ms: 20
+        offset_ms: 5.0
+        signals: {BrakeActive: brake_active, BrakeDecel: brake_decel_mps2, Counter: counter}
+      - name: STEERING
+        period_ms: 10
+        offset_ms: 7.0
+        signals: {SteeringAngle: steering_angle_deg, YawRate: yaw_rate_dps, Counter: counter}
+
+fleet:
+  channel_pattern: "vcan{index}"     # index = position in the list below (0-based)
+  vehicles:
+    - {id: vehicle_01, profile: model_A}
+    - {id: vehicle_02, profile: model_A}
+    - {id: vehicle_03, profile: model_A}
+    - {id: vehicle_04, profile: model_A}
+    - {id: vehicle_05, profile: model_A}
+    - {id: vehicle_06, profile: model_A}
+    - {id: vehicle_07, profile: model_A}
+    - {id: vehicle_08, profile: model_A}
+    - {id: vehicle_09, profile: model_A}
+    - {id: vehicle_10, profile: model_A}

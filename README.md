@@ -5,9 +5,10 @@ simulated vehicles**, for PhD research on fleet-level detection of coordinated C
 (behavioural + temporal correlation). This repository does **data generation and ground truth
 only**. It contains no detector.
 
-> **Status: Milestone 2.** Benign fleet (S0) plus single-vehicle Flooding, Fuzzy, Malfunction and
-> Replay (S1, vehicle_01) through a logical CAN bus timing/arbitration model. Coordinated
-> multi-vehicle campaigns are deliberately not implemented yet.
+> **Status: Milestone 3.** Multi-vehicle campaign generator: coordinated campaigns (simultaneous,
+> staggered, partial overlap, seeded random delay), independent negative controls and mixed scenarios
+> (S0-S3) for all four attack families, through the logical CAN bus model with frame expiry.
+> No detection, descriptors or graph methods are implemented (dataset generation only).
 
 ## What is real and what is synthetic
 
@@ -19,7 +20,7 @@ only**. It contains no detector.
 | Bus timing (duration, arbitration, queueing, drops) | `src/bus_model.py` | **Logical model** of Classical CAN at 500 kbit/s, not a physical-layer simulation |
 | CAN transport + capture | Linux SocketCAN **vCAN** | Real kernel frame delivery; **no** bus behaviour of its own |
 | Attacks | `src/attack_engine.py` + `config/m2/` | **Injected** from configuration, single vehicle |
-| Campaigns | *(Milestone 3+)* | Experimentally constructed |
+| Campaigns | `src/campaign_scheduler.py` + `config/m3/campaigns_*.yaml` | **Experimentally constructed** from configuration |
 
 The generated traffic is **not real vehicle CAN traffic**. SUMO does not simulate CAN.
 
@@ -65,6 +66,9 @@ scripts/run_experiment.sh                       # verify env, then run config/ex
 scripts/run_experiment.sh config/experiment.yaml --duration 10
 scripts/run_experiment.sh config/bus_check/experiment_sync.yaml  # benign bus-contention check
 scripts/run_m2_suite.sh                         # all Milestone 2 attack runs (config/m2/)
+scripts/run_suite.sh config/m3                  # Milestone 3 three-vehicle scenario matrix
+sudo scripts/setup_vcan.sh 10 && scripts/run_suite.sh config/m3/scale   # 2/5/10-vehicle scaling
+.venv/bin/python scripts/summarize_m3.py        # result tables from the saved sessions
 .venv/bin/python -m src.validator --session <session_id>   # re-validate an existing session
 .venv/bin/python -m pytest -q                              # unit + integration tests
 ```
@@ -93,6 +97,7 @@ reflect host execution and are not.
   from vCAN. Error frames, retransmission, bus-off and bit-level effects are not modelled; the same
   ID sent by two nodes at once is serialised instead of causing a bit error.
 * One common synthetic profile; no sensor noise or period jitter yet (exact schedule on the SUMO timeline).
-* Attacks target one vehicle; no campaigns.
+* Campaign delays are exact on the logical timeline; transmission/capture layers are reported separately.
+* Frame expiry uses one max age per bus (100 ms in Milestone 3 fleets), not per-message deadlines.
 * Capture jitter depends on host/VM load; it is measured (`capture_offset_us`), never used as ground truth.
 * vCAN interfaces must be recreated after reboot.
