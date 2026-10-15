@@ -73,6 +73,13 @@ sudo scripts/setup_vcan.sh 10 && scripts/run_suite.sh config/m3/scale   # 2/5/10
 .venv/bin/python -m pytest -q                              # unit + integration tests
 ```
 
+## Repositories and sync
+
+* Working repository (experiments run here): Ubuntu VM `~/fleet-can-dataset`.
+* Mac clone: `.../University of Reading/CodeRepo/Generate-Dataset` (`origin` = the VM, `github` = GitHub).
+* GitHub (private): `iyadsec/fleet-can-dataset`. Publish the VM's commits from the Mac with
+  `scripts/sync_github.sh`. Generated data (`data/`) is never committed.
+
 ## Configuration
 
 * `config/experiment.yaml`: IDs, seed, SUMO step and duration, transport, output.
