@@ -1,0 +1,11 @@
+# Direct dependencies. Exact resolved versions are frozen in requirements.lock.txt.
+# SUMO is installed from the official Eclipse wheel (binaries + tools) so no system package is needed.
+eclipse-sumo==1.28.0
+traci==1.28.0
+sumolib==1.28.0
+python-can>=4.4,<5
+cantools>=40,<41
+pandas>=2.2,<3
+numpy>=2.0,<3
+PyYAML>=6.0,<7
+pytest>=8,<9

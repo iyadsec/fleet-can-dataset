@@ -1,0 +1,3 @@
+# Campaign definitions. Campaign membership is defined ONLY here, never inferred from timing.
+# Intentionally empty in Milestone 1 (benign scenario S0).
+campaigns: []

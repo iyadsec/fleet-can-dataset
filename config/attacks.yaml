@@ -1,0 +1,3 @@
+# Attack definitions. Intentionally empty in Milestone 1 (benign scenario S0).
+# Flooding, Fuzzy, Malfunction and Replay are added after Milestone 1 is approved.
+attacks: []

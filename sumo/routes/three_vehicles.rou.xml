@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Milestone 1: three vehicles with persistent IDs vehicle_01..03, all departing at t=0.
+     Routes are closed loops repeated so every vehicle stays in the network for > 60 s.
+     sigma > 0 adds SUMO's seeded driver imperfection (seed set by the orchestrator). -->
+<routes>
+    <vType id="car_a" vClass="passenger" accel="2.6" decel="4.5" sigma="0.5" length="4.5" maxSpeed="40"/>
+
+    <!-- Perimeter loop, clockwise from the south-west corner. -->
+    <route id="perimeter_a" edges="A0B0 B0C0 C0D0 D0D1 D1D2 D2D3 D3C3 C3B3 B3A3 A3A2 A2A1 A1A0
+                                   A0B0 B0C0 C0D0 D0D1 D1D2 D2D3 D3C3 C3B3 B3A3 A3A2 A2A1 A1A0"/>
+    <!-- Same loop, starting at the south-east corner. -->
+    <route id="perimeter_b" edges="D0D1 D1D2 D2D3 D3C3 C3B3 B3A3 A3A2 A2A1 A1A0 A0B0 B0C0 C0D0
+                                   D0D1 D1D2 D2D3 D3C3 C3B3 B3A3 A3A2 A2A1 A1A0 A0B0 B0C0 C0D0"/>
+    <!-- Loop through the inner signalised junctions. -->
+    <route id="inner_c" edges="A1B1 B1C1 C1C2 C2B2 B2B1 B1C1 C1C2 C2B2 B2B1 B1C1 C1C2 C2B2
+                               B2B1 B1C1 C1C2 C2B2 B2B1 B1C1 C1C2 C2B2"/>
+
+    <vehicle id="vehicle_01" type="car_a" route="perimeter_a" depart="0" departSpeed="0"/>
+    <vehicle id="vehicle_02" type="car_a" route="perimeter_b" depart="0" departSpeed="0"/>
+    <vehicle id="vehicle_03" type="car_a" route="inner_c"     depart="0" departSpeed="0"/>
+</routes>

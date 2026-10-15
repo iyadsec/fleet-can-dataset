@@ -1,0 +1,8 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+# Generated datasets are not versioned; keep directory skeleton only.
+data/**
+!data/*/
+!data/*/.gitkeep
