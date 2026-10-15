@@ -1,0 +1,14 @@
+# Milestone 2, single-vehicle attack run 'malfunction_replace' (vehicle_01 only, no campaigns).
+# Malfunction vehicle_01: compromised ECM reports EngineRPM x3 in its own ENGINE_STATUS frames
+# Times on the SUMO timeline (s). Window = [start_s, start_s + duration_s).
+attacks:
+  - attack_id: A_MALFUNCTION_REPLACE
+    type: malfunction
+    vehicle: vehicle_01
+    start_s: 10.0
+    duration_s: 5.0
+    params:
+      mode: replace
+      message: ENGINE_STATUS
+      signal: EngineRPM
+      manipulation: {strategy: scale, factor: 3.0}

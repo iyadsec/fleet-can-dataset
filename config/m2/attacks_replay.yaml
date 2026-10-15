@@ -1,0 +1,13 @@
+# Milestone 2, single-vehicle attack run 'replay' (vehicle_01 only, no campaigns).
+# Replay vehicle_01: frames observed on its bus in [3 s, 8 s) replayed from 15 s
+# Times on the SUMO timeline (s). Window = [start_s, start_s + duration_s).
+attacks:
+  - attack_id: A_REPLAY
+    type: replay
+    vehicle: vehicle_01
+    start_s: 15.0
+    params:
+      source_vehicle: vehicle_01
+      window_s: [3.0, 8.0]
+      can_ids: all
+      time_offset_ms: 0.25

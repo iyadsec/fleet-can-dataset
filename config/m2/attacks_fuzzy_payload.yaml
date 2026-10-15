@@ -1,0 +1,14 @@
+# Milestone 2, single-vehicle attack run 'fuzzy_payload' (vehicle_01 only, no campaigns).
+# Fuzzy vehicle_01: fixed CAN ID 0x120, random payloads
+# Times on the SUMO timeline (s). Window = [start_s, start_s + duration_s).
+attacks:
+  - attack_id: A_FUZZY_PAYLOAD
+    type: fuzzy
+    vehicle: vehicle_01
+    start_s: 10.0
+    duration_s: 5.0
+    params:
+      mode: payload
+      rate_hz: 1000
+      can_id: 0x120
+      dlc: 8

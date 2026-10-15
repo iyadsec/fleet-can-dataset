@@ -1,0 +1,14 @@
+# Milestone 2, single-vehicle attack run 'flood_over_sat' (vehicle_01 only, no campaigns).
+# Flooding vehicle_01, over-saturation (5000 frames/s, ~127% of bus)
+# Times on the SUMO timeline (s). Window = [start_s, start_s + duration_s).
+attacks:
+  - attack_id: A_FLOOD_OVER_SAT
+    type: flooding
+    vehicle: vehicle_01
+    start_s: 10.0
+    duration_s: 5.0
+    params:
+      can_id: 0x000
+      rate_hz: 5000
+      dlc: 8
+      payload: zeros

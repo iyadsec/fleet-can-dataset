@@ -65,7 +65,8 @@ def bus_statistics(cfg, buses, all_txs, all_drops, engine, sim_end_ns) -> dict:
     out = {"bin_ns": UTIL_BIN_NS, "channels": {}, "attack_windows": []}
     for ch, bus in buses.items():
         txs = all_txs[ch]
-        span_end = max([sim_end_ns] + [t.end_ns for t in txs])
+        last = max([sim_end_ns] + [t.end_ns for t in txs])
+        span_end = -(-last // UTIL_BIN_NS) * UTIL_BIN_NS      # whole bins only (no partial last bin)
         intervals = [(t.start_ns, t.end_ns) for t in txs]
         out["channels"][ch] = {
             "config": vars(bus.cfg), "transmitted": len(txs), "dropped": len(all_drops[ch]),
