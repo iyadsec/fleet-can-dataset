@@ -1,0 +1,9 @@
+# Milestone 5 final-protocol fleet: 3 vehicles, profiles A/B/C assigned by seeded balanced shuffle,
+# seeded ECU switch-on offsets uniform in [0, 1.0] s (range chosen from scripts/m5_phase_sensitivity.py).
+profiles_file: config/profiles/profiles_abc.yaml
+fleet:
+  channel_pattern: "vcan{index}"
+  count: 3
+  id_pattern: "vehicle_{n:02d}"
+  profile_assignment: {strategy: balanced_shuffle, profiles: [profile_A, profile_B, profile_C]}
+  switch_on: {range_s: [0.0, 1.0], resolution_s: 0.000001}
