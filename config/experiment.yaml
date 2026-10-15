@@ -13,6 +13,7 @@ simulation:
 
 can:
   transport: socketcan       # socketcan | (later: virtual, hardware, trace replay)
+  bus_model: logical         # logical: CAN timing/arbitration model before vCAN | ideal: no bus timing
   frame_format: classical    # 11-bit IDs, DLC 0..8
   capture_drain_s: 0.5       # keep capturing this long after the last frame is sent
 

@@ -98,9 +98,14 @@ def test_fmt_time_keeps_ns_precision():
 
 
 # --- recorder association -----------------------------------------------------------------------
-def _tx(t, cid, data, ch="vcan0", vid="vehicle_01"):
+from src.bus_model import BusTx                      # noqa: E402
+
+
+def _tx(t, cid, data, ch="vcan0", vid="vehicle_01", start=None, end=None):
     from src.can_generator import TxFrame
-    return TxRecord(TxFrame(t, vid, ch, cid, len(data), data, "M"), 0)
+    fr = TxFrame(t, vid, ch, cid, len(data), data, "M", node="ECM")
+    s = t if start is None else start
+    return TxRecord(BusTx(fr, "ECM", t, s, s if end is None else end, 47 + 8 * len(data)), 0)
 
 
 def _cap(cid, data, seq, ch="vcan0", ts=0):
@@ -118,16 +123,19 @@ def test_associate_matches_in_order_and_flags_problems():
     assert st.total["content_mismatch"] == 1 and st.total["missing"] == 1 and len(unexpected) == 1
 
 
-def test_rows_use_captured_content_and_sumo_time():
-    pairs, _, _ = associate({"vcan0": [_tx(10_000_000, 0x120, b"\xAB")]},
-                            {"vcan0": [_cap(0x120, b"\xAB", 0, ts=1_000_010_500_000)]}, {})
-    rows, labels = build_frame_rows(pairs, "S", "S0", anchor_wall_ns=1_000_000_000_000)
+def test_rows_keep_generation_transmission_and_capture_times_separate():
+    rec = _tx(10_000_000, 0x120, b"\xAB", start=10_300_000, end=10_400_000)
+    pairs, _, _ = associate({"vcan0": [rec]}, {"vcan0": [_cap(0x120, b"\xAB", 0, ts=1_000_010_900_000)]}, {})
+    rows, labels, uid_of = build_frame_rows(pairs, "S", "S0", anchor_wall_ns=1_000_000_000_000)
     r = rows[0]
-    assert r["timestamp"] == "0.010000000" and r["payload"] == "AB" and r["can_id"] == "0x120"
-    assert r["capture_offset_us"] == "500.0"
-    assert frame_label_rows(labels)[0]["frame_label"] == "benign"
+    assert r["timestamp"] == "0.010000000" and r["transmission_timestamp"] == "0.010400000"
+    assert r["queue_delay_us"] == "300.000" and r["capture_offset_us"] == "500.0"
+    assert r["payload"] == "AB" and r["can_id"] == "0x120"
+    assert frame_label_rows(labels, "S")[0]["frame_label"] == "benign"
 
 
-def test_ground_truth_rejects_unknown_sources():
+def test_ground_truth_rejects_inconsistent_provenance():
+    from src.can_generator import TxFrame
+    bad = TxFrame(0, "v", "vcan0", 1, 0, b"", "M", source="attack_injection")     # no attack_id
     with pytest.raises(ValueError):
-        frame_label_rows([{"frame_uid": "x", "session_id": "s", "frame_source": "attack_engine", "message_name": "M"}])
+        frame_label_rows([{"frame_uid": "x", "frame": bad}], "s")

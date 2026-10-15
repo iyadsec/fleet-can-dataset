@@ -34,7 +34,11 @@ class TxFrame:
     dlc: int
     data: bytes
     message: str
-    source: str = "benign_generator"     # provenance of the frame (attacks will use other values)
+    source: str = "benign_generator"     # provenance: benign_generator | attack_injection | attack_modification
+    node: str = ""                       # transmitting node on the vehicle bus (DBC sender or ATTACKER)
+    attack_id: str | None = None
+    attack_type: str | None = None
+    ref: dict | None = field(default=None, compare=False, hash=False)   # attack ground-truth details
 
 
 @lru_cache(maxsize=None)
@@ -99,6 +103,7 @@ class _Task:
     msg: object                 # cantools Message
     period_ns: int
     offset_ns: int
+    node: str
     next_due_ns: int | None = None
     counter: int = 0
 
@@ -129,7 +134,8 @@ class VehicleCanGenerator:
             missing = set(spec.signals) ^ {s.name for s in msg.signals}
             if missing:
                 raise ValueError(f"{spec.name}: profile/DBC signal mismatch {sorted(missing)}")
-            self.tasks.append(_Task(spec, msg, round(spec.period_ms * 1e6), round(spec.offset_ms * 1e6)))
+            node = msg.senders[0] if msg.senders else "ECU"
+            self.tasks.append(_Task(spec, msg, round(spec.period_ms * 1e6), round(spec.offset_ms * 1e6), node))
 
     def frames_for_step(self, state: VehicleState, step_ns: int) -> list[TxFrame]:
         """Frames due in [state.sim_time_ns, state.sim_time_ns + step_ns), in time order."""
@@ -149,7 +155,8 @@ class VehicleCanGenerator:
                     values[sig_name] = val
                 data = task.msg.encode(values, scaling=True, padding=False, strict=True)   # unused bits = 0
                 out.append(TxFrame(task.next_due_ns, self.vehicle_id, self.channel,
-                                   task.msg.frame_id, len(data), bytes(data), task.spec.name))
+                                   task.msg.frame_id, len(data), bytes(data), task.spec.name,
+                                   node=task.node))
                 task.counter = (task.counter + 1) % 16
                 task.next_due_ns += task.period_ns
         out.sort(key=lambda f: (f.sim_time_ns, f.can_id))

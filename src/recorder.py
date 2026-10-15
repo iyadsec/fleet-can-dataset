@@ -1,13 +1,16 @@
 """Dataset recorder: turn captured vCAN frames into synchronized dataset rows.
 
 A dataset row exists only for a frame that was actually captured on a vCAN interface. The ID,
-DLC and payload in the row are the CAPTURED values. Each captured frame is associated with
-the transmission record that produced it, which supplies its SUMO-timeline timestamp.
+DLC and payload in the row are the CAPTURED values. Each captured frame is associated with the
+transmission record that produced it, which supplies its times on the SUMO timeline:
+  timestamp / sim_time_ns        generation time (ECU task or attacker scheduled the frame)
+  transmission_timestamp / tx_*  modelled bus transmission (logical CAN bus timing model)
+  capture_time_ns                Linux kernel receive time on the vCAN capture socket
 
-Association rule: on one vCAN channel with a single sender, the kernel delivers frames in send
-order, so the k-th captured frame on channel c is the k-th frame sent on c. Every pair is
-checked for identical CAN ID and payload; any disagreement, missing or extra frame is counted
-and reported, never silently repaired.
+Association rule: frames are handed to a vCAN channel in modelled bus order, and the kernel
+delivers them in that order, so the k-th captured frame on channel c is the k-th frame sent on c.
+Every pair is checked for identical CAN ID and payload; any disagreement, missing or extra frame
+is counted and reported, never silently repaired.
 """
 
 from __future__ import annotations
@@ -17,13 +20,15 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .bus_model import BusDrop, BusTx
 from .can_bus import CapturedFrame
-from .can_generator import TxFrame
 
 FRAME_COLUMNS = [
-    "frame_uid", "session_id", "scenario_id", "timestamp", "sim_time_ns",
-    "capture_time_ns", "capture_offset_us", "vehicle_id", "channel",
-    "can_id", "dlc", "payload",
+    "frame_uid", "session_id", "scenario_id",
+    "timestamp", "sim_time_ns",
+    "transmission_timestamp", "tx_start_ns", "tx_end_ns", "queue_delay_us", "frame_bits",
+    "capture_time_ns", "capture_offset_us",
+    "vehicle_id", "channel", "can_id", "dlc", "payload",
 ]
 STATE_COLUMNS = [
     "session_id", "timestamp", "sim_time_ns", "vehicle_id", "speed_mps", "accel_mps2",
@@ -33,8 +38,12 @@ STATE_COLUMNS = [
 
 @dataclass
 class TxRecord:
-    frame: TxFrame
+    tx: BusTx
     tx_wall_ns: int
+
+    @property
+    def frame(self):
+        return self.tx.frame
 
 
 @dataclass
@@ -77,7 +86,7 @@ def fmt_time(ns: int) -> str:
 
 
 def associate(tx_log: dict[str, list[TxRecord]], captures: dict[str, list[CapturedFrame]],
-              send_errors: dict[str, int]) -> tuple[list[tuple[TxRecord, CapturedFrame]], list[CapturedFrame], MatchStats]:
+              send_errors: dict[str, int]):
     pairs, unexpected, stats = [], [], MatchStats()
     for ch in sorted(set(tx_log) | set(captures)):
         sent, got = tx_log.get(ch, []), captures.get(ch, [])
@@ -99,23 +108,25 @@ def associate(tx_log: dict[str, list[TxRecord]], captures: dict[str, list[Captur
 
 
 def build_frame_rows(pairs, session_id: str, scenario_id: str, anchor_wall_ns: int | None):
-    """Return (frame_rows, label_rows). Sorted by SUMO time, then vehicle, then CAN ID."""
-    pairs = sorted(pairs, key=lambda p: (p[0].frame.sim_time_ns, p[0].frame.vehicle_id, p[1].can_id))
-    frames, labels = [], []
+    """Return (frame_rows, label_seeds, uid_by_frame). Rows in modelled transmission order."""
+    pairs = sorted(pairs, key=lambda p: (p[0].tx.end_ns, p[0].frame.vehicle_id))
+    frames, labels, uid_of = [], [], {}
     for i, (rec, cap) in enumerate(pairs):
-        f = rec.frame
+        f, tx = rec.frame, rec.tx
         uid = f"{session_id}-F{i:09d}"
-        offset = "" if anchor_wall_ns is None else f"{(cap.capture_time_ns - (anchor_wall_ns + f.sim_time_ns)) / 1e3:.1f}"
+        uid_of[id(f)] = uid
+        offset = "" if anchor_wall_ns is None else f"{(cap.capture_time_ns - (anchor_wall_ns + tx.end_ns)) / 1e3:.1f}"
         frames.append({
             "frame_uid": uid, "session_id": session_id, "scenario_id": scenario_id,
             "timestamp": fmt_time(f.sim_time_ns), "sim_time_ns": f.sim_time_ns,
+            "transmission_timestamp": fmt_time(tx.end_ns), "tx_start_ns": tx.start_ns, "tx_end_ns": tx.end_ns,
+            "queue_delay_us": f"{tx.queue_delay_ns / 1e3:.3f}", "frame_bits": tx.bits,
             "capture_time_ns": cap.capture_time_ns, "capture_offset_us": offset,
             "vehicle_id": f.vehicle_id, "channel": cap.channel,
             "can_id": f"0x{cap.can_id:03X}", "dlc": cap.dlc, "payload": cap.data.hex().upper(),
         })
-        labels.append({"frame_uid": uid, "session_id": session_id, "frame_source": f.source,
-                       "message_name": f.message})
-    return frames, labels
+        labels.append({"frame_uid": uid, "frame": f})
+    return frames, labels, uid_of
 
 
 def build_state_rows(states, session_id: str) -> list[dict]:

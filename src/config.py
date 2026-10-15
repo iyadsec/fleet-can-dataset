@@ -8,6 +8,8 @@ from typing import Any
 
 import yaml
 
+from .bus_model import BusConfig
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
@@ -31,6 +33,7 @@ class VehicleProfile:
     powertrain: dict[str, Any]
     chassis: dict[str, Any]
     messages: tuple[MessageSpec, ...]
+    bus: BusConfig = BusConfig()
     description: str = ""
 
 
@@ -53,6 +56,7 @@ class ExperimentConfig:
     duration_s: float
     realtime: bool
     transport: str
+    bus_model: str               # logical (timing/arbitration model) | ideal (no bus timing)
     frame_format: str
     capture_drain_s: float
     output_root: Path
@@ -124,6 +128,7 @@ def _load_profiles(raw: dict, root: Path) -> dict[str, VehicleProfile]:
             powertrain=dict(p.get("powertrain", {})),
             chassis=dict(p.get("chassis", {})),
             messages=tuple(msgs),
+            bus=BusConfig(**{"bitrate": int(p.get("nominal_bitrate", 500000)), **(p.get("bus") or {})}),
             description=p.get("description", ""),
         )
     return profiles
@@ -158,6 +163,7 @@ def load_experiment(path: str | Path, root: Path = PROJECT_ROOT) -> ExperimentCo
         duration_s=float(sim["duration_s"]),
         realtime=bool(sim.get("realtime", True)),
         transport=str(can.get("transport", "socketcan")),
+        bus_model=str(can.get("bus_model", "logical")),
         frame_format=str(can.get("frame_format", "classical")),
         capture_drain_s=float(can.get("capture_drain_s", 0.5)),
         output_root=_resolve(out.get("root", "data"), root),
@@ -171,6 +177,8 @@ def load_experiment(path: str | Path, root: Path = PROJECT_ROOT) -> ExperimentCo
     )
     if cfg.step_length_s <= 0 or cfg.duration_s <= 0:
         raise ConfigError("step_length_s and duration_s must be > 0")
+    if cfg.bus_model not in ("logical", "ideal"):
+        raise ConfigError("can.bus_model must be 'logical' or 'ideal'")
     if cfg.frame_format != "classical":
         raise ConfigError("only classical CAN is supported")
     for prof in profiles.values():

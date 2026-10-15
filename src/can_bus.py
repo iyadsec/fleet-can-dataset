@@ -7,7 +7,8 @@ ground-truth code.
 
 What vCAN does: delivers frames between sockets on the same virtual interface via the Linux
 kernel, with kernel receive timestamps. What vCAN does NOT do: bit timing, bitrate limits,
-arbitration, error frames, ACK, electrical behaviour. See docs/timing_model.md.
+arbitration, error frames, ACK, electrical behaviour. Bus timing is therefore supplied by
+src/bus_model.py before frames reach vCAN. See docs/timing_model.md.
 """
 
 from __future__ import annotations
@@ -34,8 +35,8 @@ class CapturedFrame:
 
 class CanTransport(ABC):
     @abstractmethod
-    def send(self, channel: str, can_id: int, data: bytes) -> int:
-        """Send one frame. Return host wall time (ns) just after the send call."""
+    def send(self, channel: str, can_id: int, data: bytes, node: str = "ecu") -> int:
+        """Send one frame from a node ("ecu" or "attacker"). Return host wall time (ns) after the call."""
 
     @abstractmethod
     def close(self) -> None: ...
@@ -50,15 +51,25 @@ class CanCapture(ABC):
 
 
 class SocketCanTransport(CanTransport):
+    """One sending socket per (channel, node): ECU traffic and attacker traffic leave the host
+    from different sockets, like separate nodes on the bus. Bus timing comes from the logical
+    bus model; frames are handed to vCAN already in modelled bus order."""
+
     def __init__(self, channels: list[str]):
-        self.buses = {ch: can.Bus(interface="socketcan", channel=ch, receive_own_messages=False)
-                      for ch in channels}
+        self.channels = channels
+        self.buses: dict[tuple[str, str], can.BusABC] = {}
         self.errors: dict[str, int] = {ch: 0 for ch in channels}
 
-    def send(self, channel: str, can_id: int, data: bytes) -> int:
+    def _bus(self, channel: str, node: str):
+        key = (channel, node)
+        if key not in self.buses:
+            self.buses[key] = can.Bus(interface="socketcan", channel=channel, receive_own_messages=False)
+        return self.buses[key]
+
+    def send(self, channel: str, can_id: int, data: bytes, node: str = "ecu") -> int:
         msg = can.Message(arbitration_id=can_id, data=data, is_extended_id=False)
         try:
-            self.buses[channel].send(msg, timeout=0.1)
+            self._bus(channel, node).send(msg, timeout=0.1)
         except can.CanError:
             self.errors[channel] += 1
             raise

@@ -1,39 +1,44 @@
-"""Experiment orchestrator (Milestone 1: benign fleet).
+"""Experiment orchestrator.
 
-Pipeline per SUMO step k (time t_k on the SUMO timeline):
-  SUMO --TraCI--> VehicleState(t_k) --CAN generator--> frames due in [t_k, t_k + step)
-       --SocketCAN send (paced to SUMO time if realtime)--> vcanN --independent capture socket-->
-       captured frame --recorder--> dataset row (timestamp = SUMO time of the frame)
+Pipeline per SUMO step k (window [t_k, t_k + step) on the SUMO timeline):
+  SUMO --TraCI--> VehicleState(t_k) --CAN generator--> benign frames (generation times)
+       --attack engine--> + injected / modified frames (attack ground truth attached)
+       --logical CAN bus model (per vehicle)--> modelled transmission start/end, queueing, drops
+       --SocketCAN send at modelled end time (paced to SUMO time if realtime)--> vcanN
+       --independent capture socket--> captured frame --recorder--> dataset row
 
-Usage: python -m src.orchestrator --config config/experiment.yaml
+Usage: python -m src.orchestrator --config config/experiment.yaml [--duration S]
 """
 
 from __future__ import annotations
 
 import argparse
 import time
+from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
 
 import can
+import numpy as np
 
-from . import ground_truth, recorder
+from . import ground_truth, recorder, validator
 from .attack_engine import build_attacks
+from .bus_model import CanBusModel, utilization_bins
 from .campaign_scheduler import build_schedule
 from .can_bus import make_transport
 from .can_generator import VehicleCanGenerator
 from .config import ExperimentConfig, load_experiment
 from .metadata import build_metadata, snapshot_configs, write_json
 from .sumo_controller import SumoController
-from . import validator
+
+UTIL_BIN_NS = 100_000_000          # 100 ms utilization bins
 
 
 def check_channels(channels: list[str]) -> None:
     bad = []
     for ch in channels:
-        state = Path(f"/sys/class/net/{ch}/operstate")
         flags = Path(f"/sys/class/net/{ch}/flags")
-        if not state.exists() or not (int(flags.read_text(), 16) & 0x1):   # IFF_UP
+        if not flags.exists() or not (int(flags.read_text(), 16) & 0x1):   # IFF_UP
             bad.append(ch)
     if bad:
         raise SystemExit(f"vCAN interfaces missing or down: {bad}. Run: sudo scripts/setup_vcan.sh {len(channels)}")
@@ -48,9 +53,54 @@ def _wait_until(target_perf_ns: int) -> None:
             time.sleep((d - 2_000_000) / 1e9)
 
 
+def _q(values) -> dict:
+    v = np.asarray(values, dtype=float)
+    if v.size == 0:
+        return {"n": 0}
+    return {"n": int(v.size), "mean": float(v.mean()), "p50": float(np.percentile(v, 50)),
+            "p99": float(np.percentile(v, 99)), "max": float(v.max())}
+
+
+def bus_statistics(cfg, buses, all_txs, all_drops, engine, sim_end_ns) -> dict:
+    out = {"bin_ns": UTIL_BIN_NS, "channels": {}, "attack_windows": []}
+    for ch, bus in buses.items():
+        txs = all_txs[ch]
+        span_end = max([sim_end_ns] + [t.end_ns for t in txs])
+        intervals = [(t.start_ns, t.end_ns) for t in txs]
+        out["channels"][ch] = {
+            "config": vars(bus.cfg), "transmitted": len(txs), "dropped": len(all_drops[ch]),
+            "busy_ns": sum(e - s for s, e in intervals), "span_ns": span_end,
+            "utilization_overall": sum(e - s for s, e in intervals) / span_end if span_end else 0.0,
+            "utilization_bins": utilization_bins(intervals, 0, span_end, UTIL_BIN_NS),
+            "queue_delay_us_benign": _q([t.queue_delay_ns / 1e3 for t in txs if not t.frame.attack_id]),
+            "queue_delay_us_attack": _q([t.queue_delay_ns / 1e3 for t in txs if t.frame.attack_id]),
+            "max_queue_len": bus.stats.max_queue_len, "same_id_contention": bus.stats.same_id_contention,
+        }
+    for a in engine.attacks:
+        ch, s, e = a.channel, a.start_ns, a.end_ns
+        txs, drops = all_txs[ch], all_drops[ch]
+
+        def window(lo, hi):
+            iv = [(t.start_ns, t.end_ns) for t in txs]
+            busy = sum(max(0, min(t1, hi) - max(t0, lo)) for t0, t1 in iv)
+            ben_tx = [t for t in txs if not t.frame.attack_id and lo <= t.ready_ns < hi]
+            ben_drop = [d for d in drops if not d.frame.attack_id and lo <= d.ready_ns < hi]
+            return {"start_ns": lo, "end_ns": hi, "utilization": busy / (hi - lo),
+                    "benign_generated": len(ben_tx) + len(ben_drop), "benign_transmitted": len(ben_tx),
+                    "benign_dropped": len(ben_drop),
+                    "benign_queue_delay_us": _q([t.queue_delay_ns / 1e3 for t in ben_tx])}
+
+        base_lo = max(0, s - (e - s))
+        out["attack_windows"].append({"attack_id": a.attack_id, "channel": ch,
+                                      "baseline": window(base_lo, s) if s > base_lo else None,
+                                      "during": window(s, e)})
+    return out
+
+
 def run(cfg: ExperimentConfig, session_id: str | None = None, validate: bool = True) -> tuple[str, str]:
-    build_attacks(cfg.attacks)          # raises if attacks configured (not in Milestone 1)
-    build_schedule(cfg.campaigns, cfg.seed)
+    profiles_by_vehicle = {a.vehicle_id: cfg.profiles[a.profile] for a in cfg.fleet}
+    engine = build_attacks(cfg.attacks, cfg.fleet, profiles_by_vehicle, cfg.seed)
+    build_schedule(cfg.campaigns, cfg.seed)                 # raises if campaigns configured
 
     wall_start = datetime.now(timezone.utc)
     session_id = session_id or f"{cfg.experiment_id}_{wall_start:%Y%m%dT%H%M%SZ}"
@@ -58,7 +108,11 @@ def run(cfg: ExperimentConfig, session_id: str | None = None, validate: bool = T
     check_channels(channels)
 
     gens = {a.vehicle_id: VehicleCanGenerator(a.vehicle_id, a.channel, cfg.profiles[a.profile]) for a in cfg.fleet}
+    buses = {a.channel: CanBusModel(replace(cfg.profiles[a.profile].bus, enabled=cfg.bus_model == "logical"), a.channel)
+             for a in cfg.fleet}
     tx_log: dict[str, list[recorder.TxRecord]] = {ch: [] for ch in channels}
+    all_txs = {ch: [] for ch in channels}
+    all_drops = {ch: [] for ch in channels}
     send_errors = {ch: 0 for ch in channels}
     states_all = []
 
@@ -66,33 +120,61 @@ def run(cfg: ExperimentConfig, session_id: str | None = None, validate: bool = T
     capture.start()
     time.sleep(0.2)                                  # listeners ready before first frame
 
+    def send(txs):
+        for tx in txs:
+            if cfg.realtime:
+                _wait_until(anchor_perf_ns + tx.end_ns)
+            try:
+                tx_ns = transport.send(tx.frame.channel, tx.frame.can_id, tx.frame.data,
+                                       node="attacker" if tx.node == "ATTACKER" else "ecu")
+            except can.CanError:
+                send_errors[tx.frame.channel] += 1    # counted and reported, never retried silently
+                continue
+            tx_log[tx.frame.channel].append(recorder.TxRecord(tx, tx_ns))
+
+    def advance(t_end):
+        txs = []
+        for ch, bus in buses.items():
+            t, d = bus.advance_until(t_end) if t_end is not None else bus.drain()
+            all_txs[ch].extend(t)
+            all_drops[ch].extend(d)
+            txs.extend(t)
+        engine.observe(txs)
+        return txs
+
     sumo = SumoController(str(cfg.sumo_config), cfg.step_length_s, cfg.seed)
     sumo.start()
     anchor_wall_ns, anchor_perf_ns = time.time_ns(), time.perf_counter_ns()   # SUMO t=0 <-> wall clock
-    print(f"[{session_id}] SUMO {sumo.version}; running {cfg.duration_s:.1f} s simulated "
-          f"({'real-time' if cfg.realtime else 'as fast as possible'}), vehicles -> {dict((a.vehicle_id, a.channel) for a in cfg.fleet)}")
+    print(f"[{session_id}] SUMO {sumo.version}; {cfg.duration_s:.1f} s simulated "
+          f"({'real-time' if cfg.realtime else 'as fast as possible'}), bus model={cfg.bus_model}, "
+          f"attacks={[a.attack_id for a in engine.attacks]}, vehicles -> {dict((a.vehicle_id, a.channel) for a in cfg.fleet)}")
+    held = []                                        # modelled frames not yet due for sending
     try:
         while sumo.sim_time_ns < cfg.duration_ns:
             states = sumo.step()
             states_all.extend(states)
+            t0, t1 = sumo.sim_time_ns, sumo.sim_time_ns + cfg.step_ns
             frames = []
             for s in states:
                 if s.vehicle_id not in gens:
                     raise RuntimeError(f"SUMO vehicle {s.vehicle_id} has no fleet configuration")
                 frames.extend(gens[s.vehicle_id].frames_for_step(s, cfg.step_ns))
-            frames.sort(key=lambda fr: (fr.sim_time_ns, fr.vehicle_id, fr.can_id))
+            frames = engine.process(frames, t0, t1, {s.vehicle_id for s in states})
             for fr in frames:
-                if cfg.realtime:
-                    _wait_until(anchor_perf_ns + fr.sim_time_ns)
-                try:
-                    tx_ns = transport.send(fr.channel, fr.can_id, fr.data)
-                except can.CanError:
-                    send_errors[fr.channel] += 1      # counted and reported, never retried silently
-                    continue
-                tx_log[fr.channel].append(recorder.TxRecord(fr, tx_ns))
+                buses[fr.channel].submit(fr, fr.node)
+            held.extend(advance(t1))
+            # Send, in modelled time order, every frame that ends before t1. Later frames wait so
+            # frames of the next step on another bus can still be interleaved correctly.
+            held.sort(key=lambda x: (x.end_ns, x.frame.vehicle_id))
+            due = [x for x in held if x.end_ns < t1]
+            held = held[len(due):]
+            send(due)
             if sumo.vehicles_remaining() == 0:
                 break
         sim_end_ns = sumo.sim_time_ns
+        held.extend(advance(None))                   # drain queues: frames generated before the end
+        held.sort(key=lambda x: (x.end_ns, x.frame.vehicle_id))
+        send(held)
     finally:
         sumo.close()
         captures = capture.stop(cfg.capture_drain_s)
@@ -100,33 +182,44 @@ def run(cfg: ExperimentConfig, session_id: str | None = None, validate: bool = T
     wall_end = datetime.now(timezone.utc)
 
     # --- record -----------------------------------------------------------------------------
+    drops = [d for ch in channels for d in all_drops[ch]]
     pairs, unexpected, stats = recorder.associate(tx_log, captures, send_errors)
-    frame_rows, label_seed = recorder.build_frame_rows(pairs, session_id, cfg.scenario_id,
-                                                       anchor_wall_ns if cfg.realtime else None)
+    frame_rows, label_seeds, uid_of = recorder.build_frame_rows(pairs, session_id, cfg.scenario_id,
+                                                                anchor_wall_ns if cfg.realtime else None)
+    attack_detail, replay_map = ground_truth.attack_frame_rows(pairs, uid_of)
     w = recorder.make_writer(cfg.output_format)
     root = cfg.output_root
-    w.write(root / "raw" / session_id / "can_frames", recorder.FRAME_COLUMNS, frame_rows)
-    w.write(root / "raw" / session_id / "vehicle_states", recorder.STATE_COLUMNS,
-            recorder.build_state_rows(states_all, session_id))
-    w.write(root / "raw" / session_id / "unmatched_captures",
-            ["channel", "capture_time_ns", "can_id", "dlc", "payload", "seq"],
+    raw, gt, md = root / "raw" / session_id, root / "ground_truth" / session_id, root / "metadata" / session_id
+    w.write(raw / "can_frames", recorder.FRAME_COLUMNS, frame_rows)
+    w.write(raw / "vehicle_states", recorder.STATE_COLUMNS, recorder.build_state_rows(states_all, session_id))
+    w.write(raw / "unmatched_captures", ["channel", "capture_time_ns", "can_id", "dlc", "payload", "seq"],
             [{"channel": c.channel, "capture_time_ns": c.capture_time_ns, "can_id": f"0x{c.can_id:03X}",
               "dlc": c.dlc, "payload": c.data.hex().upper(), "seq": c.seq} for c in unexpected])
-    w.write(root / "ground_truth" / session_id / "frame_labels", ground_truth.LABEL_COLUMNS,
-            ground_truth.frame_label_rows(label_seed))
-    w.write(root / "ground_truth" / session_id / "campaigns", ground_truth.CAMPAIGN_COLUMNS,
+    w.write(gt / "frame_labels", ground_truth.LABEL_COLUMNS, ground_truth.frame_label_rows(label_seeds, session_id))
+    w.write(gt / "dropped_frames", ground_truth.DROP_COLUMNS, ground_truth.dropped_rows(drops, session_id))
+    w.write(gt / "attacks", ground_truth.ATTACK_COLUMNS,
+            ground_truth.attack_rows(engine, pairs, drops, cfg.scenario_id, session_id))
+    w.write(gt / "attack_frames", ground_truth.ATTACK_FRAME_COLUMNS, attack_detail)
+    w.write(gt / "replay_map", ground_truth.REPLAY_COLUMNS, replay_map)
+    w.write(gt / "campaigns", ground_truth.CAMPAIGN_COLUMNS,
             ground_truth.campaign_rows(cfg.campaigns, cfg.scenario_id, session_id))
 
-    hashes = snapshot_configs(cfg, root / "metadata" / session_id / "config_snapshot")
+    bstats = bus_statistics(cfg, buses, all_txs, all_drops, engine, sim_end_ns)
+    write_json(bstats, md / "bus_stats.json")
+    hashes = snapshot_configs(cfg, md / "config_snapshot")
     run_info = {
         "sumo_version": sumo.version, "sumo_command": sumo.cmd, "sim_start_ns": 0, "sim_end_ns": sim_end_ns,
         "steps": sumo.step_index, "anchor_wall_ns": anchor_wall_ns if cfg.realtime else None,
         "wall_start_utc": wall_start.isoformat(), "wall_end_utc": wall_end.isoformat(),
         "match_stats": {"per_channel": stats.per_channel, "total": stats.total},
+        "bus_totals": {ch: {"generated": len(all_txs[ch]) + len(all_drops[ch]), "transmitted": len(all_txs[ch]),
+                            "dropped": len(all_drops[ch])} for ch in channels},
         "model_stats": {"values_clamped_to_dbc_range": {v: g.clamped for v, g in gens.items()}},
+        "attacks": engine.describe(),
     }
-    write_json(build_metadata(cfg, session_id, run_info, hashes), root / "metadata" / session_id / "metadata.json")
-    print(f"[{session_id}] transport: {stats.total}")
+    write_json(build_metadata(cfg, session_id, run_info, hashes), md / "metadata.json")
+    print(f"[{session_id}] transport: {stats.total}; bus dropped: {len(drops)}; "
+          + ", ".join(f"{ch} util={v['utilization_overall']:.3f}" for ch, v in bstats["channels"].items()))
 
     overall = "SKIPPED"
     if validate:
@@ -142,7 +235,7 @@ def run(cfg: ExperimentConfig, session_id: str | None = None, validate: bool = T
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--config", default="config/experiment.yaml")
-    ap.add_argument("--duration", type=float, help="override simulation.duration_s")
+    ap.add_argument("--duration", type=float, help="override simulation.duration_s (recorded in metadata)")
     ap.add_argument("--no-validate", action="store_true")
     a = ap.parse_args(argv)
     cfg = load_experiment(a.config)

@@ -5,7 +5,12 @@ profiles:
   model_A:
     description: "Generic synthetic passenger car (Milestone 1 common profile)"
     dbc: dbc/generic_vehicle.dbc
-    nominal_bitrate: 500000          # recorded as metadata only: vCAN does not emulate bitrate
+    nominal_bitrate: 500000          # bit rate used by the logical bus timing model (vCAN itself has none)
+    bus:                             # logical CAN bus timing/arbitration model (src/bus_model.py)
+      stuffing: exact                # exact | worst_case | none
+      queue_limit: 32                # frames waiting per transmitting node (ECU / attacker)
+      drop_policy: drop_newest       # drop_newest | drop_oldest when a node queue is full
+      node_queue_order: priority     # priority (lowest ID first) | fifo
     powertrain:
       idle_rpm: 800
       wheel_radius_m: 0.31
