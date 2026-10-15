@@ -1,31 +1,64 @@
-"""Compare the deterministic content of two sessions (e.g. a Milestone 2 run and its re-run on newer code).
+"""Compare the deterministic (logical) content of two sessions, e.g. real-time vs fast mode, CSV vs Parquet,
+or a re-run on newer code. Session ids, frame uids and capture/wall-clock times are excluded because they
+legitimately differ; everything else must be identical.
 
-Compared: per frame (vehicle, generation ns, CAN ID, payload, modelled tx_start/tx_end, label, attack_id)
-and per drop (vehicle, generation ns, CAN ID, payload, reason). Capture times are host-dependent and ignored.
-Usage: .venv/bin/python scripts/compare_sessions.py <session_a> <session_b> [--data data]
+Compared: raw frames (vehicle, generation/transmission times, queue delay, bits, ID, DLC, payload),
+SUMO vehicle states, every ground-truth table, and (if both exist) descriptors (24 features + timestamps).
+Usage: .venv/bin/python scripts/compare_sessions.py <session_a> <session_b> [--data data] [--frames-only]
 """
 
 import argparse
 import sys
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src import storage  # noqa: E402
-FRAME_KEY = ["vehicle_id", "sim_time_ns", "can_id", "payload", "tx_start_ns", "tx_end_ns", "frame_label", "attack_id"]
-DROP_KEY = ["vehicle_id", "sim_time_ns", "can_id", "payload", "reason"]
+
+LOGICAL_FRAME = ["vehicle_id", "sim_time_ns", "tx_start_ns", "tx_end_ns", "queue_delay_us", "frame_bits",
+                 "can_id", "dlc", "payload", "timestamp", "transmission_timestamp"]
+GT_TABLES = ["frame_labels", "dropped_frames", "attacks", "attack_frames", "replay_map", "campaigns",
+             "campaign_membership", "campaign_overlap"]
+VOLATILE = {"session_id", "frame_uid", "replay_frame_uid", "original_frame_uid"}
 
 
-def frames(data, sid):
-    f = storage.read_table(data / "raw" / sid / "can_frames")
-    lab = storage.read_table(data / "ground_truth" / sid / "frame_labels")
-    return f.merge(lab, on=["frame_uid", "session_id"])[FRAME_KEY].sort_values(FRAME_KEY).reset_index(drop=True)
+def _norm(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.drop(columns=[c for c in df.columns if c in VOLATILE])
+    return df.sort_values(list(df.columns)).reset_index(drop=True)
 
 
-def drops(data, sid):
-    d = storage.read_table(data / "ground_truth" / sid / "dropped_frames")
-    return d[DROP_KEY].sort_values(DROP_KEY).reset_index(drop=True)
+def logical_tables(data: Path, sid: str, frames_only: bool = False) -> dict[str, pd.DataFrame]:
+    out = {"can_frames": _norm(storage.read_table(data / "raw" / sid / "can_frames")[LOGICAL_FRAME])}
+    if frames_only:
+        out["dropped_frames"] = _norm(storage.read_table(data / "ground_truth" / sid / "dropped_frames"))
+        return out
+    out["vehicle_states"] = _norm(storage.read_table(data / "raw" / sid / "vehicle_states"))
+    for t in GT_TABLES:
+        if storage.exists(data / "ground_truth" / sid / t):
+            out[t] = _norm(storage.read_table(data / "ground_truth" / sid / t))
+    return out
+
+
+def compare(data: Path, a: str, b: str, frames_only: bool = False) -> dict[str, str]:
+    ta, tb = logical_tables(data, a, frames_only), logical_tables(data, b, frames_only)
+    res = {}
+    for k in sorted(set(ta) | set(tb)):
+        if k not in ta or k not in tb:
+            res[k] = "MISSING"
+            continue
+        res[k] = f"IDENTICAL ({len(ta[k])} rows)" if ta[k].equals(tb[k]) else f"DIFFERENT ({len(ta[k])} vs {len(tb[k])})"
+    da, db = data / "analysis" / a / "descriptors", data / "analysis" / b / "descriptors"
+    if storage.exists(da) and storage.exists(db):
+        from analysis.descriptor_schema import FEATURE_COLUMNS
+        xa, xb = storage.read_table(da, as_str=False), storage.read_table(db, as_str=False)
+        same_ts = list(xa.descriptor_timestamp_ns) == list(xb.descriptor_timestamp_ns) and \
+            list(xa.window_start_ns) == list(xb.window_start_ns)
+        diff = np.abs(xa[FEATURE_COLUMNS].to_numpy(float) - xb[FEATURE_COLUMNS].to_numpy(float)).max() if len(xa) == len(xb) else np.inf
+        res["descriptors"] = (f"IDENTICAL ({len(xa)} descriptors, max |feature diff| = {diff:.3g})"
+                              if same_ts and diff <= 1e-12 else f"DIFFERENT (max diff {diff}, timestamps equal={same_ts})")
+    return res
 
 
 def main():
@@ -33,17 +66,12 @@ def main():
     ap.add_argument("a")
     ap.add_argument("b")
     ap.add_argument("--data", default="data")
+    ap.add_argument("--frames-only", action="store_true", help="frames + drops only (e.g. sessions from older schemas)")
     a = ap.parse_args()
-    data = Path(a.data)
-    fa, fb = frames(data, a.a), frames(data, a.b)
-    da, db = drops(data, a.a), drops(data, a.b)
-    same_f, same_d = fa.equals(fb), da.equals(db)
-    print(f"frames: {len(fa)} vs {len(fb)} -> {'IDENTICAL' if same_f else 'DIFFERENT'}")
-    print(f"drops : {len(da)} vs {len(db)} -> {'IDENTICAL' if same_d else 'DIFFERENT'}")
-    if not same_f and len(fa) == len(fb):
-        diff = (fa != fb).any(axis=1)
-        print("first differing frame rows:\n", pd.concat([fa[diff].head(3), fb[diff].head(3)]))
-    sys.exit(0 if same_f and same_d else 1)
+    res = compare(Path(a.data), a.a, a.b, a.frames_only)
+    for k, v in res.items():
+        print(f"{k:22s} {v}")
+    sys.exit(0 if all(v.startswith("IDENTICAL") for v in res.values()) else 1)
 
 
 if __name__ == "__main__":

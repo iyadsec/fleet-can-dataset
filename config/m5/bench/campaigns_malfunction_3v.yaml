@@ -1,0 +1,11 @@
+# Milestone 5 benchmark campaigns (heterogeneous fleet; malfunction uses the vehicle_speed role).
+campaigns:
+  - campaign_id: CB4
+    attack_type: malfunction
+    coordinated: true
+    targets: [vehicle_01, vehicle_02, vehicle_03]
+    start_s: 10.0
+    delay_pattern: fixed
+    relative_delays_s: [0.0, 2.0, 4.0]
+    duration_s: 5.0
+    params: {mode: inject, target: vehicle_speed, manipulation: {strategy: constant, value: 250.0}, rate_hz: 100}

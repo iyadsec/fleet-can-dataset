@@ -1,0 +1,9 @@
+# Milestone 5 benchmark campaigns (heterogeneous fleet; malfunction uses the vehicle_speed role).
+campaigns:
+  - campaign_id: CB1
+    attack_type: replay
+    coordinated: true
+    targets: [vehicle_01, vehicle_02, vehicle_03]
+    start_s: 10.0
+    delay_pattern: simultaneous
+    params: {window_relative_s: [-5.0, 0.0], source_vehicle: self, time_offset_ms: 0.25}

@@ -83,37 +83,41 @@ def alignment(data: Path, prefix: str) -> pd.DataFrame:
 
 
 def delay_summary(data: Path, prefix: str = "M4_DELAY_") -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Per run and per configured delay: observed delays of vehicle_02 relative to vehicle_01."""
+    """Per run and per configured delay: observed delays of the second member relative to the first.
+    Errors = observed delay - configured delay (seconds)."""
+    import json
     rows = []
     for d in sorted((data / "analysis").glob(f"{prefix}*")):
         if not storage.exists(d / "temporal_alignment"):
             continue
         a = storage.read_table(d / "temporal_alignment", as_str=False)
-        p = d / "temporal_alignment"
-        ref = a[a.configured_delay_s == 0].iloc[0]
-        v2 = a[a.vehicle_id != ref.vehicle_id]
-        v2 = v2.iloc[0] if len(v2) else a[a.vehicle_id == "vehicle_02"].iloc[0]
-        rep = int(p.parent.name.split("_R")[1].split("_")[0])
+        meta = json.loads((data / "metadata" / d.name / "metadata.json").read_text())
+        prof = {v["vehicle_id"]: v["profile"].replace("profile_", "") for v in meta["fleet"]["vehicles"]}
+        ref = a.sort_values("configured_delay_s").iloc[0]
+        v2 = a[a.vehicle_id != ref.vehicle_id].iloc[0]
+        rep = int(d.name.split("_R")[1].split("_")[0])
         rows.append({"configured_delay_s": v2.configured_delay_s, "rep": rep,
+                     "profiles": f"{prof[ref.vehicle_id]}->{prof[v2.vehicle_id]}",
                      "first_malicious_frame_delay_s": v2.first_malicious_frame_delay_s,
                      "first_attack_descriptor_delay_s": v2.first_attack_descriptor_delay_s,
-                     "first_majority_descriptor_delay_s": v2.first_majority_descriptor_delay_s,
-                     "lag_v1_attack_desc_s": a[a.vehicle_id == "vehicle_01"].first_attack_descriptor_lag_s.iloc[0],
-                     "lag_v2_attack_desc_s": a[a.vehicle_id == "vehicle_02"].first_attack_descriptor_lag_s.iloc[0],
-                     "lag_v1_majority_desc_s": a[a.vehicle_id == "vehicle_01"].first_majority_descriptor_lag_s.iloc[0],
-                     "lag_v2_majority_desc_s": a[a.vehicle_id == "vehicle_02"].first_majority_descriptor_lag_s.iloc[0]})
+                     "first_majority_descriptor_delay_s": v2.first_majority_descriptor_delay_s})
     runs = pd.DataFrame(rows).sort_values(["configured_delay_s", "rep"])
+    runs["frame_error_s"] = runs.first_malicious_frame_delay_s - runs.configured_delay_s
     runs["attack_desc_error_s"] = runs.first_attack_descriptor_delay_s - runs.configured_delay_s
     runs["majority_desc_error_s"] = runs.first_majority_descriptor_delay_s - runs.configured_delay_s
-    agg = runs.groupby("configured_delay_s").agg(
-        reps=("rep", "count"),
-        frame_delay_min=("first_malicious_frame_delay_s", "min"), frame_delay_max=("first_malicious_frame_delay_s", "max"),
-        attack_desc_delay_min=("first_attack_descriptor_delay_s", "min"), attack_desc_delay_max=("first_attack_descriptor_delay_s", "max"),
-        majority_desc_delay_min=("first_majority_descriptor_delay_s", "min"), majority_desc_delay_max=("first_majority_descriptor_delay_s", "max"),
-        max_abs_attack_desc_error=("attack_desc_error_s", lambda x: x.abs().max()),
-        max_abs_majority_desc_error=("majority_desc_error_s", lambda x: x.abs().max()),
-        lag_attack_desc_max=("lag_v2_attack_desc_s", "max"), lag_majority_desc_max=("lag_v2_majority_desc_s", "max")).reset_index()
-    return runs, agg
+    stats = []
+    for dly, g in runs.groupby("configured_delay_s"):
+        r = {"configured_delay_s": dly, "reps": len(g)}
+        for key in ("frame", "attack_desc", "majority_desc"):
+            e = g[f"{key}_error_s"]
+            r[f"{key}_err_mean"] = e.mean()
+            r[f"{key}_err_median"] = e.median()
+            r[f"{key}_abs_err_p95"] = float(np.percentile(e.abs(), 95))
+            r[f"{key}_abs_err_max"] = e.abs().max()
+        r["majority_desc_delay_min"] = g.first_majority_descriptor_delay_s.min()
+        r["majority_desc_delay_max"] = g.first_majority_descriptor_delay_s.max()
+        stats.append(r)
+    return runs, pd.DataFrame(stats)
 
 
 def window_timing(data: Path, prefix: str = "M3_S0") -> pd.DataFrame:
@@ -133,18 +137,20 @@ def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--data", default=str(PROJECT_ROOT / "data"))
     ap.add_argument("--prefix", default="M3_S")
-    ap.add_argument("--delay", action="store_true", help="temporal-resolution summary of M4_DELAY_* sessions")
+    ap.add_argument("--delay", action="store_true", help="temporal-resolution summary of delay sessions")
+    ap.add_argument("--delay-prefix", default="M4_DELAY_")
     a = ap.parse_args(argv)
     data = Path(a.data)
     if a.delay:
-        runs, agg = delay_summary(data)
+        runs, agg = delay_summary(data, a.delay_prefix)
         fmt = lambda d: d.apply(lambda c: c.map(lambda x: f"{x:.4f}" if isinstance(x, float) else x))
         print("## Delay experiment: per run (vehicle_02 relative to vehicle_01, seconds)\n")
         print(table(fmt(runs)), "\n")
         print("## Delay experiment: per configured delay\n")
         print(table(fmt(agg)), "\n")
-        print("## Time covered by one window / stride\n")
-        print(table(window_timing(data)), "\n")
+        if a.delay_prefix.startswith("M4"):
+            print("## Time covered by one window / stride\n")
+            print(table(window_timing(data)), "\n")
         return
     df = load(data, a.prefix)
     print(f"## Behavioural sanity check ({a.prefix}*: {len(df)} descriptors; median [IQR])\n")

@@ -1,0 +1,11 @@
+# Milestone 5 benchmark campaigns (heterogeneous fleet; malfunction uses the vehicle_speed role).
+campaigns:
+  - campaign_id: CB2
+    attack_type: flooding
+    coordinated: true
+    targets: [vehicle_01, vehicle_02, vehicle_03]
+    start_s: 10.0
+    delay_pattern: fixed
+    relative_delays_s: [0.0, 0.5, 1.0]
+    duration_s: 5.0
+    params: {can_id: 0x000, rate_hz: 1600, dlc: 8, payload: zeros}

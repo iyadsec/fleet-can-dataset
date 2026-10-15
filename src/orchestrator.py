@@ -273,14 +273,19 @@ def main(argv=None) -> int:
     ap.add_argument("--duration", type=float, help="override simulation.duration_s (recorded in metadata)")
     ap.add_argument("--no-validate", action="store_true")
     ap.add_argument("--fast", action="store_true", help="faster than real time (overrides simulation.realtime)")
+    ap.add_argument("--realtime", action="store_true", help="force real-time pacing (overrides simulation.realtime)")
     ap.add_argument("--storage", choices=["csv", "parquet"], help="override storage.format")
     ap.add_argument("--session-id", help="explicit session id (default: <experiment_id>_<UTC start>)")
     a = ap.parse_args(argv)
     cfg = load_experiment(a.config)
     if a.duration:
         cfg.duration_s = a.duration
+    if a.fast and a.realtime:
+        ap.error("--fast and --realtime are mutually exclusive")
     if a.fast:
         cfg.realtime = False
+    if a.realtime:
+        cfg.realtime = True
     if a.storage:
         cfg.output_format = a.storage
     _, overall = run(cfg, session_id=a.session_id, validate=not a.no_validate)
