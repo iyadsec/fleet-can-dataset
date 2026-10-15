@@ -22,7 +22,7 @@ import can
 import numpy as np
 
 from . import ground_truth, recorder, validator
-from .attack_engine import build_attacks
+from .attack_engine import build_attacks, resolve_semantic_targets
 from .bus_model import CanBusModel, utilization_bins
 from .campaign_scheduler import attack_configs, build_schedule, check_scenario, describe
 from .can_bus import make_transport
@@ -108,7 +108,7 @@ def run(cfg: ExperimentConfig, session_id: str | None = None, validate: bool = T
     problems = check_scenario(cfg.scenario_id, cfg.attacks, campaigns)
     if problems:
         raise SystemExit(f"scenario {cfg.scenario_id} inconsistent with configuration: {problems}")
-    all_attacks = list(cfg.attacks) + attack_configs(campaigns)
+    all_attacks = resolve_semantic_targets(list(cfg.attacks) + attack_configs(campaigns), profiles_by_vehicle)
     engine = build_attacks(all_attacks, cfg.fleet, profiles_by_vehicle, cfg.seed,
                            campaign_ids={c.campaign_id for c in campaigns})
 
@@ -117,7 +117,8 @@ def run(cfg: ExperimentConfig, session_id: str | None = None, validate: bool = T
     channels = [a.channel for a in cfg.fleet]
     check_channels(channels)
 
-    gens = {a.vehicle_id: VehicleCanGenerator(a.vehicle_id, a.channel, cfg.profiles[a.profile]) for a in cfg.fleet}
+    gens = {a.vehicle_id: VehicleCanGenerator(a.vehicle_id, a.channel, cfg.profiles[a.profile], a.switch_on_ns)
+            for a in cfg.fleet}
     buses = {a.channel: CanBusModel(replace(cfg.profiles[a.profile].bus, enabled=cfg.bus_model == "logical"), a.channel)
              for a in cfg.fleet}
     tx_log: dict[str, list[recorder.TxRecord]] = {ch: [] for ch in channels}
@@ -158,6 +159,19 @@ def run(cfg: ExperimentConfig, session_id: str | None = None, validate: bool = T
     print(f"[{session_id}] SUMO {sumo.version}; {cfg.duration_s:.1f} s simulated "
           f"({'real-time' if cfg.realtime else 'as fast as possible'}), bus model={cfg.bus_model}, "
           f"campaigns={[c.campaign_id for c in campaigns]}, attacks={[a.attack_id for a in engine.attacks]}, vehicles -> {dict((a.vehicle_id, a.channel) for a in cfg.fleet)}")
+    flow_timeouts = 0
+
+    def wait_for_capture(timeout_s: float = 5.0) -> None:
+        """Fast mode only: let every capture socket catch up before sending more. Logical results
+        never depend on this; it only prevents kernel receive-buffer overflow (lost captures)."""
+        nonlocal flow_timeouts
+        deadline = time.perf_counter() + timeout_s
+        while any(capture.captured(ch) < len(tx_log[ch]) for ch in channels):
+            if time.perf_counter() > deadline:
+                flow_timeouts += 1
+                return
+            time.sleep(0.0002)
+
     held = []                                        # modelled frames not yet due for sending
     try:
         while sumo.sim_time_ns < cfg.duration_ns:
@@ -179,6 +193,8 @@ def run(cfg: ExperimentConfig, session_id: str | None = None, validate: bool = T
             due = [x for x in held if x.end_ns < t1]
             held = held[len(due):]
             send(due)
+            if not cfg.realtime:
+                wait_for_capture()
             if sumo.vehicles_remaining() == 0:
                 break
         sim_end_ns = sumo.sim_time_ns
@@ -232,6 +248,8 @@ def run(cfg: ExperimentConfig, session_id: str | None = None, validate: bool = T
         "attack_configuration": all_attacks,
         "campaign_schedule": describe(campaigns),
         "model_stats": {"values_clamped_to_dbc_range": {v: g.clamped for v, g in gens.items()}},
+        "execution": {"mode": "realtime" if cfg.realtime else "fast", "flow_control_timeouts": flow_timeouts,
+                      "wall_seconds": round((wall_end - wall_start).total_seconds(), 3)},
         "attacks": engine.describe(),
     }
     write_json(build_metadata(cfg, session_id, run_info, hashes), md / "metadata.json")
@@ -254,11 +272,18 @@ def main(argv=None) -> int:
     ap.add_argument("--config", default="config/experiment.yaml")
     ap.add_argument("--duration", type=float, help="override simulation.duration_s (recorded in metadata)")
     ap.add_argument("--no-validate", action="store_true")
+    ap.add_argument("--fast", action="store_true", help="faster than real time (overrides simulation.realtime)")
+    ap.add_argument("--storage", choices=["csv", "parquet"], help="override storage.format")
+    ap.add_argument("--session-id", help="explicit session id (default: <experiment_id>_<UTC start>)")
     a = ap.parse_args(argv)
     cfg = load_experiment(a.config)
     if a.duration:
         cfg.duration_s = a.duration
-    _, overall = run(cfg, validate=not a.no_validate)
+    if a.fast:
+        cfg.realtime = False
+    if a.storage:
+        cfg.output_format = a.storage
+    _, overall = run(cfg, session_id=a.session_id, validate=not a.no_validate)
     return 0 if overall in ("PASS", "SKIPPED") else 1
 
 

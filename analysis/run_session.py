@@ -20,19 +20,21 @@ from .descriptor_extractor import PROJECT_ROOT, build_descriptors, load_observat
 from .descriptor_validator import validate_session
 from .labels import build_labels
 from .temporal_alignment import campaign_alignment
+from src import storage
 
 
 def analyse(session_id: str, data: Path) -> dict:
     out = data / "analysis" / session_id
     out.mkdir(parents=True, exist_ok=True)
+    fmt = storage.table_format(data / "raw" / session_id / "can_frames")   # same format as the raw session
     obs = load_observations(data / "raw" / session_id)
     desc = build_descriptors(obs)                                   # step 1: no ground truth available here
-    desc.to_csv(out / "descriptors.csv", index=False)
+    storage.write_frame(out / "descriptors", desc, fmt)
     labels = build_labels(desc, data, session_id)                   # step 2: evaluation join
-    labels.to_csv(out / "descriptor_labels.csv", index=False)
+    storage.write_frame(out / "descriptor_labels", labels, fmt)
     align = campaign_alignment(data, session_id, desc, labels)
     if len(align):
-        align.to_csv(out / "temporal_alignment.csv", index=False)
+        storage.write_frame(out / "temporal_alignment", align, fmt)
     checks = validate_session(data, session_id, desc, labels)
     overall = "FAIL" if any(c["status"] == "FAIL" for c in checks) else "PASS"
     (out / "descriptor_validation.json").write_text(json.dumps({"session_id": session_id, "overall": overall,

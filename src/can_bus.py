@@ -107,6 +107,9 @@ class SocketCanCapture(CanCapture):
             t.start()
             self._threads.append(t)
 
+    def captured(self, channel: str) -> int:
+        return len(self.frames[channel])
+
     def stop(self, drain_s: float) -> dict[str, list[CapturedFrame]]:
         time.sleep(drain_s)
         self._stop.set()

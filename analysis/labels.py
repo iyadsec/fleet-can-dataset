@@ -16,16 +16,15 @@ import pandas as pd
 
 from .descriptor_extractor import load_observations, window_frame_uids
 from .descriptor_schema import LABEL_COLUMNS
-
-LIT = dict(keep_default_na=False, na_filter=False, dtype=str)
+from src import storage
 
 
 def build_labels(descriptors: pd.DataFrame, data: Path, session_id: str) -> pd.DataFrame:
     gt = data / "ground_truth" / session_id
-    lab = pd.read_csv(gt / "frame_labels.csv", **LIT).set_index("frame_uid")
+    lab = storage.read_table(gt / "frame_labels").set_index("frame_uid")
     obs = load_observations(data / "raw" / session_id)
     tx_end = dict(zip(obs.frame_uid, obs.tx_end_ns.astype("int64")))
-    scenario = pd.read_csv(data / "raw" / session_id / "can_frames.csv", usecols=["scenario_id"], nrows=1, **LIT).scenario_id[0]
+    scenario = storage.read_table(data / "raw" / session_id / "can_frames", columns=["scenario_id"], nrows=1).scenario_id.iloc[0]
     basis = descriptors.time_basis.iloc[0] if len(descriptors) else "transmission"
     members = window_frame_uids(obs, basis)
     rows = []
@@ -44,6 +43,6 @@ def build_labels(descriptors: pd.DataFrame, data: Path, session_id: str) -> pd.D
             "attack_ids": ";".join(attacks) or "None", "campaign_ids": ";".join(camps) or "None",
             "attack_types": ";".join(sorted(set(mal.attack_type))) or "None",
             "n_attacks": len(attacks), "n_campaigns": len(camps),
-            "first_malicious_time_ns": min(tx_end[u] for u in mal.index) if k else "",
+            "first_malicious_time_ns": str(min(tx_end[u] for u in mal.index)) if k else "",   # text: Parquet-safe
             "scenario_id": scenario})
     return pd.DataFrame(rows, columns=LABEL_COLUMNS)

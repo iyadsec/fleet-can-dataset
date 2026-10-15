@@ -30,6 +30,7 @@ import pandas as pd
 from .descriptor_schema import (DESCRIPTOR_COLUMNS, FEATURE_COLUMNS, OBSERVATION_COLUMNS, PROHIBITED_FIELDS,
                                 TIME_FIELDS, WINDOW_SIZE, WINDOW_STRIDE)
 from .windowing import traces, window_starts
+from src import storage
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -45,10 +46,11 @@ def assert_no_ground_truth(df: pd.DataFrame) -> None:
 
 
 def load_observations(session_dir: Path) -> pd.DataFrame:
-    """Read only the observable columns of a session's raw CAN frames."""
-    return pd.read_csv(session_dir / "can_frames.csv", usecols=OBSERVATION_COLUMNS,
-                       dtype={"payload": str, "can_id": str, "session_id": str, "vehicle_id": str, "frame_uid": str},
-                       keep_default_na=False, na_filter=False)
+    """Read only the observable columns of a session's raw CAN frames (CSV or Parquet)."""
+    obs = storage.read_table(session_dir / "can_frames", columns=OBSERVATION_COLUMNS)[OBSERVATION_COLUMNS]
+    for c in ("tx_end_ns", "capture_time_ns", "dlc"):       # numeric: times must sort numerically
+        obs[c] = obs[c].astype("int64")
+    return obs
 
 
 def payload_bytes(payload: pd.Series, dlc: np.ndarray) -> np.ndarray:
@@ -151,8 +153,7 @@ def run(session_id: str, data: Path, out_root: Path, time_basis: str = "transmis
     desc = build_descriptors(obs, time_basis, time_offset(data, session_id, time_basis))
     out = out_root / session_id
     out.mkdir(parents=True, exist_ok=True)
-    desc.to_csv(out / "descriptors.csv", index=False)
-    return out / "descriptors.csv"
+    return storage.write_frame(out / "descriptors", desc, storage.table_format(data / "raw" / session_id / "can_frames"))
 
 
 def main(argv=None):

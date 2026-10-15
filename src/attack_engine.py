@@ -174,7 +174,9 @@ class Malfunction(Attack):
             self.sig = self.msg.get_signal_by_name(p["signal"])
         except KeyError as e:
             raise AttackConfigError(f"{self.attack_id}: {e} not in DBC") from e
-        if self.sig.name == "Counter":
+        spec_msg = next(m for m in prof.messages if m.name == self.msg.name)
+        self.counter_sig = next((s for s, q in spec_msg.signals.items() if q == "counter"), None)
+        if self.sig.name == self.counter_sig:
             raise AttackConfigError("manipulating the counter is not a semantic malfunction")
         self.manip = dict(p["manipulation"])
         if self.manip.get("strategy") not in ("constant", "offset", "scale", "ramp"):
@@ -206,8 +208,8 @@ class Malfunction(Attack):
         expected = float(values[self.sig.name])
         bad = self.malicious_value(t, expected)
         values[self.sig.name] = bad
-        if counter is not None and "Counter" in values:
-            values["Counter"] = counter
+        if counter is not None and self.counter_sig:
+            values[self.counter_sig] = counter
         data = bytes(self.msg.encode(values, scaling=True, padding=False, strict=True))
         actual = float(self.msg.decode(data, decode_choices=False)[self.sig.name])   # after DBC quantisation
         return data, expected, actual
@@ -220,8 +222,10 @@ class Malfunction(Attack):
             last = ctx.last_benign(self.vehicle_id, self.msg.frame_id, t)
             if last is None:
                 continue                                   # nothing legitimate observed yet
-            ctr = (self.msg.decode(last.data, decode_choices=False).get("Counter", 0) + 1) % 16
-            data, expected, actual = self._forge(last.data, t, int(ctr))
+            ctr = None
+            if self.counter_sig:                         # this profile's rolling counter, if the message has one
+                ctr = (int(self.msg.decode(last.data, decode_choices=False)[self.counter_sig]) + 1) % 16
+            data, expected, actual = self._forge(last.data, t, ctr)
             out.append(self._tag(t, self.msg.frame_id, data, self.msg.name, {
                 "message": self.msg.name, "signal": self.sig.name, "expected_value": expected,
                 "malicious_value": actual, "reference_payload": last.data.hex().upper(),
@@ -383,6 +387,36 @@ class AttackEngine:
                  "requested_rate_hz": a.requested_rate_hz, "generated": a.generated,
                  "skipped_inactive": a.skipped_inactive, "params": a.params_json}
                 for a in self.attacks]
+
+
+def resolve_semantic_targets(attack_cfgs: list[dict], profiles_by_vehicle: dict) -> list[dict]:
+    """Resolve profile-independent targets to each vehicle's own CAN encoding.
+
+    params.target: <role> (vehicle_speed, engine_rpm, accelerator, brake, steering)
+      malfunction -> params.message / params.signal of that vehicle's profile
+      fuzzy (mode payload) -> params.can_id of the role's message in that profile
+    Campaign members therefore share the semantic target, not the bytes or CAN ID.
+    """
+    import copy
+    out = []
+    for c in attack_cfgs:
+        c = copy.deepcopy(c)
+        p = c.setdefault("params", {})
+        role = p.get("target")
+        if role:
+            prof = profiles_by_vehicle[c["vehicle"]]
+            if role not in prof.roles:
+                raise AttackConfigError(f"{c['attack_id']}: profile {prof.name} has no role {role}")
+            msg, sig = prof.roles[role]
+            if c["type"] == "malfunction":
+                p["message"], p["signal"] = msg, sig
+            elif c["type"] == "fuzzy" and p.get("mode") == "payload":
+                p["can_id"] = load_dbc(prof.dbc).get_message_by_name(msg).frame_id
+            else:
+                raise AttackConfigError(f"{c['attack_id']}: params.target applies to malfunction or fuzzy payload mode")
+            p["resolved_for_profile"] = prof.name
+        out.append(c)
+    return out
 
 
 def build_attacks(attack_configs, fleet=None, profiles_by_vehicle=None, seed=0, campaign_ids=None) -> AttackEngine:

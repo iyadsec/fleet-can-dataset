@@ -133,7 +133,7 @@ def test_heterogeneous_example_profiles_generate_decodable_frames():
     from src.can_generator import VehicleCanGenerator, load_dbc
     from src.config import ExperimentConfig, _load_profiles, PROJECT_ROOT
     from src.sumo_controller import VehicleState
-    raw = yaml.safe_load(open(PROJECT_ROOT / "config/m4/heterogeneity/vehicles_heterogeneous_example.yaml"))
+    raw = yaml.safe_load(open(PROJECT_ROOT / "config/profiles/profiles_abc.yaml"))
     profiles = _load_profiles(raw["profiles"], PROJECT_ROOT)
     assert set(profiles) == {"profile_A", "profile_B", "profile_C"}
     summary = {}

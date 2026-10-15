@@ -1,0 +1,18 @@
+# Test campaigns over a heterogeneous fleet: semantic targets resolve per profile.
+campaigns:
+  - campaign_id: CT1
+    attack_type: malfunction
+    coordinated: true
+    targets: [vehicle_01, vehicle_02]
+    start_s: 1.5
+    delay_pattern: fixed
+    relative_delays_s: [0.0, 0.5]
+    duration_s: 1.0
+    params: {mode: inject, target: vehicle_speed, manipulation: {strategy: constant, value: 250.0}, rate_hz: 100}
+  - campaign_id: CT2
+    attack_type: replay
+    coordinated: false
+    targets: [vehicle_03]
+    start_s: 2.0
+    delay_pattern: simultaneous
+    params: {window_relative_s: [-1.0, 0.0], source_vehicle: self, time_offset_ms: 0.25}

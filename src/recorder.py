@@ -15,11 +15,11 @@ is counted and reported, never silently repaired.
 
 from __future__ import annotations
 
-import csv
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from . import storage
 from .bus_model import BusDrop, BusTx
 from .can_bus import CapturedFrame
 
@@ -61,23 +61,20 @@ class TableWriter(ABC):
     def write(self, path: Path, columns: list[str], rows: list[dict]) -> Path: ...
 
 
-class CsvTableWriter(TableWriter):
+class StorageTableWriter(TableWriter):
+    """CSV or Parquet via src/storage.py; `path` is the table base path without suffix."""
+
+    def __init__(self, fmt: str):
+        self.fmt = fmt
+
     def write(self, path: Path, columns: list[str], rows: list[dict]) -> Path:
-        path = path.with_suffix(".csv")
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "w", newline="") as fh:
-            w = csv.DictWriter(fh, fieldnames=columns, extrasaction="raise")
-            w.writeheader()
-            w.writerows(rows)
-        return path
+        return storage.write_table(path, columns, rows, self.fmt)
 
 
 def make_writer(fmt: str) -> TableWriter:
-    if fmt == "csv":
-        return CsvTableWriter()
-    if fmt == "parquet":
-        raise NotImplementedError("parquet writer planned; add pyarrow and a ParquetTableWriter")
-    raise ValueError(f"unknown output format {fmt}")
+    if fmt not in storage.FORMATS:
+        raise ValueError(f"unknown storage format {fmt}")
+    return StorageTableWriter(fmt)
 
 
 def fmt_time(ns: int) -> str:

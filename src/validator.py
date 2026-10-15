@@ -18,6 +18,7 @@ import numpy as np
 import pandas as pd
 
 from .bus_model import frame_bits, utilization_bins
+from . import storage
 from .config import PROJECT_ROOT
 from .campaign_scheduler import build_schedule, check_scenario, pair_overlaps
 from .ground_truth import (ATTACK_COLUMNS, ATTACK_FRAME_COLUMNS, CAMPAIGN_COLUMNS, DROP_COLUMNS,
@@ -25,7 +26,8 @@ from .ground_truth import (ATTACK_COLUMNS, ATTACK_FRAME_COLUMNS, CAMPAIGN_COLUMN
 from .metadata import sha256
 from .recorder import FRAME_COLUMNS, STATE_COLUMNS, fmt_time
 
-REQUIRED_METADATA = ["experiment_id", "session_id", "scenario_id", "random_seed",
+REQUIRED_METADATA = ["versions.schema_version", "versions.generator_version", "versions.dataset_version",
+                     "experiment_id", "session_id", "scenario_id", "random_seed",
                      "simulation.sumo_version", "simulation.step_length_ns", "simulation.sim_start_ns",
                      "simulation.sim_end_ns", "software.python", "software.packages", "fleet.vehicle_count",
                      "fleet.profiles", "time_base.master_clock", "config_sha256", "can.bus_model"]
@@ -61,13 +63,14 @@ def _get(d, dotted):
 
 
 def session_paths(data: Path, sid: str) -> dict[str, Path]:
+    """Tables are base paths without suffix (CSV or Parquet, see src/storage.py)."""
     raw, gt, md = data / "raw" / sid, data / "ground_truth" / sid, data / "metadata" / sid
-    return {"frames": raw / "can_frames.csv", "states": raw / "vehicle_states.csv",
-            "unmatched": raw / "unmatched_captures.csv", "labels": gt / "frame_labels.csv",
-            "drops": gt / "dropped_frames.csv", "attacks": gt / "attacks.csv",
-            "attack_frames": gt / "attack_frames.csv", "replay": gt / "replay_map.csv",
-            "campaigns": gt / "campaigns.csv", "membership": gt / "campaign_membership.csv",
-            "overlap": gt / "campaign_overlap.csv", "metadata": md / "metadata.json",
+    return {"frames": raw / "can_frames", "states": raw / "vehicle_states",
+            "unmatched": raw / "unmatched_captures", "labels": gt / "frame_labels",
+            "drops": gt / "dropped_frames", "attacks": gt / "attacks",
+            "attack_frames": gt / "attack_frames", "replay": gt / "replay_map",
+            "campaigns": gt / "campaigns", "membership": gt / "campaign_membership",
+            "overlap": gt / "campaign_overlap", "metadata": md / "metadata.json",
             "bus_stats": md / "bus_stats.json", "snapshot": md / "config_snapshot",
             "out_dir": data / "validation" / sid}
 
@@ -95,26 +98,22 @@ def validate(sid: str, data: Path) -> Report:
     p = session_paths(data, sid)
     need = ["frames", "states", "unmatched", "labels", "drops", "attacks", "attack_frames", "replay",
             "campaigns", "membership", "overlap", "metadata", "bus_stats"]
-    missing = [k for k in need if not p[k].exists()]
+    missing = [k for k in need if not (p[k].exists() if k in ("metadata", "bus_stats") else storage.exists(p[k]))]
     r.ok("V01", "required files exist", not missing, "all present", f"missing: {missing}")
     if missing:
         return r
 
     meta = json.loads(p["metadata"].read_text())
     bstats = json.loads(p["bus_stats"].read_text())
-    f = pd.read_csv(p["frames"], dtype=str, **LIT)
+    rd = storage.read_table                                        # identical text for CSV and Parquet
+    f = rd(p["frames"])
     for c in ("sim_time_ns", "tx_start_ns", "tx_end_ns", "frame_bits", "capture_time_ns", "dlc"):
         f[c] = f[c].astype("int64")
-    st = pd.read_csv(p["states"], dtype={"timestamp": str, "vehicle_id": str}, **LIT)
-    lab = pd.read_csv(p["labels"], dtype=str, **LIT)
-    drops = pd.read_csv(p["drops"], dtype=str, **LIT)
-    att = pd.read_csv(p["attacks"], dtype=str, **LIT)
-    afr = pd.read_csv(p["attack_frames"], dtype=str, **LIT)
-    rep = pd.read_csv(p["replay"], dtype=str, **LIT)
-    camp = pd.read_csv(p["campaigns"], dtype=str, **LIT)
-    memb = pd.read_csv(p["membership"], dtype=str, **LIT)
-    ovl = pd.read_csv(p["overlap"], dtype=str, **LIT)
-    unm = pd.read_csv(p["unmatched"], dtype=str, **LIT)
+    st = rd(p["states"])
+    st["sim_time_ns"] = st.sim_time_ns.astype("int64")
+    st["speed_mps"] = st.speed_mps.astype(float)
+    lab, drops, att, afr, rep = rd(p["labels"]), rd(p["drops"]), rd(p["attacks"]), rd(p["attack_frames"]), rd(p["replay"])
+    camp, memb, ovl, unm = rd(p["campaigns"]), rd(p["membership"]), rd(p["overlap"]), rd(p["unmatched"])
     fleet = {v["vehicle_id"]: v for v in meta["fleet"]["vehicles"]}
     profiles = meta["fleet"]["profiles"]
     step_ns = meta["simulation"]["step_length_ns"]
@@ -133,7 +132,7 @@ def validate(sid: str, data: Path) -> Report:
         return next(m for m in prof["messages"] if m["name"] == name)
 
     # ======================= structure ==========================================================
-    schemas = {"frames": (pd.read_csv(p["frames"], nrows=0).columns, FRAME_COLUMNS),
+    schemas = {"frames": (storage.read_columns(p["frames"]), FRAME_COLUMNS),
                "labels": (lab.columns, LABEL_COLUMNS), "drops": (drops.columns, DROP_COLUMNS),
                "attacks": (att.columns, ATTACK_COLUMNS), "attack_frames": (afr.columns, ATTACK_FRAME_COLUMNS),
                "replay_map": (rep.columns, REPLAY_COLUMNS), "campaigns": (camp.columns, CAMPAIGN_COLUMNS),
@@ -180,10 +179,10 @@ def validate(sid: str, data: Path) -> Report:
     align_err, period_viol = [], 0
     for (v, cid), g in gen_all.groupby(["vehicle_id", "can_id"]):
         spec = msg_spec(v, cid)
-        if g.sim_time_ns.min() != first_state[v] + round(spec["offset_ms"] * 1e6):
+        if g.sim_time_ns.min() != first_state[v] + int(fleet[v].get("switch_on_ns", 0)) + round(spec["offset_ms"] * 1e6):
             align_err.append(f"{v}/{cid}")
         period_viol += int((g.sim_time_ns.sort_values().diff().dropna() != round(spec["period_ms"] * 1e6)).sum())
-    r.ok("V10", "ECU frames and SUMO states share one timeline (first generation = first SUMO state + offset)",
+    r.ok("V10", "ECU frames and SUMO states share one timeline (first generation = first SUMO state + switch-on + offset)",
          not align_err, "all vehicle/message streams aligned", f"misaligned: {align_err}")
 
     mono_tx = all(g.tx_start_ns.is_monotonic_increasing and g.capture_time_ns.is_monotonic_increasing
@@ -273,7 +272,11 @@ def validate(sid: str, data: Path) -> Report:
                          ecu_drops[["vehicle_id", "can_id", "sim_time_ns", "payload", "frame_source"]]]) \
         if len(ecu_drops) else ecu[["vehicle_id", "can_id", "sim_time_ns", "payload", "frame_source"]]
     for (v, cid), g in streams.sort_values("sim_time_ns").groupby(["vehicle_id", "can_id"]):
-        msg = _dbc(profiles[fleet[v]["profile"]]["dbc"]).get_message_by_frame_id(int(cid, 16))
+        prof = profiles[fleet[v]["profile"]]
+        msg = _dbc(prof["dbc"]).get_message_by_frame_id(int(cid, 16))
+        spec = next(m for m in prof["messages"] if m["name"] == msg.name)
+        ctr_sig = next((s for s, q in spec["signals"].items() if q == "counter"), None)
+        speed_role = (prof.get("roles") or {}).get("vehicle_speed") or ["VEHICLE_SPEED", "VehicleSpeed"]
         ctr = []
         for t_ns, pl, src in zip(g.sim_time_ns, g.payload, g.frame_source):
             try:
@@ -281,9 +284,10 @@ def validate(sid: str, data: Path) -> Report:
             except Exception:
                 dec_err += 1
                 continue
-            ctr.append(int(d.get("Counter", 0)))
-            if msg.name == "VEHICLE_SPEED" and src == "benign_generator":
-                speed.append((v, t_ns, d["VehicleSpeed"]))
+            if ctr_sig:
+                ctr.append(int(d[ctr_sig]))
+            if msg.name == speed_role[0] and src == "benign_generator":
+                speed.append((v, t_ns, d[speed_role[1]]))
         ctr_err += int(sum((b - a) % 16 != 1 for a, b in zip(ctr, ctr[1:])))
     r.ok("V16", "every ECU payload decodes with the vehicle DBC; rolling counters continuous (incl. dropped)",
          dec_err == 0 and ctr_err == 0, f"{len(streams)} ECU frames", f"decode errors={dec_err}, counter gaps={ctr_err}")
@@ -292,8 +296,11 @@ def validate(sid: str, data: Path) -> Report:
         m = pd.merge_asof(ds, st[["vehicle_id", "sim_time_ns", "speed_mps"]].sort_values("sim_time_ns"),
                           on="sim_time_ns", by="vehicle_id", direction="backward")
         err = (m.can_kmh - m.speed_mps * 3.6).abs()
-        tol = 0.01 + 0.0002 * 3.6
-        r.ok("V17", "decoded benign VehicleSpeed equals SUMO speed (sample-and-hold)", bool((err <= tol).all()),
+        res = max(_dbc(p["dbc"]).get_message_by_name(((p.get("roles") or {}).get("vehicle_speed") or ["VEHICLE_SPEED", "VehicleSpeed"])[0])
+                  .get_signal_by_name(((p.get("roles") or {}).get("vehicle_speed") or ["VEHICLE_SPEED", "VehicleSpeed"])[1]).scale
+                  for p in {fleet[v]["profile"]: profiles[fleet[v]["profile"]] for v in fleet}.values())
+        tol = res + 0.0002 * 3.6                 # coarsest DBC speed resolution in the fleet + state rounding
+        r.ok("V17", "decoded benign vehicle speed (role vehicle_speed) equals SUMO speed (sample-and-hold)", bool((err <= tol).all()),
              f"max |error| = {err.max():.4f} km/h over {len(m)} frames", f"{int((err > tol).sum())} frames exceed {tol:.4f}")
 
     # ======================= labels / ground truth ================================================
@@ -331,6 +338,11 @@ def validate(sid: str, data: Path) -> Report:
     seeds_ok = (not attack_cfg) or (att.attack_seed.str.fullmatch(r"\d+").all() and len(att) == len(attack_cfg))
     r.ok("V23", "required metadata present; experiment and per-attack seeds saved", not absent and seeds_ok,
          f"seed={meta.get('random_seed')}, SUMO {meta['simulation']['sumo_version']}", f"missing: {absent}, seeds_ok={seeds_ok}")
+    from .version import SCHEMA_VERSION
+    r.ok("V27", f"schema version matches this validator ({SCHEMA_VERSION})",
+         _get(meta, "versions.schema_version") == SCHEMA_VERSION,
+         f"schema {SCHEMA_VERSION}, generator {_get(meta, 'versions.generator_version')}, dataset {_get(meta, 'versions.dataset_version')}",
+         f"session schema {_get(meta, 'versions.schema_version')} is not {SCHEMA_VERSION}: validate with the matching code version")
     snap_bad = [n for n, h in meta["config_sha256"].items()
                 if not (p["snapshot"] / n).exists() or sha256(p["snapshot"] / n) != h]
     r.ok("V24", "configuration snapshot saved and hashes match", not snap_bad, f"{len(meta['config_sha256'])} files", f"bad: {snap_bad}")

@@ -17,6 +17,7 @@ import numpy as np
 import pandas as pd
 
 from .descriptor_extractor import PROJECT_ROOT
+from src import storage
 
 LIT = dict(keep_default_na=False, na_filter=False)
 SANITY = ["message_rate_hz", "mean_inter_arrival_time", "burstiness", "can_id_entropy", "unique_can_id_count",
@@ -32,10 +33,10 @@ def table(df: pd.DataFrame) -> str:
 def load(data: Path, prefix: str) -> pd.DataFrame:
     parts = []
     for d in sorted((data / "analysis").glob(f"{prefix}*")):
-        if not (d / "descriptors.csv").exists():
+        if not storage.exists(d / "descriptors"):
             continue
-        desc = pd.read_csv(d / "descriptors.csv")
-        lab = pd.read_csv(d / "descriptor_labels.csv", **LIT, dtype=str)
+        desc = storage.read_table(d / "descriptors", as_str=False)
+        lab = storage.read_table(d / "descriptor_labels")
         parts.append(desc.merge(lab[["descriptor_id", "window_class", "malicious_frame_ratio", "attack_types",
                                      "campaign_ids", "scenario_id"]], on="descriptor_id"))
     df = pd.concat(parts, ignore_index=True)
@@ -66,7 +67,8 @@ def sanity(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def alignment(data: Path, prefix: str) -> pd.DataFrame:
-    parts = [pd.read_csv(p) for p in sorted((data / "analysis").glob(f"{prefix}*/temporal_alignment.csv"))]
+    parts = [storage.read_table(d / "temporal_alignment", as_str=False) for d in sorted((data / "analysis").glob(f"{prefix}*"))
+             if storage.exists(d / "temporal_alignment")]
     if not parts:
         return pd.DataFrame()
     a = pd.concat(parts, ignore_index=True)
@@ -83,8 +85,11 @@ def alignment(data: Path, prefix: str) -> pd.DataFrame:
 def delay_summary(data: Path, prefix: str = "M4_DELAY_") -> tuple[pd.DataFrame, pd.DataFrame]:
     """Per run and per configured delay: observed delays of vehicle_02 relative to vehicle_01."""
     rows = []
-    for p in sorted((data / "analysis").glob(f"{prefix}*/temporal_alignment.csv")):
-        a = pd.read_csv(p)
+    for d in sorted((data / "analysis").glob(f"{prefix}*")):
+        if not storage.exists(d / "temporal_alignment"):
+            continue
+        a = storage.read_table(d / "temporal_alignment", as_str=False)
+        p = d / "temporal_alignment"
         ref = a[a.configured_delay_s == 0].iloc[0]
         v2 = a[a.vehicle_id != ref.vehicle_id]
         v2 = v2.iloc[0] if len(v2) else a[a.vehicle_id == "vehicle_02"].iloc[0]

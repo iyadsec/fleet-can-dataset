@@ -1,0 +1,8 @@
+# Test fleet: 3 vehicles, seeded balanced A/B/C assignment, seeded switch-on offsets.
+profiles_file: config/profiles/profiles_abc.yaml
+fleet:
+  channel_pattern: "vcan{index}"
+  count: 3
+  id_pattern: "vehicle_{n:02d}"
+  profile_assignment: {strategy: balanced_shuffle, profiles: [profile_A, profile_B, profile_C]}
+  switch_on: {range_s: [0.0, 0.5], resolution_s: 0.000001}

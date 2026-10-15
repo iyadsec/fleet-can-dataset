@@ -12,9 +12,10 @@ from importlib import metadata as im
 from pathlib import Path
 
 from .config import PROJECT_ROOT, ExperimentConfig
+from .version import DESCRIPTOR_VERSION, GENERATOR_VERSION, SCHEMA_VERSION
 
 TRACKED_PACKAGES = ["eclipse-sumo", "traci", "sumolib", "python-can", "cantools",
-                    "pandas", "numpy", "PyYAML", "pytest"]
+                    "pandas", "numpy", "PyYAML", "pytest", "pyarrow"]
 
 
 def sha256(path: Path) -> str:
@@ -63,6 +64,11 @@ def build_metadata(cfg: ExperimentConfig, session_id: str, run: dict, config_has
         "session_id": session_id,
         "scenario_id": cfg.scenario_id,
         "description": cfg.description,
+        "versions": {"schema_version": SCHEMA_VERSION, "generator_version": GENERATOR_VERSION,
+                     "descriptor_version": DESCRIPTOR_VERSION, "dataset_version": cfg.dataset_version},
+        "tags": cfg.tags,
+        "storage": {"format": cfg.output_format,
+                    "parquet_compression": "zstd" if cfg.output_format == "parquet" else None},
         "random_seed": cfg.seed,
         "seed_usage": "SUMO --seed (driver imperfection); each attack: numpy Generator seeded from (seed, crc32(attack_id)), recorded in attacks.csv",
         "data_provenance": {
@@ -87,6 +93,7 @@ def build_metadata(cfg: ExperimentConfig, session_id: str, run: dict, config_has
             "sim_end_ns": run["sim_end_ns"],
             "steps": run["steps"],
             "realtime_pacing": cfg.realtime,
+            "execution": run["execution"],
         },
         "time_base": {
             "master_clock": "SUMO simulation time",
@@ -100,13 +107,15 @@ def build_metadata(cfg: ExperimentConfig, session_id: str, run: dict, config_has
         },
         "fleet": {
             "vehicle_count": len(cfg.fleet),
-            "vehicles": [{"vehicle_id": a.vehicle_id, "profile": a.profile, "channel": a.channel}
-                         for a in cfg.fleet],
+            "vehicles": [{"vehicle_id": a.vehicle_id, "profile": a.profile, "channel": a.channel,
+                          "switch_on_ns": a.switch_on_ns} for a in cfg.fleet],
+            "assignment": cfg.fleet_info,
             "profiles": {n: {"description": p.description, "dbc": str(p.dbc.relative_to(PROJECT_ROOT)),
                              "dbc_sha256": sha256(p.dbc), "nominal_bitrate": p.nominal_bitrate,
                              "bus": vars(p.bus),
                              "messages": [vars(m) for m in p.messages],
-                             "powertrain": p.powertrain, "chassis": p.chassis}
+                             "powertrain": p.powertrain, "chassis": p.chassis,
+                             "roles": {r: list(v) for r, v in p.roles.items()}}
                          for n, p in cfg.profiles.items()},
         },
         "can": {

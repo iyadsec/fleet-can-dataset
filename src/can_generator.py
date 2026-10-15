@@ -120,6 +120,7 @@ class VehicleCanGenerator:
     vehicle_id: str
     channel: str
     profile: VehicleProfile
+    switch_on_ns: int = 0                          # ECU switch-on delay after the first SUMO step (seeded)
     tasks: list[_Task] = field(init=False)
     model: SyntheticVehicleModel = field(init=False)
     clamped: int = field(init=False, default=0)    # count of values clamped to DBC range
@@ -145,7 +146,7 @@ class VehicleCanGenerator:
         out: list[TxFrame] = []
         for task in self.tasks:
             if task.next_due_ns is None:               # first step this vehicle exists ("ignition")
-                task.next_due_ns = t0 + task.offset_ns
+                task.next_due_ns = t0 + self.switch_on_ns + task.offset_ns
             while task.next_due_ns < t1:
                 values = {}
                 for sig_name, quantity in task.spec.signals.items():

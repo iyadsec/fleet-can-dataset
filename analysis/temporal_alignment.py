@@ -18,7 +18,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-LIT = dict(keep_default_na=False, na_filter=False, dtype=str)
+from src import storage
 
 
 def delta_t(ts_i_ns, ts_j_ns) -> np.ndarray:
@@ -46,13 +46,13 @@ def first_attack_descriptor(labels: pd.DataFrame, descriptors: pd.DataFrame, att
 
 def campaign_alignment(data: Path, session_id: str, descriptors: pd.DataFrame, labels: pd.DataFrame) -> pd.DataFrame:
     gt = data / "ground_truth" / session_id
-    memb = pd.read_csv(gt / "campaign_membership.csv", **LIT)
-    camps = pd.read_csv(gt / "campaigns.csv", **LIT)
+    memb = storage.read_table(gt / "campaign_membership")
+    camps = storage.read_table(gt / "campaigns")
     if memb.empty:
         return pd.DataFrame()
     # first malicious frame per attack, directly from frame-level ground truth and bus time
-    fl = pd.read_csv(gt / "frame_labels.csv", usecols=["frame_uid", "attack_id"], **LIT)
-    fr = pd.read_csv(data / "raw" / session_id / "can_frames.csv", usecols=["frame_uid", "tx_end_ns"], **LIT)
+    fl = storage.read_table(gt / "frame_labels", columns=["frame_uid", "attack_id"])
+    fr = storage.read_table(data / "raw" / session_id / "can_frames", columns=["frame_uid", "tx_end_ns"])
     first_mal = fl[fl.attack_id != "None"].merge(fr, on="frame_uid")
     first_mal = first_mal.assign(t=first_mal.tx_end_ns.astype("int64")).groupby("attack_id").t.min().to_dict()
     rows = []
