@@ -44,8 +44,8 @@ def _wait_until(target_perf_ns: int) -> None:
         d = target_perf_ns - time.perf_counter_ns()
         if d <= 0:
             return
-        if d > 2_000_000:
-            time.sleep((d - 1_000_000) / 1e9)
+        if d > 3_000_000:                         # coarse sleep, then spin: VM sleep overshoot is ~0.5-1 ms
+            time.sleep((d - 2_000_000) / 1e9)
 
 
 def run(cfg: ExperimentConfig, session_id: str | None = None, validate: bool = True) -> tuple[str, str]:

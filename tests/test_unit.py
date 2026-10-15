@@ -49,6 +49,13 @@ def test_dbc_is_classical_and_roundtrips():
     assert d["LongAccel"] == pytest.approx(-1.234, abs=0.001) and d["Counter"] == 7
 
 
+def test_unused_bits_are_zero():
+    g = VehicleCanGenerator("vehicle_01", "vcan0", PROFILE)
+    frames = g.frames_for_step(state(10_000_000, speed=12.0), 10_000_000)
+    eng = next(f for f in frames if f.can_id == 0x100)
+    assert eng.data[3:7] == bytes(4) and eng.data[2] >> 4 == 0 and eng.data[7] >> 4 == 0
+
+
 def test_vehicle_speed_byte_layout():
     # 48.27 km/h / 0.01 = 4827 = 0x12DB -> little endian bytes DB 12 at bytes 0..1
     data = load_dbc(PROFILE.dbc).get_message_by_name("VEHICLE_SPEED").encode(

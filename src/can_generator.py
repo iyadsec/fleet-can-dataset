@@ -7,7 +7,7 @@ Every step is documented in docs/timing_model.md and docs/dataset_schema.md. Sum
      A frame is due at  t = ignition_time + offset + k * period  on the SUMO time line.
   3. Signals are sampled-and-held: a frame due inside step window [t_k, t_k + step) carries the
      state SUMO reported at t_k.
-  4. Payloads are encoded with cantools from the profile's DBC. No other bytes are written.
+  4. Payloads are encoded with cantools from the profile's DBC; unused bits are 0.
 The generator never sees labels, attacks or campaign information.
 """
 
@@ -147,7 +147,7 @@ class VehicleCanGenerator:
                     val = _clamp_to_signal(sig, raw)
                     self.clamped += val != raw
                     values[sig_name] = val
-                data = task.msg.encode(values, scaling=True, padding=True, strict=True)
+                data = task.msg.encode(values, scaling=True, padding=False, strict=True)   # unused bits = 0
                 out.append(TxFrame(task.next_due_ns, self.vehicle_id, self.channel,
                                    task.msg.frame_id, len(data), bytes(data), task.spec.name))
                 task.counter = (task.counter + 1) % 16
