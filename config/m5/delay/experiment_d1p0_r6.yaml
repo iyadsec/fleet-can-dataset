@@ -1,0 +1,29 @@
+# Experiment configuration (Milestone 1: benign fleet, scenario S0).
+experiment:
+  experiment_id: M5_DELAY_D1P0_R6
+  dataset_version: fleetcan-sim-1.0-dev
+  scenario_id: S3
+  description: "Milestone 5 delay re-run: replay, configured delay 1.0 s, repetition 6"
+  seed: 506
+  tags: {experiment: delay_resolution, temporal_pattern: fixed_delay, configured_delay_s: 1.0}
+
+simulation:
+  sumo_config: sumo/scenarios/fleet_2.sumocfg
+  step_length_s: 0.01        # SUMO step = 10 ms; SUMO time is the master clock
+  duration_s: 17.5
+  realtime: false            # fast mode (logical equivalence validated in Milestone 5)
+
+can:
+  transport: socketcan       # socketcan | (later: virtual, hardware, trace replay)
+  bus_model: logical         # logical: CAN timing/arbitration model before vCAN | ideal: no bus timing
+  frame_format: classical    # 11-bit IDs, DLC 0..8
+  capture_drain_s: 0.5       # keep capturing this long after the last frame is sent
+
+output:
+  root: data
+storage:
+  format: parquet
+
+fleet_config: config/m5/fleets/fleet_2.yaml
+attacks_config: config/attacks.yaml
+campaigns_config: config/m5/delay/campaigns_d1p0_r6.yaml
