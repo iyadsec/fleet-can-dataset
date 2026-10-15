@@ -8,6 +8,9 @@ only**. It contains no detector.
 > **Status: Milestone 3.** Multi-vehicle campaign generator: coordinated campaigns (simultaneous,
 > staggered, partial overlap, seeded random delay), independent negative controls and mixed scenarios
 > (S0-S3) for all four attack families, through the logical CAN bus model with frame expiry.
+> Milestone 5 finalises the generation environment: heterogeneous profiles A/B/C (semantic attack
+> targets), seeded profile assignment and ECU switch-on offsets, Parquet storage, validated fast mode,
+> versions and a dataset manifest. Final protocol: docs/final_protocol.md (proposed, not generated).
 > Milestone 4 adds a separate analysis layer (analysis/): FLEET-GUARD 24-D behavioural descriptors
 > (100-frame windows, stride 50) with observable timestamps; ground truth joined only afterwards.
 > No detector, Isolation Forest, graph or campaign detection is implemented.
@@ -72,6 +75,9 @@ scripts/run_suite.sh config/m3                  # Milestone 3 three-vehicle scen
 sudo scripts/setup_vcan.sh 10 && scripts/run_suite.sh config/m3/scale   # 2/5/10-vehicle scaling
 .venv/bin/python scripts/summarize_m3.py        # result tables from the saved sessions
 scripts/run_suite.sh config/m4/delay            # Milestone 4 temporal-resolution runs
+scripts/run_suite.sh config/m5/pilot            # Milestone 5 pilot matrix (fast mode, Parquet)
+scripts/m5_benchmark.sh && .venv/bin/python scripts/m5_bench_report.py   # storage + speed benchmark
+.venv/bin/python scripts/build_manifest.py      # data/manifest.jsonl (one line per session)
 .venv/bin/python -m analysis.run_session <session_id> ...   # descriptors + evaluation labels
 .venv/bin/python -m analysis.summarize_descriptors [--delay]  # sanity / alignment / resolution tables
 .venv/bin/python -m src.validator --session <session_id>   # re-validate an existing session
