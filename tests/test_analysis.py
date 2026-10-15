@@ -125,3 +125,35 @@ def test_delta_t_and_pairwise_cross_vehicle_only():
     p = pairwise_delta_t(build_descriptors(o))
     assert len(p) == 4 and (p.vehicle_id_i != p.vehicle_id_j).all()
     assert p.delta_t_s.min() == pytest.approx(0.95, abs=1e-9)      # 1 s offset minus 50-frame shift at 1 ms
+
+
+# --- vehicle heterogeneity example profiles (Milestone 4 audit) -------------------------------------------
+def test_heterogeneous_example_profiles_generate_decodable_frames():
+    import yaml
+    from src.can_generator import VehicleCanGenerator, load_dbc
+    from src.config import ExperimentConfig, _load_profiles, PROJECT_ROOT
+    from src.sumo_controller import VehicleState
+    raw = yaml.safe_load(open(PROJECT_ROOT / "config/m4/heterogeneity/vehicles_heterogeneous_example.yaml"))
+    profiles = _load_profiles(raw["profiles"], PROJECT_ROOT)
+    assert set(profiles) == {"profile_A", "profile_B", "profile_C"}
+    summary = {}
+    for name, prof in profiles.items():
+        g = VehicleCanGenerator("v", "vcan0", prof)
+        frames = []
+        for k in range(1, 101):                                 # 1 s at 10 ms steps
+            frames += g.frames_for_step(VehicleState(k * 10_000_000, "v", 12.0, 0.5, 0, 0, 90.0, "l", "e", "r"), 10_000_000)
+        db = load_dbc(prof.dbc)
+        speed = [db.decode_message(f.can_id, f.data) for f in frames]
+        assert all(len(f.data) == db.get_message_by_frame_id(f.can_id).length for f in frames)
+        summary[name] = (len({f.can_id for f in frames}), len(frames), sorted({f.dlc for f in frames}))
+        assert speed
+    for name, prof in profiles.items():                         # 1 s of traffic = sum of 1000 / period_ms
+        assert summary[name][1] == sum(round(1000 / m.period_ms) for m in prof.messages)
+    assert summary["profile_A"] == (5, 350, [8])
+    assert summary["profile_B"] == (4, 270, [8])
+    assert summary["profile_C"] == (5, 350, [4, 5, 6, 8])
+    d = build_descriptors(pd.DataFrame({                       # descriptors stay 24-D for every profile
+        "frame_uid": [str(i) for i in range(200)], "session_id": "S", "vehicle_id": "v",
+        "can_id": "0x1A0", "dlc": 6, "payload": "000102030405", "tx_end_ns": range(0, 200_000_000, 1_000_000),
+        "capture_time_ns": range(200)}))
+    assert len([c for c in d.columns if c in FEATURE_COLUMNS]) == 24

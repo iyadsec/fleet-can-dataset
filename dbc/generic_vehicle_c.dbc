@@ -1,0 +1,36 @@
+VERSION "fleet-can-dataset generic_vehicle_c v0.1"
+
+NS_ :
+
+BS_:
+
+BU_: ECU ABS BCM SAS
+
+BO_ 257 ENGINE_DATA: 6 ECU
+ SG_ RPM : 0|16@1+ (0.125,0) [0|8191.875] "rpm" Vector__XXX
+ SG_ Gear : 16|4@1+ (1,0) [0|15] "" Vector__XXX
+ SG_ AccelPedal : 24|8@1+ (0.4,0) [0|102] "%" Vector__XXX
+ SG_ Counter : 40|4@1+ (1,0) [0|15] "" Vector__XXX
+
+BO_ 304 WHEEL_SPEEDS: 8 ABS
+ SG_ WheelFL : 0|16@1+ (0.01,0) [0|655.35] "km/h" Vector__XXX
+ SG_ WheelFR : 16|16@1+ (0.01,0) [0|655.35] "km/h" Vector__XXX
+ SG_ WheelRL : 32|16@1+ (0.01,0) [0|655.35] "km/h" Vector__XXX
+ SG_ WheelRR : 48|16@1+ (0.01,0) [0|655.35] "km/h" Vector__XXX
+
+BO_ 305 VEHICLE_DYNAMICS: 6 ABS
+ SG_ Speed : 0|16@1+ (0.01,0) [0|655.35] "km/h" Vector__XXX
+ SG_ LongAccel : 16|16@1- (0.001,0) [-32.768|32.767] "m/s^2" Vector__XXX
+ SG_ Counter : 40|4@1+ (1,0) [0|15] "" Vector__XXX
+
+BO_ 400 BRAKE_DATA: 4 BCM
+ SG_ BrakeOn : 0|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ Decel : 8|16@1+ (0.001,0) [0|65.535] "m/s^2" Vector__XXX
+ SG_ Counter : 24|4@1+ (1,0) [0|15] "" Vector__XXX
+
+BO_ 512 STEERING_SENSOR: 5 SAS
+ SG_ Angle : 0|16@1- (0.1,0) [-3276.8|3276.7] "deg" Vector__XXX
+ SG_ Rate : 16|16@1- (0.01,0) [-327.68|327.67] "deg/s" Vector__XXX
+ SG_ Counter : 32|4@1+ (1,0) [0|15] "" Vector__XXX
+
+CM_ "SYNTHETIC CAN MODEL C (Milestone 4 heterogeneity example). Same physical signals as profile A, plus per-wheel speeds (synthetic: equal to vehicle speed), different message layout and shorter DLCs. NOT taken from any real OEM vehicle.";

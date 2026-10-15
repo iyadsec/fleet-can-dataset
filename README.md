@@ -8,7 +8,9 @@ only**. It contains no detector.
 > **Status: Milestone 3.** Multi-vehicle campaign generator: coordinated campaigns (simultaneous,
 > staggered, partial overlap, seeded random delay), independent negative controls and mixed scenarios
 > (S0-S3) for all four attack families, through the logical CAN bus model with frame expiry.
-> No detection, descriptors or graph methods are implemented (dataset generation only).
+> Milestone 4 adds a separate analysis layer (analysis/): FLEET-GUARD 24-D behavioural descriptors
+> (100-frame windows, stride 50) with observable timestamps; ground truth joined only afterwards.
+> No detector, Isolation Forest, graph or campaign detection is implemented.
 
 ## What is real and what is synthetic
 
@@ -69,6 +71,9 @@ scripts/run_m2_suite.sh                         # all Milestone 2 attack runs (c
 scripts/run_suite.sh config/m3                  # Milestone 3 three-vehicle scenario matrix
 sudo scripts/setup_vcan.sh 10 && scripts/run_suite.sh config/m3/scale   # 2/5/10-vehicle scaling
 .venv/bin/python scripts/summarize_m3.py        # result tables from the saved sessions
+scripts/run_suite.sh config/m4/delay            # Milestone 4 temporal-resolution runs
+.venv/bin/python -m analysis.run_session <session_id> ...   # descriptors + evaluation labels
+.venv/bin/python -m analysis.summarize_descriptors [--delay]  # sanity / alignment / resolution tables
 .venv/bin/python -m src.validator --session <session_id>   # re-validate an existing session
 .venv/bin/python -m pytest -q                              # unit + integration tests
 ```

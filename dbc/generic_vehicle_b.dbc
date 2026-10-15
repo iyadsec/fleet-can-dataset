@@ -1,0 +1,30 @@
+VERSION "fleet-can-dataset generic_vehicle_b v0.1"
+
+NS_ :
+
+BS_:
+
+BU_: PCM ESC PEDAL EPS
+
+BO_ 193 PCM_ENGINE: 8 PCM
+ SG_ EngineSpeed : 0|16@1+ (1,0) [0|65535] "rpm" Vector__XXX
+ SG_ GearPosition : 16|4@1+ (1,0) [0|15] "" Vector__XXX
+ SG_ AliveCounter : 56|4@1+ (1,0) [0|15] "" Vector__XXX
+
+BO_ 416 ESC_SPEED: 8 ESC
+ SG_ VehSpd : 0|16@1+ (0.05,0) [0|3276.75] "km/h" Vector__XXX
+ SG_ AccelX : 16|16@1- (0.01,0) [-327.68|327.67] "m/s^2" Vector__XXX
+ SG_ AliveCounter : 56|4@1+ (1,0) [0|15] "" Vector__XXX
+
+BO_ 688 PEDAL_STATUS: 8 PEDAL
+ SG_ ThrottlePct : 0|8@1+ (0.5,0) [0|127.5] "%" Vector__XXX
+ SG_ BrakeSwitch : 8|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ BrakeDecel : 16|16@1+ (0.01,0) [0|655.35] "m/s^2" Vector__XXX
+ SG_ AliveCounter : 56|4@1+ (1,0) [0|15] "" Vector__XXX
+
+BO_ 208 EPS_STEER: 8 EPS
+ SG_ SteerAngle : 0|16@1- (0.05,0) [-1638.4|1638.35] "deg" Vector__XXX
+ SG_ YawRate : 16|16@1- (0.05,0) [-1638.4|1638.35] "deg/s" Vector__XXX
+ SG_ AliveCounter : 56|4@1+ (1,0) [0|15] "" Vector__XXX
+
+CM_ "SYNTHETIC CAN MODEL B (Milestone 4 heterogeneity example). Same physical signals as profile A, different ID allocation, scaling and message grouping (pedal + brake in one message). NOT taken from any real OEM vehicle.";

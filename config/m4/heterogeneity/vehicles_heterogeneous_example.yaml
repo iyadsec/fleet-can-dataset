@@ -1,0 +1,85 @@
+# Milestone 4 vehicle-heterogeneity EXAMPLE (schema + minimal profiles). Not used to generate the
+# final dataset yet. All three profiles share the synthetic physical model (same SUMO-derived
+# quantities); they differ only where real vehicle families differ: CAN ID allocation, signal
+# scaling, message grouping, DLC and periods. All IDs are synthetic, not OEM.
+profiles:
+  profile_A:
+    description: "Profile A: the Milestone 1-3 synthetic car (unchanged)"
+    dbc: dbc/generic_vehicle.dbc
+    nominal_bitrate: 500000          # bit rate used by the logical bus timing model (vCAN itself has none)
+    bus:                             # logical CAN bus timing/arbitration model (src/bus_model.py)
+      stuffing: exact                # exact | worst_case | none
+      queue_limit: 32                # frames waiting per transmitting node (ECU / attacker)
+      drop_policy: drop_newest       # drop_newest | drop_oldest when a node queue is full
+      node_queue_order: priority     # priority (lowest ID first) | fifo
+      expiry_policy: deadline        # retain | deadline
+      max_frame_age_ms: 100.0        # ASSUMPTION: a frame not on the bus within 100 ms (10x the fastest
+                                     # 10 ms period) is stale and is dropped as expired_drop
+    powertrain:
+      idle_rpm: 800
+      wheel_radius_m: 0.31
+      final_drive: 3.9
+      gear_ratios: [3.6, 2.1, 1.4, 1.0, 0.8, 0.65]
+      upshift_speeds_kmh: [15, 30, 50, 70, 90]   # gear n+1 engaged at/above these speeds
+      max_accel_mps2: 2.6                        # pedal 100% reference (matches SUMO vType accel)
+      pedal_cruise_pct: 15.0                     # pedal when moving at constant speed
+      brake_threshold_mps2: 0.3                  # deceleration above this => BrakeActive
+    chassis:
+      wheelbase_m: 2.7
+      steering_ratio: 15.0
+    messages:                                    # name must exist in the DBC
+      - name: ENGINE_STATUS
+        period_ms: 10
+        offset_ms: 0.0
+        signals: {EngineRPM: engine_rpm, Gear: gear, Counter: counter}
+      - name: VEHICLE_SPEED
+        period_ms: 20
+        offset_ms: 1.0
+        signals: {VehicleSpeed: speed_kmh, LongAccel: accel_mps2, Counter: counter}
+      - name: ACCEL_PEDAL
+        period_ms: 20
+        offset_ms: 3.0
+        signals: {AccelPedalPos: pedal_pct, Counter: counter}
+      - name: BRAKE_STATUS
+        period_ms: 20
+        offset_ms: 5.0
+        signals: {BrakeActive: brake_active, BrakeDecel: brake_decel_mps2, Counter: counter}
+      - name: STEERING
+        period_ms: 10
+        offset_ms: 7.0
+        signals: {SteeringAngle: steering_angle_deg, YawRate: yaw_rate_dps, Counter: counter}
+
+  profile_B:
+    description: "Profile B: same physical signals, different ID allocation, scaling, grouping and periods"
+    dbc: dbc/generic_vehicle_b.dbc
+    nominal_bitrate: 500000
+    bus: {stuffing: exact, queue_limit: 32, drop_policy: drop_newest, node_queue_order: priority, expiry_policy: deadline, max_frame_age_ms: 100.0}
+    powertrain: {idle_rpm: 800, wheel_radius_m: 0.31, final_drive: 3.9, gear_ratios: [3.6, 2.1, 1.4, 1.0, 0.8, 0.65],
+                 upshift_speeds_kmh: [15, 30, 50, 70, 90], max_accel_mps2: 2.6, pedal_cruise_pct: 15.0, brake_threshold_mps2: 0.3}
+    chassis: {wheelbase_m: 2.7, steering_ratio: 15.0}
+    messages:
+      - {name: PCM_ENGINE, period_ms: 20, offset_ms: 2.0, signals: {EngineSpeed: engine_rpm, GearPosition: gear, AliveCounter: counter}}
+      - {name: EPS_STEER, period_ms: 10, offset_ms: 4.0, signals: {SteerAngle: steering_angle_deg, YawRate: yaw_rate_dps, AliveCounter: counter}}
+      - {name: ESC_SPEED, period_ms: 10, offset_ms: 6.0, signals: {VehSpd: speed_kmh, AccelX: accel_mps2, AliveCounter: counter}}
+      - {name: PEDAL_STATUS, period_ms: 50, offset_ms: 8.0, signals: {ThrottlePct: pedal_pct, BrakeSwitch: brake_active, BrakeDecel: brake_decel_mps2, AliveCounter: counter}}
+  profile_C:
+    description: "Profile C: adds per-wheel speeds (synthetic), different layout and shorter DLCs"
+    dbc: dbc/generic_vehicle_c.dbc
+    nominal_bitrate: 500000
+    bus: {stuffing: exact, queue_limit: 32, drop_policy: drop_newest, node_queue_order: priority, expiry_policy: deadline, max_frame_age_ms: 100.0}
+    powertrain: {idle_rpm: 800, wheel_radius_m: 0.31, final_drive: 3.9, gear_ratios: [3.6, 2.1, 1.4, 1.0, 0.8, 0.65],
+                 upshift_speeds_kmh: [15, 30, 50, 70, 90], max_accel_mps2: 2.6, pedal_cruise_pct: 15.0, brake_threshold_mps2: 0.3}
+    chassis: {wheelbase_m: 2.7, steering_ratio: 15.0}
+    messages:
+      - {name: ENGINE_DATA, period_ms: 10, offset_ms: 0.5, signals: {RPM: engine_rpm, Gear: gear, AccelPedal: pedal_pct, Counter: counter}}
+      - {name: WHEEL_SPEEDS, period_ms: 20, offset_ms: 2.5, signals: {WheelFL: speed_kmh, WheelFR: speed_kmh, WheelRL: speed_kmh, WheelRR: speed_kmh}}
+      - {name: VEHICLE_DYNAMICS, period_ms: 20, offset_ms: 4.5, signals: {Speed: speed_kmh, LongAccel: accel_mps2, Counter: counter}}
+      - {name: BRAKE_DATA, period_ms: 20, offset_ms: 6.5, signals: {BrakeOn: brake_active, Decel: brake_decel_mps2, Counter: counter}}
+      - {name: STEERING_SENSOR, period_ms: 10, offset_ms: 8.5, signals: {Angle: steering_angle_deg, Rate: yaw_rate_dps, Counter: counter}}
+
+fleet:
+  channel_pattern: "vcan{index}"
+  vehicles:
+    - {id: vehicle_01, profile: profile_A}
+    - {id: vehicle_02, profile: profile_B}
+    - {id: vehicle_03, profile: profile_C}
