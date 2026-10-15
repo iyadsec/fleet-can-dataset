@@ -1,0 +1,26 @@
+# Milestone 5 pilot campaigns.
+campaigns:
+  - campaign_id: CP10
+    attack_type: malfunction
+    coordinated: true
+    targets: [vehicle_01, vehicle_02, vehicle_03, vehicle_04, vehicle_05]
+    start_s: 10.0
+    delay_pattern: simultaneous
+    duration_s: 5.0
+    params: {mode: replace, target: engine_rpm, manipulation: {strategy: scale, factor: 3.0}}
+  - campaign_id: CP10I1
+    attack_type: malfunction
+    coordinated: false
+    targets: [vehicle_07]
+    start_s: 10.2
+    delay_pattern: simultaneous
+    duration_s: 5.0
+    params: {mode: inject, target: vehicle_speed, manipulation: {strategy: constant, value: 250.0}, rate_hz: 100}
+  - campaign_id: CP10I2
+    attack_type: malfunction
+    coordinated: false
+    targets: [vehicle_09]
+    start_s: 10.6
+    delay_pattern: simultaneous
+    duration_s: 5.0
+    params: {mode: inject, target: vehicle_speed, manipulation: {strategy: constant, value: 250.0}, rate_hz: 100}

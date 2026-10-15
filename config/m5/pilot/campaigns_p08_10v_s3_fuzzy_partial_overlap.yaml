@@ -1,0 +1,11 @@
+# Milestone 5 pilot campaigns.
+campaigns:
+  - campaign_id: CP08
+    attack_type: fuzzy
+    coordinated: true
+    targets: [vehicle_03, vehicle_04, vehicle_05, vehicle_06, vehicle_07]
+    start_s: 10.0
+    delay_pattern: fixed
+    relative_delays_s: [0.0, 2.5, 5.0, 7.5, 10.0]
+    duration_s: 10.0
+    params: {mode: both, rate_hz: 1000, id_range: [0x000, 0x7FF], dlc: random}

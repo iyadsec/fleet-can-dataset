@@ -1,0 +1,26 @@
+# Milestone 5 pilot campaigns.
+campaigns:
+  - campaign_id: CP04A
+    attack_type: fuzzy
+    coordinated: false
+    targets: [vehicle_01]
+    start_s: 10.0
+    delay_pattern: simultaneous
+    duration_s: 5.0
+    params: {mode: both, rate_hz: 1000, id_range: [0x000, 0x7FF], dlc: random}
+  - campaign_id: CP04B
+    attack_type: fuzzy
+    coordinated: false
+    targets: [vehicle_03]
+    start_s: 10.2
+    delay_pattern: simultaneous
+    duration_s: 5.0
+    params: {mode: both, rate_hz: 1000, id_range: [0x000, 0x7FF], dlc: random}
+  - campaign_id: CP04C
+    attack_type: fuzzy
+    coordinated: false
+    targets: [vehicle_05]
+    start_s: 10.4
+    delay_pattern: simultaneous
+    duration_s: 5.0
+    params: {mode: both, rate_hz: 1000, id_range: [0x000, 0x7FF], dlc: random}

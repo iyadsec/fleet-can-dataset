@@ -1,0 +1,17 @@
+# Milestone 5 pilot campaigns.
+campaigns:
+  - campaign_id: CP06
+    attack_type: replay
+    coordinated: true
+    targets: [vehicle_01, vehicle_02, vehicle_03]
+    start_s: 10.0
+    delay_pattern: fixed
+    relative_delays_s: [0.0, 2.0, 4.0]
+    params: {window_relative_s: [-5.0, 0.0], source_vehicle: self, time_offset_ms: 0.25}
+  - campaign_id: CP06I
+    attack_type: replay
+    coordinated: false
+    targets: [vehicle_05]
+    start_s: 12.3
+    delay_pattern: simultaneous
+    params: {window_relative_s: [-5.0, 0.0], source_vehicle: self, time_offset_ms: 0.25}

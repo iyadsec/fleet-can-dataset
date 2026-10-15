@@ -1,0 +1,11 @@
+# Milestone 5 pilot campaigns.
+campaigns:
+  - campaign_id: CP07
+    attack_type: flooding
+    coordinated: true
+    targets: [vehicle_01, vehicle_02, vehicle_03, vehicle_04, vehicle_05, vehicle_06, vehicle_07, vehicle_08, vehicle_09, vehicle_10]
+    start_s: 10.0
+    delay_pattern: fixed
+    relative_delays_s: [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5]
+    duration_s: 5.0
+    params: {can_id: 0x000, rate_hz: 1600, dlc: 8, payload: zeros}

@@ -1,0 +1,11 @@
+# Milestone 5 pilot campaigns.
+campaigns:
+  - campaign_id: CP05
+    attack_type: malfunction
+    coordinated: true
+    targets: [vehicle_02, vehicle_04]
+    start_s: 10.0
+    delay_pattern: fixed
+    relative_delays_s: [0.0, 0.5]
+    duration_s: 5.0
+    params: {mode: inject, target: vehicle_speed, manipulation: {strategy: constant, value: 250.0}, rate_hz: 100}

@@ -1,0 +1,8 @@
+# Milestone 5 pilot isolated attack.
+attacks:
+  - attack_id: AP03
+    type: flooding
+    vehicle: vehicle_03
+    start_s: 10.0
+    duration_s: 5.0
+    params: {can_id: 0x000, rate_hz: 1600, dlc: 8, payload: zeros}
