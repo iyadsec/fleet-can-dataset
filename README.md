@@ -5,8 +5,9 @@ simulated vehicles**, for PhD research on fleet-level detection of coordinated C
 (behavioural + temporal correlation). This repository does **data generation and ground truth
 only**. It contains no detector.
 
-> **Status: Milestone 1.** Benign pipeline only (scenario S0, 3 vehicles). Attacks and campaigns are
-> deliberately not implemented yet.
+> **Status: Milestone 2.** Benign fleet (S0) plus single-vehicle Flooding, Fuzzy, Malfunction and
+> Replay (S1, vehicle_01) through a logical CAN bus timing/arbitration model. Coordinated
+> multi-vehicle campaigns are deliberately not implemented yet.
 
 ## What is real and what is synthetic
 
@@ -15,8 +16,10 @@ only**. It contains no detector.
 | Mobility (speed, acceleration, position, lane, route) | SUMO 1.28 via TraCI | Simulated (synthetic road network and routes) |
 | CAN signals (RPM, gear, pedal, brake, steering) | `src/can_generator.py` | **Synthetic model** derived from SUMO state |
 | CAN IDs, layouts, scaling | `dbc/generic_vehicle.dbc` | **Defined by this project.** Not OEM CAN IDs |
-| CAN transport + capture | Linux SocketCAN **vCAN** | Real kernel frame delivery; **no** physical bus behaviour |
-| Attacks / campaigns | *(later milestones)* | Injected / experimentally constructed |
+| Bus timing (duration, arbitration, queueing, drops) | `src/bus_model.py` | **Logical model** of Classical CAN at 500 kbit/s, not a physical-layer simulation |
+| CAN transport + capture | Linux SocketCAN **vCAN** | Real kernel frame delivery; **no** bus behaviour of its own |
+| Attacks | `src/attack_engine.py` + `config/m2/` | **Injected** from configuration, single vehicle |
+| Campaigns | *(Milestone 3+)* | Experimentally constructed |
 
 The generated traffic is **not real vehicle CAN traffic**. SUMO does not simulate CAN.
 
@@ -24,7 +27,10 @@ The generated traffic is **not real vehicle CAN traffic**. SUMO does not simulat
 
 ```
 SUMO --TraCI--> SumoController --VehicleState(t)--> VehicleCanGenerator (one per vehicle, DBC + profile)
-     --TxFrame(sim_time)--> CanTransport (SocketCAN) --> vcanN --> CanCapture (separate socket per channel)
+     --TxFrame(generation time)--> AttackEngine (inject / modify, ground truth attached)
+     --> CanBusModel per vehicle (bit-exact duration, ID arbitration, queues, drops)
+     --BusTx(tx_start, tx_end)--> CanTransport (SocketCAN, ECU and attacker sockets) --> vcanN
+     --> CanCapture (separate socket per channel)
      --CapturedFrame--> recorder.associate (k-th sent == k-th captured, ID+payload checked)
      --> data/raw/<session>/can_frames.csv          (observations)
      --> data/ground_truth/<session>/*.csv         (labels, campaigns: separate files)
@@ -57,6 +63,8 @@ sudo scripts/cleanup_vcan.sh all  # remove vcan<N> interfaces
 ```bash
 scripts/run_experiment.sh                       # verify env, then run config/experiment.yaml (60 s, real time)
 scripts/run_experiment.sh config/experiment.yaml --duration 10
+scripts/run_experiment.sh config/bus_check/experiment_sync.yaml  # benign bus-contention check
+scripts/run_m2_suite.sh                         # all Milestone 2 attack runs (config/m2/)
 .venv/bin/python -m src.validator --session <session_id>   # re-validate an existing session
 .venv/bin/python -m pytest -q                              # unit + integration tests
 ```
@@ -67,7 +75,10 @@ scripts/run_experiment.sh config/experiment.yaml --duration 10
 * `config/vehicles.yaml`: vehicle **profiles** (DBC, message periods/offsets, signal mapping, synthetic
   model parameters) and the fleet (vehicle → profile; channel `vcan{index}` by list order).
   Profiles are separate from code, so heterogeneous fleets need only new profiles/DBCs.
-* `config/attacks.yaml`, `config/campaigns.yaml`: empty in Milestone 1.
+* `config/vehicles.yaml` → `bus:` per profile: stuffing, queue_limit, drop_policy, node_queue_order;
+  `nominal_bitrate` drives the bus model. `can.bus_model: logical | ideal` in the experiment file.
+* `config/m2/attacks_*.yaml`: one attack per file (vehicle_01); `config/attacks.yaml` and
+  `config/campaigns.yaml` are empty.
 
 ## Reproducibility
 
@@ -76,9 +87,12 @@ Each session stores the seed, SUMO command and version, Python and package versi
 With `realtime: true`, SUMO-timeline content is deterministic for a given seed. Capture timestamps
 reflect host execution and are not.
 
-## Limitations (Milestone 1)
+## Limitations (Milestone 2)
 
-* vCAN has no bitrate, arbitration, bit timing, error frames or ACK. Bus-load effects are not emulated.
+* Bus effects come from a logical model (exact frame length, ID arbitration, queues, drops), not
+  from vCAN. Error frames, retransmission, bus-off and bit-level effects are not modelled; the same
+  ID sent by two nodes at once is serialised instead of causing a bit error.
 * One common synthetic profile; no sensor noise or period jitter yet (exact schedule on the SUMO timeline).
+* Attacks target one vehicle; no campaigns.
 * Capture jitter depends on host/VM load; it is measured (`capture_offset_us`), never used as ground truth.
 * vCAN interfaces must be recreated after reboot.
