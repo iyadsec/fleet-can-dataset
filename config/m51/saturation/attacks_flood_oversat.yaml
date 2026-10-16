@@ -1,0 +1,8 @@
+# Milestone 5.1 saturation equivalence: 5000 frames/s ID 0x000 on vehicle_01 (bus capacity ~3937 frames/s).
+attacks:
+  - attack_id: A_OVERSAT
+    type: flooding
+    vehicle: vehicle_01
+    start_s: 10.0
+    duration_s: 5.0
+    params: {can_id: 0x000, rate_hz: 5000, dlc: 8, payload: zeros}
