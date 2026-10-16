@@ -1,0 +1,623 @@
+[
+ {
+  "label": "end of simulation loop (all frames retained)",
+  "t": 104.9,
+  "rss_mb": 1655.1,
+  "traced_mb": 278.4,
+  "traced_peak_mb": 278.4,
+  "top": [
+   {
+    "site": "can_generator.py:175",
+    "mb": 42.7,
+    "blocks": 508497
+   },
+   {
+    "site": "can_bus.py:101",
+    "mb": 41.9,
+    "blocks": 762765
+   },
+   {
+    "site": "bus_model.py:255",
+    "mb": 37.8,
+    "blocks": 762745
+   },
+   {
+    "site": "orchestrator.py:152",
+    "mb": 21.5,
+    "blocks": 508516
+   },
+   {
+    "site": "can_bus.py:102",
+    "mb": 16.4,
+    "blocks": 503357
+   },
+   {
+    "site": "storage.py:69",
+    "mb": 15.1,
+    "blocks": 320028
+   },
+   {
+    "site": "sumo_controller.py:96",
+    "mb": 11.6,
+    "blocks": 160002
+   },
+   {
+    "site": "message.py:954",
+    "mb": 9.8,
+    "blocks": 254248
+   },
+   {
+    "site": "storage.py:38",
+    "mb": 9.2,
+    "blocks": 400020
+   },
+   {
+    "site": "can_bus.py:76",
+    "mb": 8.7,
+    "blocks": 254248
+   },
+   {
+    "site": "can_generator.py:155",
+    "mb": 8.2,
+    "blocks": 254346
+   },
+   {
+    "site": "socketcan.py:672",
+    "mb": 5.7,
+    "blocks": 185429
+   }
+  ]
+ },
+ {
+  "label": "after associate (pairs)",
+  "t": 125.2,
+  "rss_mb": 1743.0,
+  "traced_mb": 293.9,
+  "traced_peak_mb": 293.9,
+  "top": [
+   {
+    "site": "can_generator.py:175",
+    "mb": 42.7,
+    "blocks": 508496
+   },
+   {
+    "site": "can_bus.py:101",
+    "mb": 41.9,
+    "blocks": 762764
+   },
+   {
+    "site": "bus_model.py:255",
+    "mb": 37.8,
+    "blocks": 762744
+   },
+   {
+    "site": "orchestrator.py:152",
+    "mb": 21.5,
+    "blocks": 508516
+   },
+   {
+    "site": "can_bus.py:102",
+    "mb": 16.4,
+    "blocks": 503356
+   },
+   {
+    "site": "recorder.py:94",
+    "mb": 15.5,
+    "blocks": 253766
+   },
+   {
+    "site": "storage.py:69",
+    "mb": 15.1,
+    "blocks": 320028
+   },
+   {
+    "site": "sumo_controller.py:96",
+    "mb": 11.6,
+    "blocks": 160001
+   },
+   {
+    "site": "message.py:954",
+    "mb": 9.8,
+    "blocks": 254248
+   },
+   {
+    "site": "storage.py:38",
+    "mb": 9.2,
+    "blocks": 400020
+   },
+   {
+    "site": "can_bus.py:76",
+    "mb": 8.7,
+    "blocks": 254248
+   },
+   {
+    "site": "can_generator.py:155",
+    "mb": 8.2,
+    "blocks": 254341
+   }
+  ]
+ },
+ {
+  "label": "after build_frame_rows (row dicts)",
+  "t": 160.9,
+  "rss_mb": 2664.8,
+  "traced_mb": 575.0,
+  "traced_peak_mb": 575.1,
+  "top": [
+   {
+    "site": "recorder.py:116",
+    "mb": 143.6,
+    "blocks": 762745
+   },
+   {
+    "site": "can_generator.py:175",
+    "mb": 42.7,
+    "blocks": 508496
+   },
+   {
+    "site": "can_bus.py:101",
+    "mb": 41.9,
+    "blocks": 762764
+   },
+   {
+    "site": "bus_model.py:255",
+    "mb": 37.8,
+    "blocks": 762744
+   },
+   {
+    "site": "recorder.py:82",
+    "mb": 25.6,
+    "blocks": 508496
+   },
+   {
+    "site": "recorder.py:123",
+    "mb": 24.6,
+    "blocks": 508496
+   },
+   {
+    "site": "orchestrator.py:152",
+    "mb": 21.5,
+    "blocks": 508516
+   },
+   {
+    "site": "recorder.py:114",
+    "mb": 17.8,
+    "blocks": 254249
+   },
+   {
+    "site": "recorder.py:125",
+    "mb": 17.5,
+    "blocks": 254249
+   },
+   {
+    "site": "can_bus.py:102",
+    "mb": 16.4,
+    "blocks": 503356
+   },
+   {
+    "site": "recorder.py:113",
+    "mb": 15.8,
+    "blocks": 254248
+   },
+   {
+    "site": "recorder.py:94",
+    "mb": 15.5,
+    "blocks": 253766
+   }
+  ]
+ },
+ {
+  "label": "before write can_frames",
+  "t": 191.9,
+  "rss_mb": 2787.8,
+  "traced_mb": 575.0,
+  "traced_peak_mb": 575.1,
+  "top": [
+   {
+    "site": "recorder.py:116",
+    "mb": 143.6,
+    "blocks": 762745
+   },
+   {
+    "site": "can_generator.py:175",
+    "mb": 42.7,
+    "blocks": 508496
+   },
+   {
+    "site": "can_bus.py:101",
+    "mb": 41.9,
+    "blocks": 762764
+   },
+   {
+    "site": "bus_model.py:255",
+    "mb": 37.8,
+    "blocks": 762744
+   },
+   {
+    "site": "recorder.py:82",
+    "mb": 25.6,
+    "blocks": 508496
+   },
+   {
+    "site": "recorder.py:123",
+    "mb": 24.6,
+    "blocks": 508496
+   },
+   {
+    "site": "orchestrator.py:152",
+    "mb": 21.5,
+    "blocks": 508516
+   },
+   {
+    "site": "recorder.py:114",
+    "mb": 17.8,
+    "blocks": 254249
+   },
+   {
+    "site": "recorder.py:125",
+    "mb": 17.5,
+    "blocks": 254249
+   },
+   {
+    "site": "can_bus.py:102",
+    "mb": 16.4,
+    "blocks": 503356
+   },
+   {
+    "site": "recorder.py:113",
+    "mb": 15.8,
+    "blocks": 254248
+   },
+   {
+    "site": "recorder.py:94",
+    "mb": 15.5,
+    "blocks": 253766
+   }
+  ]
+ },
+ {
+  "label": "before write vehicle_states",
+  "t": 229.3,
+  "rss_mb": 3102.9,
+  "traced_mb": 634.0,
+  "traced_peak_mb": 634.1,
+  "top": [
+   {
+    "site": "recorder.py:116",
+    "mb": 143.6,
+    "blocks": 762745
+   },
+   {
+    "site": "can_generator.py:175",
+    "mb": 42.7,
+    "blocks": 508496
+   },
+   {
+    "site": "can_bus.py:101",
+    "mb": 41.9,
+    "blocks": 762764
+   },
+   {
+    "site": "bus_model.py:255",
+    "mb": 37.8,
+    "blocks": 762744
+   },
+   {
+    "site": "recorder.py:130",
+    "mb": 36.1,
+    "blocks": 160002
+   },
+   {
+    "site": "recorder.py:82",
+    "mb": 29.6,
+    "blocks": 588496
+   },
+   {
+    "site": "recorder.py:123",
+    "mb": 24.6,
+    "blocks": 508496
+   },
+   {
+    "site": "orchestrator.py:152",
+    "mb": 21.5,
+    "blocks": 508516
+   },
+   {
+    "site": "recorder.py:114",
+    "mb": 17.8,
+    "blocks": 254249
+   },
+   {
+    "site": "recorder.py:125",
+    "mb": 17.5,
+    "blocks": 254249
+   },
+   {
+    "site": "can_bus.py:102",
+    "mb": 16.4,
+    "blocks": 503356
+   },
+   {
+    "site": "recorder.py:113",
+    "mb": 15.8,
+    "blocks": 254248
+   }
+  ]
+ },
+ {
+  "label": "before write frame_labels",
+  "t": 264.7,
+  "rss_mb": 3081.8,
+  "traced_mb": 643.7,
+  "traced_peak_mb": 643.8,
+  "top": [
+   {
+    "site": "recorder.py:116",
+    "mb": 143.6,
+    "blocks": 762745
+   },
+   {
+    "site": "ground_truth.py:72",
+    "mb": 67.9,
+    "blocks": 508498
+   },
+   {
+    "site": "can_generator.py:175",
+    "mb": 42.7,
+    "blocks": 508496
+   },
+   {
+    "site": "can_bus.py:101",
+    "mb": 41.9,
+    "blocks": 762764
+   },
+   {
+    "site": "bus_model.py:255",
+    "mb": 37.8,
+    "blocks": 762744
+   },
+   {
+    "site": "recorder.py:82",
+    "mb": 25.6,
+    "blocks": 508496
+   },
+   {
+    "site": "recorder.py:123",
+    "mb": 24.6,
+    "blocks": 508496
+   },
+   {
+    "site": "orchestrator.py:152",
+    "mb": 21.5,
+    "blocks": 508516
+   },
+   {
+    "site": "recorder.py:114",
+    "mb": 17.8,
+    "blocks": 254249
+   },
+   {
+    "site": "recorder.py:125",
+    "mb": 17.5,
+    "blocks": 254249
+   },
+   {
+    "site": "can_bus.py:102",
+    "mb": 16.4,
+    "blocks": 503356
+   },
+   {
+    "site": "recorder.py:113",
+    "mb": 15.8,
+    "blocks": 254248
+   }
+  ]
+ },
+ {
+  "label": "before in-process validation",
+  "t": 298.4,
+  "rss_mb": 3003.9,
+  "traced_mb": 576.2,
+  "traced_peak_mb": 643.8,
+  "top": [
+   {
+    "site": "recorder.py:116",
+    "mb": 143.6,
+    "blocks": 762745
+   },
+   {
+    "site": "can_generator.py:175",
+    "mb": 42.7,
+    "blocks": 508496
+   },
+   {
+    "site": "can_bus.py:101",
+    "mb": 41.9,
+    "blocks": 762764
+   },
+   {
+    "site": "bus_model.py:255",
+    "mb": 37.8,
+    "blocks": 762744
+   },
+   {
+    "site": "recorder.py:82",
+    "mb": 25.6,
+    "blocks": 508496
+   },
+   {
+    "site": "recorder.py:123",
+    "mb": 24.6,
+    "blocks": 508496
+   },
+   {
+    "site": "orchestrator.py:152",
+    "mb": 21.5,
+    "blocks": 508516
+   },
+   {
+    "site": "recorder.py:114",
+    "mb": 17.8,
+    "blocks": 254249
+   },
+   {
+    "site": "recorder.py:125",
+    "mb": 17.5,
+    "blocks": 254249
+   },
+   {
+    "site": "can_bus.py:102",
+    "mb": 16.4,
+    "blocks": 503356
+   },
+   {
+    "site": "recorder.py:113",
+    "mb": 15.8,
+    "blocks": 254248
+   },
+   {
+    "site": "recorder.py:94",
+    "mb": 15.5,
+    "blocks": 253766
+   }
+  ]
+ },
+ {
+  "label": "after in-process validation",
+  "t": 414.7,
+  "rss_mb": 3447.6,
+  "traced_mb": 654.4,
+  "traced_peak_mb": 860.9,
+  "top": [
+   {
+    "site": "recorder.py:116",
+    "mb": 143.6,
+    "blocks": 762745
+   },
+   {
+    "site": "<unknown>:0",
+    "mb": 45.7,
+    "blocks": 844039
+   },
+   {
+    "site": "can_generator.py:175",
+    "mb": 42.7,
+    "blocks": 508496
+   },
+   {
+    "site": "can_bus.py:101",
+    "mb": 41.9,
+    "blocks": 762764
+   },
+   {
+    "site": "bus_model.py:255",
+    "mb": 37.8,
+    "blocks": 762744
+   },
+   {
+    "site": "recorder.py:82",
+    "mb": 25.6,
+    "blocks": 508496
+   },
+   {
+    "site": "recorder.py:123",
+    "mb": 24.6,
+    "blocks": 508496
+   },
+   {
+    "site": "orchestrator.py:152",
+    "mb": 21.5,
+    "blocks": 508516
+   },
+   {
+    "site": "blocks.py:822",
+    "mb": 21.3,
+    "blocks": 2
+   },
+   {
+    "site": "recorder.py:114",
+    "mb": 17.8,
+    "blocks": 254249
+   },
+   {
+    "site": "recorder.py:125",
+    "mb": 17.5,
+    "blocks": 254249
+   },
+   {
+    "site": "can_bus.py:102",
+    "mb": 16.4,
+    "blocks": 503356
+   }
+  ]
+ },
+ {
+  "label": "end of run",
+  "t": 421.3,
+  "rss_mb": 2276.4,
+  "traced_mb": 9.2,
+  "traced_peak_mb": 860.9,
+  "top": [
+   {
+    "site": "<unknown>:0",
+    "mb": 45.7,
+    "blocks": 844039
+   },
+   {
+    "site": "blocks.py:822",
+    "mb": 21.3,
+    "blocks": 2
+   },
+   {
+    "site": "range.py:244",
+    "mb": 1.9,
+    "blocks": 2
+   },
+   {
+    "site": "<frozen importlib._bootstrap>:488",
+    "mb": 0.6,
+    "blocks": 5030
+   },
+   {
+    "site": "<frozen importlib._bootstrap_external>:753",
+    "mb": 0.4,
+    "blocks": 2417
+   },
+   {
+    "site": "validator.py:300",
+    "mb": 0.1,
+    "blocks": 974
+   },
+   {
+    "site": "<frozen importlib._bootstrap>:928",
+    "mb": 0.0,
+    "blocks": 1
+   },
+   {
+    "site": "<frozen abc>:123",
+    "mb": 0.0,
+    "blocks": 355
+   },
+   {
+    "site": "validator.py:268",
+    "mb": 0.0,
+    "blocks": 552
+   },
+   {
+    "site": "dbc.py:1538",
+    "mb": 0.0,
+    "blocks": 176
+   },
+   {
+    "site": "m81_profile.py:39",
+    "mb": 0.0,
+    "blocks": 268
+   },
+   {
+    "site": "dbc_specifics.py:31",
+    "mb": 0.0,
+    "blocks": 142
+   }
+  ]
+ }
+]
