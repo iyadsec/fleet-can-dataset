@@ -14,6 +14,31 @@ from .windowing import window_starts
 
 
 def validate_session(data: Path, session_id: str, desc: pd.DataFrame, labels: pd.DataFrame) -> list[dict]:
+    """Whole-session entry point; the bounded pipeline calls window_checks per vehicle group and finish_checks."""
+    obs = load_observations(data / "raw" / session_id)
+    return finish_checks(desc, labels, [window_checks(desc, obs)])
+
+
+def window_checks(desc: pd.DataFrame, obs: pd.DataFrame) -> dict:
+    """D03 / D04 ingredients for the descriptors of the vehicles whose observations are in `obs`."""
+    members = window_frame_uids(obs)
+    fr = obs.set_index("frame_uid")
+    cross, sizes, order_bad = 0, set(), 0
+    for d in desc.itertuples():
+        uids = members[d.descriptor_id]
+        w = fr.loc[uids]
+        cross += int(w.vehicle_id.nunique() != 1 or w.session_id.nunique() != 1
+                     or w.vehicle_id.iloc[0] != d.vehicle_id or w.session_id.iloc[0] != d.session_id)
+        sizes.add(len(uids))
+        order_bad += int(not w.tx_end_ns.astype("int64").is_monotonic_increasing)
+    cnt_ok = True
+    for (sid, vid), g in desc.groupby(["session_id", "vehicle_id"]):
+        n = int(((obs.session_id == sid) & (obs.vehicle_id == vid)).sum())
+        cnt_ok &= len(g) == len(window_starts(n)) and list(g.window_index) == list(range(len(g)))
+    return {"cross": cross, "sizes": sizes, "order_bad": order_bad, "cnt_ok": cnt_ok}
+
+
+def finish_checks(desc: pd.DataFrame, labels: pd.DataFrame, parts: list[dict]) -> list[dict]:
     checks = []
 
     def ok(cid, name, cond, detail=""):
@@ -25,24 +50,13 @@ def validate_session(data: Path, session_id: str, desc: pd.DataFrame, labels: pd
     X = desc[FEATURE_COLUMNS].to_numpy(dtype=float)
     ok("D02", "no NaN / Inf in features", bool(np.isfinite(X).all()) and len(desc) > 0,
        f"{len(desc)} descriptors; NaN filled as 0 in {int((desc.nan_filled_features > 0).sum())} (original fillna(0.0))")
-    obs = load_observations(data / "raw" / session_id)
-    members = window_frame_uids(obs)
-    fr = obs.set_index("frame_uid")
-    cross, sizes, order_bad = 0, set(), 0
-    for d in desc.itertuples():
-        uids = members[d.descriptor_id]
-        w = fr.loc[uids]
-        cross += int(w.vehicle_id.nunique() != 1 or w.session_id.nunique() != 1
-                     or w.vehicle_id.iloc[0] != d.vehicle_id or w.session_id.iloc[0] != d.session_id)
-        sizes.add(len(uids))
-        order_bad += int(not w.tx_end_ns.astype("int64").is_monotonic_increasing)
+    cross = sum(p["cross"] for p in parts)
+    sizes = set().union(*(p["sizes"] for p in parts)) if parts else set()
+    order_bad = sum(p["order_bad"] for p in parts)
     ok("D03", "every window has exactly 100 frames from ONE vehicle and ONE session, in time order",
        cross == 0 and sizes == {WINDOW_SIZE} and order_bad == 0, f"sizes={sorted(sizes)}, crossing={cross}")
-    cnt_ok = True
-    for (sid, vid), g in desc.groupby(["session_id", "vehicle_id"]):
-        n = int(((obs.session_id == sid) & (obs.vehicle_id == vid)).sum())
-        cnt_ok &= len(g) == len(window_starts(n)) and list(g.window_index) == list(range(len(g)))
-    ok("D04", f"window count per vehicle = floor((n - {WINDOW_SIZE}) / {WINDOW_STRIDE}) + 1 (stride {WINDOW_STRIDE})", cnt_ok)
+    ok("D04", f"window count per vehicle = floor((n - {WINDOW_SIZE}) / {WINDOW_STRIDE}) + 1 (stride {WINDOW_STRIDE})",
+       all(p["cnt_ok"] for p in parts))
     mono = all(g.descriptor_timestamp_ns.is_monotonic_increasing and (g.window_end_ns >= g.window_start_ns).all()
                for _, g in desc.groupby("vehicle_id"))
     ts_ok = (desc.descriptor_timestamp_ns == desc.window_end_ns).all()

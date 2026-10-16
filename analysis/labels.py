@@ -20,11 +20,17 @@ from src import storage
 
 
 def build_labels(descriptors: pd.DataFrame, data: Path, session_id: str) -> pd.DataFrame:
+    """Whole-session entry point (reads every frame); the bounded pipeline calls build_labels_from per vehicle group."""
     gt = data / "ground_truth" / session_id
     lab = storage.read_table(gt / "frame_labels").set_index("frame_uid")
     obs = load_observations(data / "raw" / session_id)
-    tx_end = dict(zip(obs.frame_uid, obs.tx_end_ns.astype("int64")))
     scenario = storage.read_table(data / "raw" / session_id / "can_frames", columns=["scenario_id"], nrows=1).scenario_id.iloc[0]
+    return build_labels_from(descriptors, obs, lab, scenario)
+
+
+def build_labels_from(descriptors: pd.DataFrame, obs: pd.DataFrame, lab: pd.DataFrame, scenario: str) -> pd.DataFrame:
+    """Labels for `descriptors` given the observations of their vehicles and the frame labels indexed by frame_uid."""
+    tx_end = dict(zip(obs.frame_uid, obs.tx_end_ns.astype("int64")))
     basis = descriptors.time_basis.iloc[0] if len(descriptors) else "transmission"
     members = window_frame_uids(obs, basis)
     rows = []

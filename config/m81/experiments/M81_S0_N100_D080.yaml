@@ -1,0 +1,25 @@
+# Milestone 8.1 memory test (engineering only; not part of any research dataset).
+experiment:
+  experiment_id: M81_S0_N100_D080
+  dataset_version: m81-memory-test
+  scenario_id: S0
+  description: "M81_S0_N100_D080"
+  seed: 80100
+  tags: {milestone: M8, fleet_size: 100, attack: none, campaign_size: 0, pattern: none}
+simulation:
+  route_generation: {method: grid_loops_v1, network: sumo/network/grid4x4.net.xml}
+  step_length_s: 0.01
+  duration_s: 80.0
+  realtime: false
+can:
+  transport: socketcan
+  bus_model: logical
+  frame_format: classical
+  capture_drain_s: 0.5
+output:
+  root: data
+storage:
+  format: parquet
+fleet_config: config/m8/fleets/fleet_100.yaml
+attacks_config: config/attacks.yaml
+campaigns_config: config/campaigns.yaml

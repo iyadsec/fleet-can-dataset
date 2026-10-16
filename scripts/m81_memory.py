@@ -175,6 +175,27 @@ def compare_full(a: str, b: str) -> dict:
     return out
 
 
+def write_configs() -> None:
+    """Long N=100 engineering tests (not research configurations). Same frozen fleet/CAN/attack settings as M8;
+    the 40 s run reuses the M8 seed so its output can be compared with the generator 1.2.0 session M8_S0_N100."""
+    d = CFG / "experiments"
+    d.mkdir(parents=True, exist_ok=True)
+    exps = [dict(eid=f"M81_S0_N100_D{dur:03d}", seed=80100, scen="S0", dur=float(dur), attack="none", size=0, pattern="none")
+            for dur in (80, 120, 180)]
+    exps.append(dict(eid="M81_CAMP_N100_fuzzy_s10_large", seed=81101, scen="S3", dur=10 + 90 + 5 + 5, attack="fuzzy", size=10,
+                     pattern="large", body=camp("C_M81_FUZZ", "fuzzy", [vid(i) for i in range(1, 11)], 10.0, [10.0 * i for i in range(10)])))
+    for e in exps:
+        campaigns = "config/campaigns.yaml"
+        if e.get("body"):
+            (d / f"{e['eid']}.campaigns.yaml").write_text("campaigns:\n" + e["body"])
+            campaigns = f"config/m81/experiments/{e['eid']}.campaigns.yaml"
+        txt = EXPERIMENT.format(eid=e["eid"], dv="m81-memory-test", scen=e["scen"], desc=e["eid"], seed=e["seed"], n=100,
+                                attack=e["attack"], size=e["size"], pattern=e["pattern"], dur=e["dur"],
+                                attacks="config/attacks.yaml", campaigns=campaigns)
+        (d / f"{e['eid']}.yaml").write_text(txt.replace("# Milestone 8 scalability test", "# Milestone 8.1 memory test"))
+    print([e["eid"] for e in exps])
+
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("cmd", choices=["run", "regress", "compare", "configs"])
@@ -199,4 +220,4 @@ if __name__ == "__main__":
     elif a.cmd == "compare":
         compare_full(a.args[0], a.args[1])
     elif a.cmd == "configs":
-        import m81_configs  # noqa: F401
+        write_configs()

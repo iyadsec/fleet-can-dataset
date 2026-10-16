@@ -44,17 +44,20 @@ def first_attack_descriptor(labels: pd.DataFrame, descriptors: pd.DataFrame, att
     return int(ts.min())
 
 
-def campaign_alignment(data: Path, session_id: str, descriptors: pd.DataFrame, labels: pd.DataFrame) -> pd.DataFrame:
+def campaign_alignment(data: Path, session_id: str, descriptors: pd.DataFrame, labels: pd.DataFrame,
+                       first_mal: dict | None = None) -> pd.DataFrame:
     gt = data / "ground_truth" / session_id
     memb = storage.read_table(gt / "campaign_membership")
     camps = storage.read_table(gt / "campaigns")
     if memb.empty:
         return pd.DataFrame()
     # first malicious frame per attack, directly from frame-level ground truth and bus time
-    fl = storage.read_table(gt / "frame_labels", columns=["frame_uid", "attack_id"])
-    fr = storage.read_table(data / "raw" / session_id / "can_frames", columns=["frame_uid", "tx_end_ns"])
-    first_mal = fl[fl.attack_id != "None"].merge(fr, on="frame_uid")
-    first_mal = first_mal.assign(t=first_mal.tx_end_ns.astype("int64")).groupby("attack_id").t.min().to_dict()
+    # (the bounded pipeline passes it in, accumulated per vehicle group)
+    if first_mal is None:
+        fl = storage.read_table(gt / "frame_labels", columns=["frame_uid", "attack_id"])
+        fr = storage.read_table(data / "raw" / session_id / "can_frames", columns=["frame_uid", "tx_end_ns"])
+        first_mal = fl[fl.attack_id != "None"].merge(fr, on="frame_uid")
+        first_mal = first_mal.assign(t=first_mal.tx_end_ns.astype("int64")).groupby("attack_id").t.min().to_dict()
     rows = []
     for cid, g in memb.groupby("campaign_id"):
         coordinated = camps.set_index("campaign_id").loc[cid, "coordinated"]

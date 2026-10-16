@@ -18,7 +18,8 @@ import numpy as np
 import pandas as pd
 
 from .bus_model import frame_bits, utilization_bins
-from . import storage
+from . import session_groups, storage
+from .session_groups import GROUP_VEHICLES
 from .config import PROJECT_ROOT
 from .campaign_scheduler import build_schedule, check_scenario, pair_overlaps
 from .ground_truth import (ATTACK_COLUMNS, ATTACK_FRAME_COLUMNS, CAMPAIGN_COLUMNS, DROP_COLUMNS,
@@ -93,7 +94,10 @@ def _q(s):
             "p99": round(float(np.percentile(s, 99)), 1), "min": round(float(s.min()), 1), "max": round(float(s.max()), 1)}
 
 
-def validate(sid: str, data: Path) -> Report:
+def validate(sid: str, data: Path, group_size: int = GROUP_VEHICLES) -> Report:
+    """All checks, computed one vehicle group at a time (generator 1.3.0): memory is bounded by the frames of
+    `group_size` vehicles plus attack-bounded tables, never by the whole session. Every check, detail string
+    and statistic equals the whole-session computation (tests/test_m81.py compares against frozen reports)."""
     r = Report()
     p = session_paths(data, sid)
     need = ["frames", "states", "unmatched", "labels", "drops", "attacks", "attack_frames", "replay",
@@ -106,105 +110,252 @@ def validate(sid: str, data: Path) -> Report:
     meta = json.loads(p["metadata"].read_text())
     bstats = json.loads(p["bus_stats"].read_text())
     rd = storage.read_table                                        # identical text for CSV and Parquet
-    f = rd(p["frames"])
-    for c in ("sim_time_ns", "tx_start_ns", "tx_end_ns", "frame_bits", "capture_time_ns", "dlc"):
-        f[c] = f[c].astype("int64")
-    st = rd(p["states"])
-    st["sim_time_ns"] = st.sim_time_ns.astype("int64")
-    st["speed_mps"] = st.speed_mps.astype(float)
-    lab, drops, att, afr, rep = rd(p["labels"]), rd(p["drops"]), rd(p["attacks"]), rd(p["attack_frames"]), rd(p["replay"])
+    drops, att, afr, rep = rd(p["drops"]), rd(p["attacks"]), rd(p["attack_frames"]), rd(p["replay"])
     camp, memb, ovl, unm = rd(p["campaigns"]), rd(p["membership"]), rd(p["overlap"]), rd(p["unmatched"])
     fleet = {v["vehicle_id"]: v for v in meta["fleet"]["vehicles"]}
     profiles = meta["fleet"]["profiles"]
     step_ns = meta["simulation"]["step_length_ns"]
     attack_cfg = {a["attack_id"]: a for a in meta.get("attack_configuration") or []}
-
-    f = f.merge(lab[["frame_uid", "frame_label", "attack_type", "attack_id", "frame_source", "campaign_id"]],
-                on="frame_uid", how="left")
     if len(drops):
         drops["sim_time_ns"] = drops.sim_time_ns.astype("int64")
-    ecu = f[f.frame_source.isin(ECU_SOURCES)]
-    ecu_drops = drops[drops.frame_source.isin(ECU_SOURCES)] if len(drops) else drops
+    ecu_drops_all = drops[drops.frame_source.isin(ECU_SOURCES)] if len(drops) else drops
+    logical = meta["can"]["bus_model"] == "logical"
+    jf = float(((meta["fleet"].get("assignment") or {}).get("ecu_jitter") or {}).get("fraction", 0.0))
+    lo, hi = meta["simulation"]["sim_start_ns"], meta["simulation"]["sim_end_ns"] + step_ns
+    pol = {v: profiles[fleet[v]["profile"]]["bus"] for v in fleet}
 
     def msg_spec(vehicle, can_hex):
         prof = profiles[fleet[vehicle]["profile"]]
         name = _dbc(prof["dbc"]).get_message_by_frame_id(int(can_hex, 16)).name
         return next(m for m in prof["messages"] if m["name"] == name)
 
+    # vehicles present in the frame file (including any not configured: they form their own group)
+    seen = set(session_groups.distinct(p["frames"], "vehicle_id"))
+    extra = (seen | set(session_groups.distinct(p["states"], "vehicle_id"))) - set(fleet)
+    groups = session_groups.vehicle_groups(set(fleet), group_size) + ([sorted(extra)] if extra else [])
+    st_cols = storage.read_columns(p["states"])
+
+    # ---- accumulators -------------------------------------------------------------------------
+    n_frames = nulls = 0
+    sess_ids, scen_ids, can_ids = set(), set(), set()
+    bad_ch = {}
+    v07_ok = v08_ok = v09_ts = True
+    align_err, period_viol, drift_viol = [], 0, 0
+    mono_tx = mono_gen = True
+    dup_key = 0
+    frame_uids = _UidSet(sid)
+    dur_ok, qd_neg, qd_ok, qd_min, qd_max = True, 0, True, None, None
+    overlap, arb_viol = 0, 0
+    util_ok, util_diff = True, 0.0
+    exp_bad = 0
+    dec_err = ctr_err = n_streams = 0
+    v17_err_max, v17_bad, v17_n, v17_any = None, 0, 0, False
+    consistent, n_benign, n_mal, chain_bad = True, 0, 0, 0
+    att_camp = dict(zip(att.attack_id, att.campaign_id))
+    rep_orig = set(rep.original_frame_uid) if len(rep) else set()
+    tagged_parts = []                          # frames carrying an attack id or a malicious label (attack-bounded)
+    info_fpv, info_fbl, info_qd, info_cap = {}, {}, {}, {}
+    cap_all_set = True
+    speed_tol = None
+    if fleet:
+        speed_tol = max(_dbc(pp["dbc"]).get_message_by_name(((pp.get("roles") or {}).get("vehicle_speed") or ["VEHICLE_SPEED", "VehicleSpeed"])[0])
+                        .get_signal_by_name(((pp.get("roles") or {}).get("vehicle_speed") or ["VEHICLE_SPEED", "VehicleSpeed"])[1]).scale
+                        for pp in {fleet[v]["profile"]: profiles[fleet[v]["profile"]] for v in fleet}.values()) + 0.0002 * 3.6
+    first_state_all = {}
+
+    for grp in groups:
+        f = session_groups.read_filtered(p["frames"], "vehicle_id", grp)
+        for c in ("sim_time_ns", "tx_start_ns", "tx_end_ns", "frame_bits", "capture_time_ns", "dlc"):
+            f[c] = f[c].astype("int64")
+        lab = session_groups.read_filtered(p["labels"], "frame_uid", set(f.frame_uid))
+        st = session_groups.read_filtered(p["states"], "vehicle_id", grp)
+        if not len(st.columns):
+            st = pd.DataFrame(columns=st_cols)
+        st["sim_time_ns"] = st.sim_time_ns.astype("int64")
+        st["speed_mps"] = st.speed_mps.astype(float)
+        f = f.merge(lab[["frame_uid", "frame_label", "attack_type", "attack_id", "frame_source", "campaign_id"]],
+                    on="frame_uid", how="left")
+        frame_uids.add(f.frame_uid)
+        gset = set(grp)
+        ecu = f[f.frame_source.isin(ECU_SOURCES)]
+        ecu_drops = ecu_drops_all[ecu_drops_all.vehicle_id.isin(gset)] if len(ecu_drops_all) else ecu_drops_all
+        n_frames += len(f)
+
+        req = [c for c in FRAME_COLUMNS if c not in ("capture_offset_us", "payload")]
+        nulls += int((f[req].astype(str) == "").sum().sum()) + int(((f.payload == "") & (f.dlc != 0)).sum())
+        sess_ids |= set(f.session_id)
+        scen_ids |= set(f.scenario_id)
+        for v, g in f.groupby("vehicle_id"):
+            if set(g.channel) != {fleet[v]["channel"]}:
+                bad_ch[v] = sorted(set(g.channel))
+        ids = f.can_id.map(lambda s: int(s, 16))
+        v07_ok &= bool(ids.between(0, 0x7FF).all())
+        can_ids |= set(f.can_id)
+        hex_ok = f.payload.str.fullmatch(r"[0-9A-F]*").all()
+        v08_ok &= bool(hex_ok and f.dlc.between(0, 8).all() and (f.payload.str.len() == 2 * f.dlc).all())
+        v09_ts &= bool((f.timestamp == f.sim_time_ns.map(fmt_time)).all() and (f.transmission_timestamp == f.tx_end_ns.map(fmt_time)).all()
+                       and (st.timestamp == st.sim_time_ns.map(fmt_time)).all() and f.sim_time_ns.between(lo, hi).all())
+
+        first_state = st.groupby("vehicle_id").sim_time_ns.min()
+        first_state_all.update(first_state.to_dict())
+        gen_all = pd.concat([ecu[["vehicle_id", "can_id", "sim_time_ns"]], ecu_drops[["vehicle_id", "can_id", "sim_time_ns"]]]) \
+            if len(ecu_drops) else ecu[["vehicle_id", "can_id", "sim_time_ns"]]
+        for (v, cid), g in gen_all.groupby(["vehicle_id", "can_id"]):
+            spec = msg_spec(v, cid)
+            P = round(spec["period_ms"] * 1e6)
+            tol = round(jf * P)
+            t = g.sim_time_ns.sort_values().to_numpy()
+            expected = first_state[v] + int(fleet[v].get("switch_on_ns", 0)) + round(spec["offset_ms"] * 1e6)
+            if not (max(first_state[v], expected - tol) <= t[0] <= expected + tol):
+                align_err.append(f"{v}/{cid}")
+            d = np.diff(t)
+            period_viol += int(((d < P - 2 * tol) | (d > P + 2 * tol)).sum())
+            drift_viol += int(abs(t[-1] - expected - (len(t) - 1) * P) > tol)
+        mono_tx &= all(g.tx_start_ns.is_monotonic_increasing and g.capture_time_ns.is_monotonic_increasing for _, g in f.groupby("vehicle_id"))
+        mono_gen &= all(g.sim_time_ns.is_monotonic_increasing for _, g in ecu.groupby(["vehicle_id", "can_id"]))
+        dup_key += int(f.duplicated(["vehicle_id", "sim_time_ns", "can_id", "frame_source", "payload"]).sum())
+
+        exp_bits = [frame_bits(int(c, 16), bytes.fromhex(pl), profiles[fleet[v]["profile"]]["bus"]["stuffing"])
+                    for c, pl, v in zip(f.can_id, f.payload, f.vehicle_id)]
+        bit_ns = f.vehicle_id.map(lambda v: 1e9 / profiles[fleet[v]["profile"]]["bus"]["bitrate"])
+        if len(f):
+            dur_ok &= bool((f.frame_bits == exp_bits).all() and (
+                (f.tx_end_ns - f.tx_start_ns - (f.frame_bits * bit_ns).round().astype("int64")).abs().max() == 0 if logical
+                else (f.tx_end_ns == f.tx_start_ns).all()))
+            qd = f.tx_start_ns - f.sim_time_ns
+            qd_neg += int((qd < 0).sum())
+            qd_ok &= bool((qd >= 0).all() and ((f.queue_delay_us.astype(float) * 1e3 - qd).abs() < 1).all())
+            qd_min = qd.min() if qd_min is None else min(qd_min, qd.min())
+            qd_max = qd.max() if qd_max is None else max(qd_max, qd.max())
+            for v, c in pol.items():
+                if v in gset and c.get("expiry_policy", "retain") == "deadline":
+                    exp_bad += int((qd[f.vehicle_id == v] > round(c["max_frame_age_ms"] * 1e6)).sum())
+        for _, g in f.sort_values("tx_start_ns").groupby("vehicle_id"):
+            overlap += int((g.tx_start_ns.values[1:] < g.tx_end_ns.values[:-1]).sum()) if logical else 0
+        if logical:
+            for _, g in f.groupby("vehicle_id"):
+                frames = sorted(zip(g.sim_time_ns, g.tx_start_ns, g.can_id.map(lambda s: int(s, 16))), key=lambda x: x[0])
+                order = sorted(range(len(frames)), key=lambda i: frames[i][1])
+                heap, j = [], 0
+                for i in order:
+                    ready_i, start_i, id_i = frames[i]
+                    while j < len(frames) and frames[j][0] <= start_i:
+                        heapq.heappush(heap, (frames[j][2], frames[j][1]))
+                        j += 1
+                    while heap and heap[0][1] < start_i:
+                        heapq.heappop(heap)
+                    if heap and heap[0][0] < id_i:
+                        arb_viol += 1
+        for v, g in f.groupby("vehicle_id"):
+            ch = fleet[v]["channel"]
+            cs = bstats["channels"][ch]
+            bins = utilization_bins(list(zip(g.tx_start_ns, g.tx_end_ns)), 0, cs["span_ns"], bstats["bin_ns"])
+            util_ok &= all(0.0 <= b <= 1.0 + 1e-12 for b in bins) and len(bins) == len(cs["utilization_bins"])
+            util_diff = max(util_diff, max(abs(a - b) for a, b in zip(bins, cs["utilization_bins"])))
+
+        streams = pd.concat([ecu[["vehicle_id", "can_id", "sim_time_ns", "payload", "frame_source"]],
+                             ecu_drops[["vehicle_id", "can_id", "sim_time_ns", "payload", "frame_source"]]]) \
+            if len(ecu_drops) else ecu[["vehicle_id", "can_id", "sim_time_ns", "payload", "frame_source"]]
+        n_streams += len(streams)
+        speed = []
+        for (v, cid), g in streams.sort_values("sim_time_ns").groupby(["vehicle_id", "can_id"]):
+            prof = profiles[fleet[v]["profile"]]
+            msg = _dbc(prof["dbc"]).get_message_by_frame_id(int(cid, 16))
+            spec = next(m for m in prof["messages"] if m["name"] == msg.name)
+            ctr_sig = next((s for s, q in spec["signals"].items() if q == "counter"), None)
+            speed_role = (prof.get("roles") or {}).get("vehicle_speed") or ["VEHICLE_SPEED", "VehicleSpeed"]
+            ctr = []
+            for t_ns, pl, src in zip(g.sim_time_ns, g.payload, g.frame_source):
+                try:
+                    dd = msg.decode(bytes.fromhex(pl), decode_choices=False)
+                except Exception:
+                    dec_err += 1
+                    continue
+                if ctr_sig:
+                    ctr.append(int(dd[ctr_sig]))
+                if msg.name == speed_role[0] and src == "benign_generator":
+                    speed.append((v, t_ns, dd[speed_role[1]]))
+            ctr_err += int(sum((b - a) % 16 != 1 for a, b in zip(ctr, ctr[1:])))
+        if speed:
+            v17_any = True
+            ds = pd.DataFrame(speed, columns=["vehicle_id", "sim_time_ns", "can_kmh"]).sort_values("sim_time_ns")
+            m = pd.merge_asof(ds, st[["vehicle_id", "sim_time_ns", "speed_mps"]].sort_values("sim_time_ns"),
+                              on="sim_time_ns", by="vehicle_id", direction="backward")
+            err = (m.can_kmh - m.speed_mps * 3.6).abs()
+            v17_err_max = err.max() if v17_err_max is None else max(v17_err_max, err.max())
+            v17_bad += int((err > speed_tol).sum())
+            v17_n += len(m)
+
+        consistent &= bool((((f.frame_source == "benign_generator") & (f.frame_label == "benign") & (f.attack_id == "None"))
+                            | (f.frame_source.isin(["attack_injection", "attack_modification"]) & (f.frame_label == "malicious")
+                               & (f.attack_id != "None"))).all())
+        n_benign += int((f.frame_label == "benign").sum())
+        n_mal += int((f.frame_label == "malicious").sum())
+        chain_bad += int((f[f.frame_label == "benign"].campaign_id != "None").sum())
+        mal_f = f[f.frame_label == "malicious"]
+        chain_bad += int((mal_f.campaign_id != mal_f.attack_id.map(att_camp)).sum())
+        keep = (f.attack_id != "None") | (f.frame_label == "malicious") | f.frame_uid.isin(rep_orig)
+        if keep.any():
+            tagged_parts.append(f[keep])
+
+        info_fpv.update(f.groupby("vehicle_id").size().to_dict())
+        info_fbl.update({f"{v}/{l}": int(n) for (v, l), n in f.groupby(["vehicle_id", "frame_label"]).size().items()})
+        info_qd.update({v: _q((g.tx_start_ns - g.sim_time_ns) / 1e3) for v, g in f.groupby("vehicle_id")})
+        if (f.capture_offset_us != "").all():
+            off = f.capture_offset_us.astype(float)
+            info_cap.update({v: _q(g) for v, g in off.groupby(f.vehicle_id)})
+        else:
+            cap_all_set = False
+        del f, lab, st, ecu, streams
+
+    # labels: one row per frame and vice versa (streamed over the whole label file)
+    lab_sess, n_lab, lab_ok = set(), 0, True
+    lab_uids = _UidSet(sid)
+    for b in session_groups.iter_column_batches(p["labels"], ["frame_uid", "session_id"]):
+        n_lab += len(b)
+        lab_sess |= set(b.session_id)
+        lab_uids.add(b.frame_uid)
+    lab_ok = lab_uids.same_as(frame_uids) and not lab_uids.duplicates
+
     # ======================= structure ==========================================================
     schemas = {"frames": (storage.read_columns(p["frames"]), FRAME_COLUMNS),
-               "labels": (lab.columns, LABEL_COLUMNS), "drops": (drops.columns, DROP_COLUMNS),
+               "labels": (storage.read_columns(p["labels"]), LABEL_COLUMNS), "drops": (drops.columns, DROP_COLUMNS),
                "attacks": (att.columns, ATTACK_COLUMNS), "attack_frames": (afr.columns, ATTACK_FRAME_COLUMNS),
                "replay_map": (rep.columns, REPLAY_COLUMNS), "campaigns": (camp.columns, CAMPAIGN_COLUMNS),
                "campaign_membership": (memb.columns, MEMBERSHIP_COLUMNS), "campaign_overlap": (ovl.columns, OVERLAP_COLUMNS),
-               "states": (st.columns, STATE_COLUMNS)}
+               "states": (st_cols, STATE_COLUMNS)}
     bad_schema = [k for k, (got, want) in schemas.items() if list(got) != want]
     r.ok("V02", "schemas match", not bad_schema, "frames, labels, drops, attacks, attack_frames, replay_map, campaigns, states",
          f"mismatch: {bad_schema}")
-    req = [c for c in FRAME_COLUMNS if c not in ("capture_offset_us", "payload")]
-    nulls = int((f[req].astype(str) == "").sum().sum()) + int(((f.payload == "") & (f.dlc != 0)).sum())
-    r.ok("V03", "no missing values in required frame fields", nulls == 0 and len(f) > 0,
-         f"{len(f)} frames, 0 empty", f"{nulls} empty fields / {len(f)} rows")
+    r.ok("V03", "no missing values in required frame fields", nulls == 0 and n_frames > 0,
+         f"{n_frames} frames, 0 empty", f"{nulls} empty fields / {n_frames} rows")
     r.ok("V04", "session_id and scenario_id match metadata",
-         set(f.session_id) == {sid} and set(f.scenario_id) == {meta["scenario_id"]} and set(lab.session_id) == {sid},
+         sess_ids == {sid} and scen_ids == {meta["scenario_id"]} and lab_sess == {sid},
          f"session={sid}, scenario={meta['scenario_id']}", "foreign or missing IDs")
 
     # ======================= vehicles / frame content ===========================================
-    seen = set(f.vehicle_id)
     r.ok("V05", "vehicle IDs valid and every configured vehicle present", seen == set(fleet), sorted(seen),
          f"seen={sorted(seen)} configured={sorted(fleet)}")
-    bad_ch = {v: sorted(set(g.channel)) for v, g in f.groupby("vehicle_id") if set(g.channel) != {fleet[v]["channel"]}}
     r.ok("V06", "each vehicle captured only on its configured channel", not bad_ch,
-         ", ".join(f"{v}->{fleet[v]['channel']}" for v in sorted(fleet)), bad_ch)
-    ids = f.can_id.map(lambda s: int(s, 16))
-    r.ok("V07", "CAN IDs are valid 11-bit identifiers", bool(ids.between(0, 0x7FF).all()),
-         f"{f.can_id.nunique()} distinct IDs in 0x000..0x7FF", "ID outside 0x000..0x7FF")
-    hex_ok = f.payload.str.fullmatch(r"[0-9A-F]*").all()
-    r.ok("V08", "DLC in 0..8 and equals payload length (Classical CAN)",
-         bool(hex_ok and f.dlc.between(0, 8).all() and (f.payload.str.len() == 2 * f.dlc).all()),
+         ", ".join(f"{v}->{fleet[v]['channel']}" for v in sorted(fleet)), dict(sorted(bad_ch.items())))
+    r.ok("V07", "CAN IDs are valid 11-bit identifiers", v07_ok,
+         f"{len(can_ids)} distinct IDs in 0x000..0x7FF", "ID outside 0x000..0x7FF")
+    r.ok("V08", "DLC in 0..8 and equals payload length (Classical CAN)", v08_ok,
          "all rows consistent", "DLC/payload mismatch or invalid hex")
 
     # ======================= time base ===========================================================
-    ts_ok = ((f.timestamp == f.sim_time_ns.map(fmt_time)).all()
-             and (f.transmission_timestamp == f.tx_end_ns.map(fmt_time)).all()
-             and (st.timestamp == st.sim_time_ns.map(fmt_time)).all())
-    lo, hi = meta["simulation"]["sim_start_ns"], meta["simulation"]["sim_end_ns"] + step_ns
     r.ok("V09", "timestamps = SUMO time; generation times inside simulated interval",
-         bool(ts_ok and f.sim_time_ns.between(lo, hi).all()), f"generation in [{fmt_time(lo)}, {fmt_time(hi)}] s",
-         "timestamp/sim_time mismatch or out of range")
-
-    first_state = st.groupby("vehicle_id").sim_time_ns.min()
-    gen_all = pd.concat([ecu[["vehicle_id", "can_id", "sim_time_ns"]], ecu_drops[["vehicle_id", "can_id", "sim_time_ns"]]]) \
-        if len(ecu_drops) else ecu[["vehicle_id", "can_id", "sim_time_ns"]]
-    jf = float(((meta["fleet"].get("assignment") or {}).get("ecu_jitter") or {}).get("fraction", 0.0))
-    align_err, period_viol, drift_viol = [], 0, 0
-    for (v, cid), g in gen_all.groupby(["vehicle_id", "can_id"]):
-        spec = msg_spec(v, cid)
-        P = round(spec["period_ms"] * 1e6)
-        tol = round(jf * P)                            # 0 without jitter -> exact checks as before
-        t = g.sim_time_ns.sort_values().to_numpy()
-        expected = first_state[v] + int(fleet[v].get("switch_on_ns", 0)) + round(spec["offset_ms"] * 1e6)
-        if not (max(first_state[v], expected - tol) <= t[0] <= expected + tol):
-            align_err.append(f"{v}/{cid}")
-        d = np.diff(t)
-        period_viol += int(((d < P - 2 * tol) | (d > P + 2 * tol)).sum())
-        drift_viol += int(abs(t[-1] - expected - (len(t) - 1) * P) > tol)     # nominal grid preserved, no drift
+         v09_ts, f"generation in [{fmt_time(lo)}, {fmt_time(hi)}] s", "timestamp/sim_time mismatch or out of range")
     r.ok("V10", "ECU frames and SUMO states share one timeline (first generation = first SUMO state + switch-on + offset"
                 + (f", +-{jf:.1%} jitter" if jf else "") + ")",
          not align_err, "all vehicle/message streams aligned", f"misaligned: {align_err}")
-
-    mono_tx = all(g.tx_start_ns.is_monotonic_increasing and g.capture_time_ns.is_monotonic_increasing
-                  for _, g in f.groupby("vehicle_id"))
-    mono_gen = all(g.sim_time_ns.is_monotonic_increasing for _, g in ecu.groupby(["vehicle_id", "can_id"]))
     r.ok("V11", "timestamps monotonic: per vehicle in transmission+capture order; per ECU stream in generation",
          mono_tx and mono_gen, "monotonic", f"tx/capture monotonic={mono_tx}, per-stream generation={mono_gen}")
     r.ok("V12", "every ECU message stream (transmitted + dropped) follows its configured period"
                 + (f" within +-{2 * jf:.1%} per interval and with no drift from the nominal grid" if jf else " exactly"),
          period_viol == 0 and drift_viol == 0, "0 gaps, extra frames or drift",
          f"{period_viol} deviating intervals, {drift_viol} drifting streams")
-
-    dup_uid = int(f.frame_uid.duplicated().sum())
-    dup_key = int(f.duplicated(["vehicle_id", "sim_time_ns", "can_id", "frame_source", "payload"]).sum())
+    dup_uid = frame_uids.duplicates
     r.ok("V13", "no duplicate records", dup_uid == 0 and dup_key == 0, "0 duplicates",
          f"dup uid={dup_uid}, dup (vehicle,time,id,source,payload)={dup_key}")
 
@@ -212,7 +363,7 @@ def validate(sid: str, data: Path) -> Report:
     t = meta["transport_stats"]["total"]
     clean = t["missing"] == 0 and t["unexpected"] == 0 and t["content_mismatch"] == 0 and t["send_errors"] == 0 and len(unm) == 0
     r.ok("V14", "every bus-transmitted frame captured on vCAN with identical ID+payload; nothing extra",
-         clean and t["matched"] == len(f), f"sent={t['sent']} captured={t['captured']} matched={t['matched']}",
+         clean and t["matched"] == n_frames, f"sent={t['sent']} captured={t['captured']} matched={t['matched']}",
          f"{t}, unmatched rows={len(unm)}")
     bt = meta["can"]["bus_totals"]
     acct = all(v["generated"] == v["transmitted"] + v["dropped"] for v in bt.values())
@@ -222,126 +373,54 @@ def validate(sid: str, data: Path) -> Report:
          acct, f"generated={sum(v['generated'] for v in bt.values())} dropped={len(drops)}", f"{bt} vs drops file={len(drops)}")
 
     # ======================= bus timing model ====================================================
-    logical = meta["can"]["bus_model"] == "logical"
-    exp_bits = [frame_bits(int(c, 16), bytes.fromhex(pl), profiles[fleet[v]["profile"]]["bus"]["stuffing"])
-                for c, pl, v in zip(f.can_id, f.payload, f.vehicle_id)]
-    bit_ns = f.vehicle_id.map(lambda v: 1e9 / profiles[fleet[v]["profile"]]["bus"]["bitrate"])
-    dur_ok = (f.frame_bits == exp_bits).all() and (
-        (f.tx_end_ns - f.tx_start_ns - (f.frame_bits * bit_ns).round().astype("int64")).abs().max() == 0 if logical
-        else (f.tx_end_ns == f.tx_start_ns).all())
     r.ok("B01", "frame duration = exact bit count (from captured ID+payload) x bit time",
-         bool(dur_ok), "all frames" if logical else "ideal bus: zero duration", "duration/bit-count mismatch")
-    qd = f.tx_start_ns - f.sim_time_ns
+         bool(dur_ok and n_frames > 0), "all frames" if logical else "ideal bus: zero duration", "duration/bit-count mismatch")
     r.ok("B02", "queue delays non-negative and consistent (queue_delay_us = tx_start - generation)",
-         bool((qd >= 0).all() and ((f.queue_delay_us.astype(float) * 1e3 - qd).abs() < 1).all()),
-         f"min={qd.min() / 1e3:.1f} us, max={qd.max() / 1e3:.1f} us", f"{int((qd < 0).sum())} negative")
-    overlap = 0
-    for _, g in f.sort_values("tx_start_ns").groupby("vehicle_id"):
-        overlap += int((g.tx_start_ns.values[1:] < g.tx_end_ns.values[:-1]).sum()) if logical else 0
+         bool(qd_ok), f"min={qd_min / 1e3:.1f} us, max={qd_max / 1e3:.1f} us" if qd_min is not None else "min=nan us, max=nan us",
+         f"{qd_neg} negative")
     r.ok("B03", "no overlapping transmissions on any vehicle bus", overlap == 0, "bus carries one frame at a time",
          f"{overlap} overlaps")
-
-    arb_viol = 0
     if logical:
-        for _, g in f.groupby("vehicle_id"):
-            frames = sorted(zip(g.sim_time_ns, g.tx_start_ns, g.can_id.map(lambda s: int(s, 16))), key=lambda x: x[0])
-            order = sorted(range(len(frames)), key=lambda i: frames[i][1])
-            heap, j = [], 0
-            for i in order:
-                ready_i, start_i, id_i = frames[i]
-                while j < len(frames) and frames[j][0] <= start_i:
-                    heapq.heappush(heap, (frames[j][2], frames[j][1]))
-                    j += 1
-                while heap and heap[0][1] < start_i:
-                    heapq.heappop(heap)
-                if heap and heap[0][0] < id_i:
-                    arb_viol += 1
         r.ok("B04", "arbitration: no frame waited while a lower-ID frame that was ready lost the bus",
              arb_viol == 0, "priority order respected for every transmission", f"{arb_viol} priority inversions")
     else:
         r.na("B04", "arbitration", "ideal bus (bus_model=ideal)")
-
-    util_ok, util_diff = True, 0.0
-    for v, g in f.groupby("vehicle_id"):
-        ch = fleet[v]["channel"]
-        cs = bstats["channels"][ch]
-        bins = utilization_bins(list(zip(g.tx_start_ns, g.tx_end_ns)), 0, cs["span_ns"], bstats["bin_ns"])
-        util_ok &= all(0.0 <= b <= 1.0 + 1e-12 for b in bins) and len(bins) == len(cs["utilization_bins"])
-        util_diff = max(util_diff, max(abs(a - b) for a, b in zip(bins, cs["utilization_bins"])))
     r.ok("B05", "bus utilization within [0, 1] and equal to recomputation from captured frames",
          util_ok and util_diff < 1e-9,
          "; ".join(f"{ch} overall={c['utilization_overall']:.4f} peak={max(c['utilization_bins']):.4f}"
                    for ch, c in bstats["channels"].items()), f"max diff {util_diff}")
     ql_ok = all(max(c["max_queue_len"].values() or [0]) <= c["config"]["queue_limit"] for c in bstats["channels"].values())
     r.ok("B06", "node queues never exceeded the configured limit", ql_ok, "within queue_limit", "queue limit exceeded")
-    _expiry_checks(r, f, drops, fleet, profiles, bt)
+    _expiry_checks(r, exp_bad, drops, fleet, profiles, bt)
 
     # ======================= DBC / counters / SUMO consistency (benign ECU frames) ===================
-    dec_err, ctr_err, speed = 0, 0, []
-    streams = pd.concat([ecu[["vehicle_id", "can_id", "sim_time_ns", "payload", "frame_source"]],
-                         ecu_drops[["vehicle_id", "can_id", "sim_time_ns", "payload", "frame_source"]]]) \
-        if len(ecu_drops) else ecu[["vehicle_id", "can_id", "sim_time_ns", "payload", "frame_source"]]
-    for (v, cid), g in streams.sort_values("sim_time_ns").groupby(["vehicle_id", "can_id"]):
-        prof = profiles[fleet[v]["profile"]]
-        msg = _dbc(prof["dbc"]).get_message_by_frame_id(int(cid, 16))
-        spec = next(m for m in prof["messages"] if m["name"] == msg.name)
-        ctr_sig = next((s for s, q in spec["signals"].items() if q == "counter"), None)
-        speed_role = (prof.get("roles") or {}).get("vehicle_speed") or ["VEHICLE_SPEED", "VehicleSpeed"]
-        ctr = []
-        for t_ns, pl, src in zip(g.sim_time_ns, g.payload, g.frame_source):
-            try:
-                d = msg.decode(bytes.fromhex(pl), decode_choices=False)
-            except Exception:
-                dec_err += 1
-                continue
-            if ctr_sig:
-                ctr.append(int(d[ctr_sig]))
-            if msg.name == speed_role[0] and src == "benign_generator":
-                speed.append((v, t_ns, d[speed_role[1]]))
-        ctr_err += int(sum((b - a) % 16 != 1 for a, b in zip(ctr, ctr[1:])))
     r.ok("V16", "every ECU payload decodes with the vehicle DBC; rolling counters continuous (incl. dropped)",
-         dec_err == 0 and ctr_err == 0, f"{len(streams)} ECU frames", f"decode errors={dec_err}, counter gaps={ctr_err}")
-    if speed:
-        ds = pd.DataFrame(speed, columns=["vehicle_id", "sim_time_ns", "can_kmh"]).sort_values("sim_time_ns")
-        m = pd.merge_asof(ds, st[["vehicle_id", "sim_time_ns", "speed_mps"]].sort_values("sim_time_ns"),
-                          on="sim_time_ns", by="vehicle_id", direction="backward")
-        err = (m.can_kmh - m.speed_mps * 3.6).abs()
-        res = max(_dbc(p["dbc"]).get_message_by_name(((p.get("roles") or {}).get("vehicle_speed") or ["VEHICLE_SPEED", "VehicleSpeed"])[0])
-                  .get_signal_by_name(((p.get("roles") or {}).get("vehicle_speed") or ["VEHICLE_SPEED", "VehicleSpeed"])[1]).scale
-                  for p in {fleet[v]["profile"]: profiles[fleet[v]["profile"]] for v in fleet}.values())
-        tol = res + 0.0002 * 3.6                 # coarsest DBC speed resolution in the fleet + state rounding
-        r.ok("V17", "decoded benign vehicle speed (role vehicle_speed) equals SUMO speed (sample-and-hold)", bool((err <= tol).all()),
-             f"max |error| = {err.max():.4f} km/h over {len(m)} frames", f"{int((err > tol).sum())} frames exceed {tol:.4f}")
+         dec_err == 0 and ctr_err == 0, f"{n_streams} ECU frames", f"decode errors={dec_err}, counter gaps={ctr_err}")
+    if v17_any:
+        r.ok("V17", "decoded benign vehicle speed (role vehicle_speed) equals SUMO speed (sample-and-hold)", v17_bad == 0,
+             f"max |error| = {v17_err_max:.4f} km/h over {v17_n} frames", f"{v17_bad} frames exceed {speed_tol:.4f}")
 
     # ======================= labels / ground truth ================================================
     r.ok("V18", "every frame has exactly one ground-truth label row (and vice versa)",
-         set(lab.frame_uid) == set(f.frame_uid) and not lab.frame_uid.duplicated().any(), f"{len(lab)} label rows",
-         "label/frame sets differ")
-    consistent = (((f.frame_source == "benign_generator") & (f.frame_label == "benign") & (f.attack_id == "None"))
-                  | (f.frame_source.isin(["attack_injection", "attack_modification"]) & (f.frame_label == "malicious")
-                     & (f.attack_id != "None"))).all()
+         lab_ok, f"{n_lab} label rows", "label/frame sets differ")
     r.ok("V19", "labels follow provenance: no benign frame labelled malicious and vice versa", bool(consistent),
-         f"benign={int((f.frame_label == 'benign').sum())}, malicious={int((f.frame_label == 'malicious').sum())}",
-         "label/provenance mismatch")
-    att_camp = dict(zip(att.attack_id, att.campaign_id))
-    chain_bad = int((f[f.frame_label == "benign"].campaign_id != "None").sum())
-    mal_f = f[f.frame_label == "malicious"]
-    chain_bad += int((mal_f.campaign_id != mal_f.attack_id.map(att_camp)).sum())
+         f"benign={n_benign}, malicious={n_mal}", "label/provenance mismatch")
     if len(drops):
         chain_bad += int((drops[drops.frame_label == "benign"].campaign_id != "None").sum())
         md_ = drops[drops.frame_label == "malicious"]
         chain_bad += int((md_.campaign_id != md_.attack_id.map(att_camp)).sum())
     r.ok("V20", "frame -> attack -> campaign chain: benign frames/drops have no campaign; malicious ones carry their attack's campaign",
-         chain_bad == 0, f"{len(mal_f)} malicious frames traced", f"{chain_bad} broken links")
+         chain_bad == 0, f"{n_mal} malicious frames traced", f"{chain_bad} broken links")
 
-    mal = f[f.frame_label == "malicious"]
-    if not attack_cfg and mal.empty:
+    tagged = pd.concat(tagged_parts, ignore_index=True) if tagged_parts else pd.DataFrame(
+        columns=FRAME_COLUMNS + ["frame_label", "attack_type", "attack_id", "frame_source", "campaign_id"])
+    if not attack_cfg and n_mal == 0:
         for cid, name in [("A01", "attack ground truth"), ("A02", "attack windows"), ("A03", "attack counts"),
                           ("A04", "flooding"), ("A05", "fuzzy"), ("A06", "malfunction"), ("A07", "replay")]:
             r.na(cid, name, "no attacks configured")
     else:
-        _attack_checks(r, f, drops, att, afr, rep, attack_cfg, fleet, profiles)
-    _campaign_checks(r, meta, f, drops, att, camp, memb, ovl, attack_cfg)
+        _attack_checks(r, tagged, drops, att, afr, rep, attack_cfg, fleet, profiles)
+    _campaign_checks(r, meta, tagged, drops, att, camp, memb, ovl, attack_cfg)
 
     # ======================= reproducibility ======================================================
     absent = [k for k in REQUIRED_METADATA if _get(meta, k) in (None, "", {}, [])]
@@ -364,23 +443,58 @@ def validate(sid: str, data: Path) -> Report:
         r.add("V25", "code version recorded (git commit)", "PASS", meta["git"]["commit"][:10])
 
     # ======================= informational statistics ============================================
-    r.info["frames_per_vehicle"] = f.groupby("vehicle_id").size().to_dict()
-    r.info["frames_by_label"] = {f"{v}/{l}": int(n) for (v, l), n in f.groupby(["vehicle_id", "frame_label"]).size().items()}
+    r.info["frames_per_vehicle"] = dict(sorted(info_fpv.items()))
+    r.info["frames_by_label"] = dict(sorted(info_fbl.items()))
     r.info["dropped_by_vehicle_label"] = ({f"{v}/{l}": int(n) for (v, l), n in drops.groupby(["vehicle_id", "frame_label"]).size().items()}
                                           if len(drops) else {})
-    r.info["queue_delay_us"] = {v: _q((g.tx_start_ns - g.sim_time_ns) / 1e3)
-                                for v, g in f.groupby("vehicle_id")}
+    r.info["queue_delay_us"] = dict(sorted(info_qd.items()))
     r.info["bus_utilization"] = {ch: {"overall": round(c["utilization_overall"], 4), "peak_100ms": round(max(c["utilization_bins"]), 4)}
                                  for ch, c in bstats["channels"].items()}
-    if (f.capture_offset_us != "").all():
-        off = f.capture_offset_us.astype(float)
-        r.info["capture_offset_us"] = {v: _q(g) for v, g in off.groupby(f.vehicle_id)}
+    if cap_all_set and info_cap:
+        r.info["capture_offset_us"] = dict(sorted(info_cap.items()))
         if max(v["p99"] for v in r.info["capture_offset_us"].values()) > 5000:
             r.add("V26", "capture jitter (p99 capture offset vs modelled transmission end)", "WARN", "> 5 ms; host load or VM scheduling")
         else:
             r.add("V26", "capture jitter (p99 capture offset vs modelled transmission end)", "PASS", "<= 5 ms for all vehicles")
     r.info["attack_windows"] = bstats.get("attack_windows", [])
     return r
+
+
+class _UidSet:
+    """Frame-UID multiset in compact form: UIDs of the form <session>-F<9 digits> are kept as an integer bitmap/counter,
+    anything else in a small Python set (so duplicates and set equality are exact)."""
+
+    def __init__(self, sid: str):
+        self.prefix = f"{sid}-F"
+        self.counts = np.zeros(0, dtype=np.uint8)
+        self.other: dict[str, int] = {}
+        self.duplicates = 0
+
+    def add(self, uids) -> None:
+        s = pd.Series(uids, dtype=object).astype(str)
+        std = s.str.startswith(self.prefix) & (s.str.len() == len(self.prefix) + 9) & s.str[len(self.prefix):].str.isdigit()
+        idx = s[std].str[len(self.prefix):].astype(np.int64).to_numpy()
+        if idx.size:
+            need = int(idx.max()) + 1
+            if need > self.counts.size:
+                grown = np.zeros(max(need, 2 * self.counts.size), dtype=np.uint8)
+                grown[:self.counts.size] = self.counts
+                self.counts = grown
+            uniq, cnt = np.unique(idx, return_counts=True)
+            prior = self.counts[uniq] > 0
+            self.duplicates += int(np.where(prior, cnt, cnt - 1).sum())   # = pandas duplicated().sum()
+            self.counts[uniq] = np.minimum(self.counts[uniq].astype(np.int64) + cnt, 2).astype(np.uint8)
+        for u in s[~std]:
+            self.duplicates += int(u in self.other)
+            self.other[u] = self.other.get(u, 0) + 1
+
+    def same_as(self, other: "_UidSet") -> bool:
+        n = max(self.counts.size, other.counts.size)
+        a = np.zeros(n, dtype=bool)
+        b = np.zeros(n, dtype=bool)
+        a[:self.counts.size] = self.counts > 0
+        b[:other.counts.size] = other.counts > 0
+        return bool((a == b).all()) and set(self.other) == set(other.other)
 
 
 def _attack_checks(r, f, drops, att, afr, rep, attack_cfg, fleet, profiles):
@@ -538,13 +652,10 @@ def _window_ns(p: dict) -> tuple[int, int]:
     return round(float(p["window_s"][0]) * 1e9), round(float(p["window_s"][1]) * 1e9)
 
 
-def _expiry_checks(r, f, drops, fleet, profiles, bus_totals):
-    bad, n_exp = 0, 0
+def _expiry_checks(r, frame_violations, drops, fleet, profiles, bus_totals):
+    """frame_violations: transmitted frames whose queue delay exceeded their vehicle's deadline (counted per group)."""
+    bad, n_exp = int(frame_violations), 0
     pol = {v: profiles[fleet[v]["profile"]]["bus"] for v in fleet}
-    qd = f.tx_start_ns - f.sim_time_ns
-    for v, cfg in pol.items():
-        if cfg.get("expiry_policy", "retain") == "deadline":
-            bad += int((qd[f.vehicle_id == v] > round(cfg["max_frame_age_ms"] * 1e6)).sum())
     if len(drops):
         for d in drops.itertuples():
             cfg = pol[d.vehicle_id]
