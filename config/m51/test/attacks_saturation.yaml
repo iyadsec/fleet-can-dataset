@@ -1,0 +1,8 @@
+# Milestone 5.1 saturation test: over-saturated flooding (5000 frames/s > 3937 frames/s bus capacity) on vehicle_01.
+attacks:
+  - attack_id: A_SAT
+    type: flooding
+    vehicle: vehicle_01
+    start_s: 1.5
+    duration_s: 1.0
+    params: {can_id: 0x000, rate_hz: 5000, dlc: 8, payload: zeros}

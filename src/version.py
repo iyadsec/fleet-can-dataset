@@ -7,5 +7,5 @@ Bump the relevant version whenever a change could alter generated or derived dat
 """
 
 SCHEMA_VERSION = "1.0"
-GENERATOR_VERSION = "1.0.0"
+GENERATOR_VERSION = "1.1.0"   # 1.1.0: N<k profile subset, optional ECU release jitter
 DESCRIPTOR_VERSION = "1.0"

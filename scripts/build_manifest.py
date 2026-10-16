@@ -19,7 +19,7 @@ from src import storage  # noqa: E402
 
 MANIFEST_FIELDS = [
     "session_id", "experiment_id", "dataset_version", "schema_version", "generator_version", "descriptor_version",
-    "scenario_id", "tags", "fleet_size", "vehicle_ids", "vehicle_profiles", "profile_assignment", "switch_on_ns",
+    "scenario_id", "tags", "fleet_size", "vehicle_ids", "vehicle_profiles", "profile_assignment", "switch_on_ns", "ecu_jitter",
     "attack_types", "attack_ids", "campaign_ids", "campaign_sizes", "campaign_coordinated", "delay_patterns",
     "configured_relative_delays_s", "seed", "duration_s", "sim_end_s", "execution_mode", "wall_seconds",
     "frame_count", "dropped_count", "storage_format", "raw_location", "ground_truth_location",
@@ -54,6 +54,7 @@ def session_entry(data: Path, sid: str) -> dict:
         "vehicle_profiles": {v["vehicle_id"]: v["profile"] for v in md["fleet"]["vehicles"]},
         "profile_assignment": (md["fleet"].get("assignment") or {}).get("profile_assignment"),
         "switch_on_ns": {v["vehicle_id"]: v.get("switch_on_ns", 0) for v in md["fleet"]["vehicles"]},
+        "ecu_jitter": (md["fleet"].get("assignment") or {}).get("ecu_jitter") or {"model": "none", "fraction": 0.0},
         "attack_types": sorted({a["type"] for a in attacks}),
         "attack_ids": [a["attack_id"] for a in attacks],
         "campaign_ids": [c["campaign_id"] for c in sched],

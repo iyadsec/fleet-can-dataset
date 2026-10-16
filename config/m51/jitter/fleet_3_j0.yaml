@@ -1,0 +1,9 @@
+# Milestone 5.1 jitter sensitivity fleet: 3 vehicles (A/B/C), switch-on 0-1.0 s, ECU release jitter +-0 %.
+profiles_file: config/profiles/profiles_abc.yaml
+fleet:
+  channel_pattern: "vcan{index}"
+  count: 3
+  id_pattern: "vehicle_{n:02d}"
+  profile_assignment: {strategy: balanced_shuffle, profiles: [profile_A, profile_B, profile_C]}
+  switch_on: {range_s: [0.0, 1.0], resolution_s: 0.000001}
+  ecu_jitter: {fraction: 0.0}

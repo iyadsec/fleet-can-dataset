@@ -176,13 +176,21 @@ def validate(sid: str, data: Path) -> Report:
     first_state = st.groupby("vehicle_id").sim_time_ns.min()
     gen_all = pd.concat([ecu[["vehicle_id", "can_id", "sim_time_ns"]], ecu_drops[["vehicle_id", "can_id", "sim_time_ns"]]]) \
         if len(ecu_drops) else ecu[["vehicle_id", "can_id", "sim_time_ns"]]
-    align_err, period_viol = [], 0
+    jf = float(((meta["fleet"].get("assignment") or {}).get("ecu_jitter") or {}).get("fraction", 0.0))
+    align_err, period_viol, drift_viol = [], 0, 0
     for (v, cid), g in gen_all.groupby(["vehicle_id", "can_id"]):
         spec = msg_spec(v, cid)
-        if g.sim_time_ns.min() != first_state[v] + int(fleet[v].get("switch_on_ns", 0)) + round(spec["offset_ms"] * 1e6):
+        P = round(spec["period_ms"] * 1e6)
+        tol = round(jf * P)                            # 0 without jitter -> exact checks as before
+        t = g.sim_time_ns.sort_values().to_numpy()
+        expected = first_state[v] + int(fleet[v].get("switch_on_ns", 0)) + round(spec["offset_ms"] * 1e6)
+        if not (max(first_state[v], expected - tol) <= t[0] <= expected + tol):
             align_err.append(f"{v}/{cid}")
-        period_viol += int((g.sim_time_ns.sort_values().diff().dropna() != round(spec["period_ms"] * 1e6)).sum())
-    r.ok("V10", "ECU frames and SUMO states share one timeline (first generation = first SUMO state + switch-on + offset)",
+        d = np.diff(t)
+        period_viol += int(((d < P - 2 * tol) | (d > P + 2 * tol)).sum())
+        drift_viol += int(abs(t[-1] - expected - (len(t) - 1) * P) > tol)     # nominal grid preserved, no drift
+    r.ok("V10", "ECU frames and SUMO states share one timeline (first generation = first SUMO state + switch-on + offset"
+                + (f", +-{jf:.1%} jitter" if jf else "") + ")",
          not align_err, "all vehicle/message streams aligned", f"misaligned: {align_err}")
 
     mono_tx = all(g.tx_start_ns.is_monotonic_increasing and g.capture_time_ns.is_monotonic_increasing
@@ -190,8 +198,10 @@ def validate(sid: str, data: Path) -> Report:
     mono_gen = all(g.sim_time_ns.is_monotonic_increasing for _, g in ecu.groupby(["vehicle_id", "can_id"]))
     r.ok("V11", "timestamps monotonic: per vehicle in transmission+capture order; per ECU stream in generation",
          mono_tx and mono_gen, "monotonic", f"tx/capture monotonic={mono_tx}, per-stream generation={mono_gen}")
-    r.ok("V12", "every ECU message stream (transmitted + dropped) follows its configured period exactly",
-         period_viol == 0, "0 gaps or extra frames", f"{period_viol} deviating intervals")
+    r.ok("V12", "every ECU message stream (transmitted + dropped) follows its configured period"
+                + (f" within +-{2 * jf:.1%} per interval and with no drift from the nominal grid" if jf else " exactly"),
+         period_viol == 0 and drift_viol == 0, "0 gaps, extra frames or drift",
+         f"{period_viol} deviating intervals, {drift_viol} drifting streams")
 
     dup_uid = int(f.frame_uid.duplicated().sum())
     dup_key = int(f.duplicated(["vehicle_id", "sim_time_ns", "can_id", "frame_source", "payload"]).sum())

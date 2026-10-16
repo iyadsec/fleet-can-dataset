@@ -144,7 +144,13 @@ def build_fleet(section: dict, profiles: dict, seed: int) -> tuple[list[VehicleA
         cycle = [names[i % len(names)] for i in range(n)]          # balanced counts (differ by <= 1)
         aseed = int(pa["seed"]) if pa.get("seed") is not None else derive_seed(seed, "profile_assignment")
         if strategy == "balanced_shuffle":
-            cycle = [cycle[i] for i in np.random.default_rng(aseed).permutation(n)]
+            rng = np.random.default_rng(aseed)
+            if n < len(names):
+                # fewer vehicles than profiles: seeded subset WITHOUT replacement, in random order
+                # (N=2 can be A+B, A+C or B+C; a given seed always gives the same pair and order)
+                cycle = [names[i] for i in rng.choice(len(names), size=n, replace=False)]
+            else:
+                cycle = [cycle[i] for i in rng.permutation(n)]
         vehicles = [{"id": idp.format(n=i + 1), "profile": p} for i, p in enumerate(cycle)]
         info["profile_assignment"] = {"strategy": strategy, "profiles": names,
                                       "seed": aseed if strategy == "balanced_shuffle" else None}
@@ -162,6 +168,14 @@ def build_fleet(section: dict, profiles: dict, seed: int) -> tuple[list[VehicleA
         info["switch_on"] = {"distribution": "uniform", "range_s": [lo, hi], "resolution_ns": res, "seed": sseed}
     else:
         info["switch_on"] = {"distribution": "none", "range_s": [0.0, 0.0]}
+    jit = dict(section.get("ecu_jitter") or {})
+    frac = float(jit.get("fraction", 0.0))
+    if not 0.0 <= frac < 0.25:
+        raise ConfigError("ecu_jitter.fraction must be in [0, 0.25)")
+    jseed = int(jit["seed"]) if jit.get("seed") is not None else derive_seed(seed, "ecu_jitter")
+    info["ecu_jitter"] = {"model": "uniform_release" if frac > 0 else "none", "fraction": frac,
+                          "seed": jseed if frac > 0 else None,
+                          "per_stream_seed": "derive_seed(seed, 'ecu_jitter/<vehicle_id>/<message>')" if frac > 0 else None}
     return fleet, info
 
 

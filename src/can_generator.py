@@ -19,8 +19,9 @@ from functools import lru_cache
 from pathlib import Path
 
 import cantools
+import numpy as np
 
-from .config import MessageSpec, VehicleProfile
+from .config import MessageSpec, VehicleProfile, derive_seed
 from .sumo_controller import VehicleState
 
 
@@ -105,8 +106,10 @@ class _Task:
     period_ns: int
     offset_ns: int
     node: str
-    next_due_ns: int | None = None
+    next_due_ns: int | None = None             # nominal (unjittered) slot of the next frame
+    next_emit_ns: int | None = None            # release time of the next frame (= nominal + jitter)
     counter: int = 0
+    rng: object = None                         # numpy Generator for this stream's jitter (None = no jitter)
 
 
 def _clamp_to_signal(sig, value: float) -> float:
@@ -121,6 +124,8 @@ class VehicleCanGenerator:
     channel: str
     profile: VehicleProfile
     switch_on_ns: int = 0                          # ECU switch-on delay after the first SUMO step (seeded)
+    jitter_fraction: float = 0.0                   # ECU release jitter: uniform +-fraction x period (0 = off)
+    jitter_seed: int = 0                           # per-vehicle jitter seed; streams derive their own seed
     tasks: list[_Task] = field(init=False)
     model: SyntheticVehicleModel = field(init=False)
     clamped: int = field(init=False, default=0)    # count of values clamped to DBC range
@@ -137,7 +142,17 @@ class VehicleCanGenerator:
             if missing:
                 raise ValueError(f"{spec.name}: profile/DBC signal mismatch {sorted(missing)}")
             node = msg.senders[0] if msg.senders else "ECU"
-            self.tasks.append(_Task(spec, msg, round(spec.period_ms * 1e6), round(spec.offset_ms * 1e6), node))
+            rng = None
+            if self.jitter_fraction > 0:                # independent stream per (vehicle, message)
+                rng = np.random.default_rng(derive_seed(self.jitter_seed, f"ecu_jitter/{self.vehicle_id}/{spec.name}"))
+            self.tasks.append(_Task(spec, msg, round(spec.period_ms * 1e6), round(spec.offset_ms * 1e6), node, rng=rng))
+
+    def _jittered(self, task: "_Task") -> int:
+        """Release time of the task's current nominal slot: nominal + U(-f, +f) x period (no accumulation,
+        so the long-run period equals the nominal period; f < 0.25 keeps per-stream order monotonic)."""
+        if task.rng is None:
+            return task.next_due_ns
+        return task.next_due_ns + int(round(task.rng.uniform(-self.jitter_fraction, self.jitter_fraction) * task.period_ns))
 
     def frames_for_step(self, state: VehicleState, step_ns: int) -> list[TxFrame]:
         """Frames due in [state.sim_time_ns, state.sim_time_ns + step_ns), in time order."""
@@ -147,7 +162,8 @@ class VehicleCanGenerator:
         for task in self.tasks:
             if task.next_due_ns is None:               # first step this vehicle exists ("ignition")
                 task.next_due_ns = t0 + self.switch_on_ns + task.offset_ns
-            while task.next_due_ns < t1:
+                task.next_emit_ns = max(t0, self._jittered(task))   # cannot transmit before the vehicle exists
+            while task.next_emit_ns < t1:
                 values = {}
                 for sig_name, quantity in task.spec.signals.items():
                     sig = task.msg.get_signal_by_name(sig_name)
@@ -156,10 +172,11 @@ class VehicleCanGenerator:
                     self.clamped += val != raw
                     values[sig_name] = val
                 data = task.msg.encode(values, scaling=True, padding=False, strict=True)   # unused bits = 0
-                out.append(TxFrame(task.next_due_ns, self.vehicle_id, self.channel,
+                out.append(TxFrame(task.next_emit_ns, self.vehicle_id, self.channel,
                                    task.msg.frame_id, len(data), bytes(data), task.spec.name,
                                    node=task.node))
                 task.counter = (task.counter + 1) % 16
-                task.next_due_ns += task.period_ns
+                task.next_due_ns += task.period_ns       # nominal grid never drifts
+                task.next_emit_ns = self._jittered(task)
         out.sort(key=lambda f: (f.sim_time_ns, f.can_id))
         return out
