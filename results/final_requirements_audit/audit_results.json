@@ -1,0 +1,230 @@
+{
+ "sessions_audited": 610,
+ "sessions_with_issues": 0,
+ "issues": {},
+ "matrix": {
+  "expected_configurations": 122,
+  "spec_configurations": 122,
+  "expected_equals_spec": true,
+  "reps_per_config": {
+   "5": 122
+  },
+  "duplicate_config_rep": 0,
+  "unique_seeds": 610,
+  "metadata_matches_spec": true
+ },
+ "mixed_coverage": {
+  "(5, 'flooding', 2, 'small')": 5,
+  "(5, 'fuzzy', 2, 'small')": 5,
+  "(5, 'malfunction', 2, 'small')": 5,
+  "(5, 'replay', 2, 'small')": 5,
+  "(10, 'flooding', 5, 'small')": 5,
+  "(10, 'fuzzy', 5, 'small')": 5,
+  "(10, 'malfunction', 5, 'small')": 5,
+  "(10, 'replay', 5, 'small')": 5
+ },
+ "s1_coverage": {
+  "(2, 'flooding')": 5,
+  "(2, 'fuzzy')": 5,
+  "(2, 'malfunction')": 5,
+  "(2, 'replay')": 5,
+  "(5, 'flooding')": 5,
+  "(5, 'fuzzy')": 5,
+  "(5, 'malfunction')": 5,
+  "(5, 'replay')": 5,
+  "(10, 'flooding')": 5,
+  "(10, 'fuzzy')": 5,
+  "(10, 'malfunction')": 5,
+  "(10, 'replay')": 5
+ },
+ "s1_attacked_profiles": {
+  "C": 23,
+  "A": 14,
+  "B": 23
+ },
+ "s2_start_spread_s": {
+  "2": [
+   0.5
+  ],
+  "5": [
+   0.5
+  ],
+  "10": [
+   0.5
+  ]
+ },
+ "profile_attack_attacked_vehicles": {
+  "flooding/A": 253,
+  "flooding/B": 202,
+  "flooding/C": 175,
+  "fuzzy/A": 249,
+  "fuzzy/B": 208,
+  "fuzzy/C": 173,
+  "malfunction/A": 238,
+  "malfunction/B": 221,
+  "malfunction/C": 171,
+  "replay/A": 252,
+  "replay/B": 230,
+  "replay/C": 178
+ },
+ "malfunction_targets": {
+  "C:VEHICLE_DYNAMICS.Speed=0x131": 171,
+  "B:ESC_SPEED.VehSpd=0x1A0": 221,
+  "A:VEHICLE_SPEED.VehicleSpeed=0x120": 238
+ },
+ "delays_by_pattern": {
+  "large": [
+   0.0,
+   10.0,
+   20.0,
+   30.0,
+   40.0,
+   50.0,
+   60.0,
+   70.0,
+   80.0,
+   90.0
+  ],
+  "medium": [
+   0.0,
+   2.0,
+   4.0,
+   6.0,
+   8.0,
+   10.0,
+   12.0,
+   14.0,
+   16.0,
+   18.0
+  ],
+  "partial": [
+   0.0,
+   5.0,
+   10.0,
+   15.0,
+   20.0,
+   25.0,
+   30.0,
+   35.0,
+   40.0,
+   45.0
+  ],
+  "probe": [
+   0.0,
+   0.1
+  ],
+  "simultaneous": [
+   0.0
+  ],
+  "small": [
+   0.0,
+   0.5,
+   1.0,
+   1.5,
+   2.0,
+   2.5,
+   3.0,
+   3.5,
+   4.0,
+   4.5
+  ]
+ },
+ "n2_pairs_ordered": {
+  "AB": 24,
+  "BA": 26,
+  "BC": 29,
+  "CB": 26,
+  "CA": 24,
+  "AC": 21
+ },
+ "n2_pairs_unordered": {
+  "A+B": 50,
+  "B+C": 55,
+  "A+C": 45
+ },
+ "profile_counts_by_fleet": {
+  "2": {
+   "A1B1C0": 50,
+   "A0B1C1": 55,
+   "A1B0C1": 45
+  },
+  "5": {
+   "A2B2C1": 210
+  },
+  "10": {
+   "A4B3C3": 250
+  }
+ },
+ "switch_on": {
+  "n": 3850,
+  "min_s": 6.5e-05,
+  "max_s": 0.999888,
+  "all_multiple_of_1us": true,
+  "mean_s": 0.5002284129870129
+ },
+ "jitter": {
+  "streams": 17975,
+  "release_mismatches": 0,
+  "max_abs_fraction": 0.01
+ },
+ "activation": {
+  "vehicles_with_first_frame_before_switch_on": 787,
+  "max_ns_before_switch_on": 99915,
+  "vehicle_traces": 3850
+ },
+ "recon": {
+  "sessions": 28,
+  "descriptors": 31584,
+  "max_rel_error": 1.0759622359746146e-15,
+  "label_mismatches": 0,
+  "scenarios": {
+   "S0": 3,
+   "S1": 6,
+   "S2": 6,
+   "S3": 6,
+   "S3-probe": 3,
+   "S3-mixed": 4
+  }
+ },
+ "validation": {
+  "generator": {
+   "PASS": 610
+  },
+  "descriptor": {
+   "PASS": 610
+  },
+  "non_pass_non_na_checks": {}
+ },
+ "replay_links_checked": 1197957,
+ "parquet": {
+  "files": 8465,
+  "codecs": [
+   "ZSTD"
+  ]
+ },
+ "max_file_mtime_utc": "2026-10-16T10:12:42.467663765+00:00",
+ "totals": {
+  "frames": 49340597,
+  "malicious": 10850457,
+  "benign": 38490140,
+  "descriptors": 981088,
+  "vehicle_traces": 3850,
+  "fleet_sizes": {
+   "2": 150,
+   "5": 210,
+   "10": 250
+  },
+  "traces_by_fleet": {
+   "2": 300,
+   "5": 1050,
+   "10": 2500
+  },
+  "min_vehicles": 2,
+  "max_vehicles": 10
+ },
+ "states_per_vehicle_equal": true,
+ "capture_minus_tx_end_us_p50_range": [
+  1792136469656575.5,
+  1792145543766416.2
+ ]
+}
