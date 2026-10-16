@@ -1,0 +1,10 @@
+campaigns:
+  - campaign_id: C_M8_FUZZ
+    attack_type: fuzzy
+    coordinated: true
+    targets: [vehicle_001, vehicle_100]
+    start_s: 10.0
+    delay_pattern: fixed
+    relative_delays_s: [0, 10]
+    duration_s: 5
+    params: {mode: both, rate_hz: 1000, id_range: [0x000, 0x7FF], dlc: random}

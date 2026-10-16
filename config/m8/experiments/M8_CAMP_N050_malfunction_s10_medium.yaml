@@ -1,15 +1,15 @@
 # Milestone 8 scalability test (engineering only; not part of any research dataset).
 experiment:
-  experiment_id: M8_CAMP_N050_malfunction_s25_medium
+  experiment_id: M8_CAMP_N050_malfunction_s10_medium
   dataset_version: m8-scalability-test
   scenario_id: S3
-  description: "M8_CAMP_N050_malfunction_s25_medium"
+  description: "M8_CAMP_N050_malfunction_s10_medium"
   seed: 82050
-  tags: {milestone: M8, fleet_size: 50, attack: malfunction, campaign_size: 25, pattern: medium}
+  tags: {milestone: M8, fleet_size: 50, attack: malfunction, campaign_size: 10, pattern: medium}
 simulation:
   route_generation: {method: grid_loops_v1, network: sumo/network/grid4x4.net.xml}
   step_length_s: 0.01
-  duration_s: 68
+  duration_s: 38
   realtime: false
 can:
   transport: socketcan
@@ -22,4 +22,4 @@ storage:
   format: parquet
 fleet_config: config/m8/fleets/fleet_50.yaml
 attacks_config: config/attacks.yaml
-campaigns_config: config/m8/experiments/M8_CAMP_N050_malfunction_s25_medium.campaigns.yaml
+campaigns_config: config/m8/experiments/M8_CAMP_N050_malfunction_s10_medium.campaigns.yaml

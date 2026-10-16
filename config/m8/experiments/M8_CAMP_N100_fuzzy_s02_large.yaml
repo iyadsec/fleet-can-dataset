@@ -1,15 +1,15 @@
 # Milestone 8 scalability test (engineering only; not part of any research dataset).
 experiment:
-  experiment_id: M8_CAMP_N100_flooding_s100_simultaneous
+  experiment_id: M8_CAMP_N100_fuzzy_s02_large
   dataset_version: m8-scalability-test
   scenario_id: S3
-  description: "M8_CAMP_N100_flooding_s100_simultaneous"
-  seed: 82100
-  tags: {milestone: M8, fleet_size: 100, attack: flooding, campaign_size: 100, pattern: simultaneous}
+  description: "M8_CAMP_N100_fuzzy_s02_large"
+  seed: 82101
+  tags: {milestone: M8, fleet_size: 100, attack: fuzzy, campaign_size: 2, pattern: large}
 simulation:
   route_generation: {method: grid_loops_v1, network: sumo/network/grid4x4.net.xml}
   step_length_s: 0.01
-  duration_s: 20.0
+  duration_s: 30
   realtime: false
 can:
   transport: socketcan
@@ -22,4 +22,4 @@ storage:
   format: parquet
 fleet_config: config/m8/fleets/fleet_100.yaml
 attacks_config: config/attacks.yaml
-campaigns_config: config/m8/experiments/M8_CAMP_N100_flooding_s100_simultaneous.campaigns.yaml
+campaigns_config: config/m8/experiments/M8_CAMP_N100_fuzzy_s02_large.campaigns.yaml

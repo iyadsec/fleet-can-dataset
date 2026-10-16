@@ -1,0 +1,51 @@
+ Retrying in 1 seconds
+[M8_REG_FC11_N10_S3_replay_s10_large_R4] SUMO SUMO 1.28.0 (TraCI API 22); 110.0 s simulated (as fast as possible), bus model=logical, campaigns=['C_S3_REPLAY'], attacks=['C_S3_REPLAY_vehicle_01', 'C_S3_REPLAY_vehicle_02', 'C_S3_REPLAY_vehicle_03', 'C_S3_REPLAY_vehicle_04', 'C_S3_REPLAY_vehicle_05', 'C_S3_REPLAY_vehicle_06', 'C_S3_REPLAY_vehicle_07', 'C_S3_REPLAY_vehicle_08', 'C_S3_REPLAY_vehicle_09', 'C_S3_REPLAY_vehicle_10'], vehicles -> {'vehicle_01': 'vcan0', 'vehicle_02': 'vcan1', 'vehicle_03': 'vcan2', 'vehicle_04': 'vcan3', 'vehicle_05': 'vcan4', 'vehicle_06': 'vcan5', 'vehicle_07': 'vcan6', 'vehicle_08': 'vcan7', 'vehicle_09': 'vcan8', 'vehicle_10': 'vcan9'}
+[M8_REG_FC11_N10_S3_replay_s10_large_R4] transport: {'sent': 373273, 'send_errors': 0, 'captured': 373273, 'matched': 373273, 'content_mismatch': 0, 'missing': 0, 'unexpected': 0}; bus dropped: 0; vcan0 util=0.069, vcan1 util=0.073, vcan2 util=0.073, vcan3 util=0.090, vcan4 util=0.090, vcan5 util=0.069, vcan6 util=0.069, vcan7 util=0.090, vcan8 util=0.090, vcan9 util=0.073
+  [PASS] V01 required files exist: all present
+  [PASS] V02 schemas match: frames, labels, drops, attacks, attack_frames, replay_map, campaigns, states
+  [PASS] V03 no missing values in required frame fields: 373273 frames, 0 empty
+  [PASS] V04 session_id and scenario_id match metadata: session=M8_REG_FC11_N10_S3_replay_s10_large_R4, scenario=S3
+  [PASS] V05 vehicle IDs valid and every configured vehicle present: ['vehicle_01', 'vehicle_02', 'vehicle_03', 'vehicle_04', 'vehicle_05', 'vehicle_06', 'vehicle_07', 'vehicle_08', 'vehicle_09', 'vehicle_10']
+  [PASS] V06 each vehicle captured only on its configured channel: vehicle_01->vcan0, vehicle_02->vcan1, vehicle_03->vcan2, vehicle_04->vcan3, vehicle_05->vcan4, vehicle_06->vcan5, vehicle_07->vcan6, vehicle_08->vcan7, vehicle_09->vcan8, vehicle_10->vcan9
+  [PASS] V07 CAN IDs are valid 11-bit identifiers: 13 distinct IDs in 0x000..0x7FF
+  [PASS] V08 DLC in 0..8 and equals payload length (Classical CAN): all rows consistent
+  [PASS] V09 timestamps = SUMO time; generation times inside simulated interval: generation in [0.000000000, 110.010000000] s
+  [PASS] V10 ECU frames and SUMO states share one timeline (first generation = first SUMO state + switch-on + offset, +-1.0% jitter): all vehicle/message streams aligned
+  [PASS] V11 timestamps monotonic: per vehicle in transmission+capture order; per ECU stream in generation: monotonic
+  [PASS] V12 every ECU message stream (transmitted + dropped) follows its configured period within +-2.0% per interval and with no drift from the nominal grid: 0 gaps, extra frames or drift
+  [PASS] V13 no duplicate records: 0 duplicates
+  [PASS] V14 every bus-transmitted frame captured on vCAN with identical ID+payload; nothing extra: sent=373273 captured=373273 matched=373273
+  [PASS] V15 frame accounting: generated = transmitted + dropped; transmitted = sent to vCAN: generated=373273 dropped=0
+  [PASS] B01 frame duration = exact bit count (from captured ID+payload) x bit time: all frames
+  [PASS] B02 queue delays non-negative and consistent (queue_delay_us = tx_start - generation): min=0.0 us, max=249.0 us
+  [PASS] B03 no overlapping transmissions on any vehicle bus: bus carries one frame at a time
+  [PASS] B04 arbitration: no frame waited while a lower-ID frame that was ready lost the bus: priority order respected for every transmission
+  [PASS] B05 bus utilization within [0, 1] and equal to recomputation from captured frames: vcan0 overall=0.0689 peak=0.1337; vcan1 overall=0.0731 peak=0.1401; vcan2 overall=0.0735 peak=0.1444; vcan3 overall=0.0905 peak=0.1757; vcan4 overall=0.0898 peak=0.1736; vcan5 overall=0.0694 peak=0.1339; vcan6 overall=0.0693 peak=0.1347; vcan7 overall=0.0903 peak=0.1756; vcan8 overall=0.0898 peak=0.1746; vcan9 overall=0.0728 peak=0.1394
+  [PASS] B06 node queues never exceeded the configured limit: within queue_limit
+  [PASS] B07 frame expiry: no frame transmitted after its deadline; expired drops at generation + max age; queue_drop / expired_drop counted separately: policy ['deadline(100.0 ms)']; expired drops=0, queue drops=0
+  [PASS] V16 every ECU payload decodes with the vehicle DBC; rolling counters continuous (incl. dropped): 356973 ECU frames
+  [PASS] V17 decoded benign vehicle speed (role vehicle_speed) equals SUMO speed (sample-and-hold): max |error| = 0.0252 km/h over 71134 frames
+  [PASS] V18 every frame has exactly one ground-truth label row (and vice versa): 373273 label rows
+  [PASS] V19 labels follow provenance: no benign frame labelled malicious and vice versa: benign=356973, malicious=16300
+  [PASS] V20 frame -> attack -> campaign chain: benign frames/drops have no campaign; malicious ones carry their attack's campaign: 16300 malicious frames traced
+  [PASS] A01 every malicious frame/drop has an attack_id that exists in attacks.csv; every configured attack present: 10 attacks, 16300 malicious frames
+  [PASS] A02 attack start/end match configuration; every attack frame generated inside its window on its vehicle: all windows consistent
+  [PASS] A03 per attack: generated = transmitted + dropped; transmitted = captured; matches frame files: C_S3_REPLAY_vehicle_01: gen=1350 tx=1350 drop=0; C_S3_REPLAY_vehicle_02: gen=1750 tx=1750 drop=0; C_S3_REPLAY_vehicle_03: gen=1750 tx=1750 drop=0; C_S3_REPLAY_vehicle_04: gen=1750 tx=1750 drop=0; C_S3_REPLAY_vehicle_05: gen=1750 tx=1750 drop=0; C_S3_REPLAY_vehicle_06: gen=1350 tx=1350 drop=0; C_S3_REPLAY_vehicle_07: gen=1350 tx=1350 drop=0; C_S3_REPLAY_vehicle_08: gen=1750 tx=1750 drop=0; C_S3_REPLAY_vehicle_09: gen=1750 tx=1750 drop=0; C_S3_REPLAY_vehicle_10: gen=1750 tx=1750 drop=0
+  [NA  ] A04 flooding: no flooding attack
+  [NA  ] A05 fuzzy: no fuzzy attack
+  [NA  ] A06 malfunction: no malfunction attack
+  [PASS] A07 replay frames reference valid benign originals in the window; same ID+payload; exact time shift: 16300 replayed frames linked
+  [PASS] C00 scenario S3 consistent with its definition: 1 campaigns (1 coordinated), 0 isolated attacks
+  [PASS] C01 every configured campaign exists exactly once in campaigns.csv (and nothing else): ['C_S3_REPLAY']
+  [PASS] C02 membership = configured targets; every attack referencing a campaign is a member (no merging, no omission): 10 memberships
+  [PASS] C03 campaign/member start, end and relative delays equal configuration exactly (ns), simultaneous => 0, fixed => configured: all exact
+  [PASS] C04 observed attack traffic lies inside each member's logical window; grid attacks start exactly at the configured time: 10 attacks checked
+  [PASS] C05 ground-truth delays come from the logical timeline only (unchanged by CAN queueing and capture jitter): GT delay == configured for all members; capture-layer delays deviate up to 50933.332 ms and are NOT used
+  [PASS] C06 independent campaigns are single-vehicle and never merged into a shared campaign: 0 independent campaigns
+  [PASS] C07 pairwise start delays and interval overlaps (overlap, overlap/min duration, Jaccard) recomputed from configuration: 45 vehicle pairs
+  [PASS] C08 dropped/expired attack frames remain in ground truth: no drops occurred
+  [PASS] V23 required metadata present; experiment and per-attack seeds saved: seed=611184, SUMO SUMO 1.28.0 (TraCI API 22)
+  [PASS] V27 schema version matches this validator (1.0): schema 1.0, generator 1.2.0, dataset m8-regression-test
+  [PASS] V24 configuration snapshot saved and hashes match: 14 files
+  [PASS] V25 code version recorded (git commit): dd4256b39c
+[M8_REG_FC11_N10_S3_replay_s10_large_R4] VALIDATION: PASS

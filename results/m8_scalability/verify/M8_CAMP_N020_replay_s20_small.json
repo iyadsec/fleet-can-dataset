@@ -1,0 +1,53 @@
+{
+ "session_id": "M8_CAMP_N020_replay_s20_small",
+ "fleet_size": 20,
+ "profiles": {
+  "A": 7,
+  "B": 7,
+  "C": 6
+ },
+ "ok": true,
+ "issues": [],
+ "generator_validation": "PASS",
+ "descriptor_validation": "PASS",
+ "non_pass_checks": [
+  "V25:WARN"
+ ],
+ "frames": 218625,
+ "malicious_frames": 32199,
+ "attacked_vehicles": 20,
+ "attacked_first_last": [
+  "vehicle_001",
+  "vehicle_020"
+ ],
+ "attacked_profiles": [
+  "A",
+  "B",
+  "C"
+ ],
+ "replay_links": 32199,
+ "campaigns": {
+  "C_M8_REPLAY": {
+   "coordinated": "true",
+   "members": 20,
+   "first": "vehicle_001",
+   "last": "vehicle_020",
+   "delays_s": [
+    0.0,
+    0.5,
+    1.0,
+    "...",
+    9.0,
+    9.5
+   ]
+  }
+ },
+ "descriptors": 4344,
+ "reconstructed_descriptors": 709,
+ "recon_max_rel_error": 4.2956090073875686e-16,
+ "route_loops": {
+  "P": 10,
+  "R": 9,
+  "I": 1
+ }
+}

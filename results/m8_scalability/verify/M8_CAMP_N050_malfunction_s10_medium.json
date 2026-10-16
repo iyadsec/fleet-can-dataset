@@ -1,0 +1,53 @@
+{
+ "session_id": "M8_CAMP_N050_malfunction_s10_medium",
+ "fleet_size": 50,
+ "profiles": {
+  "A": 17,
+  "B": 17,
+  "C": 16
+ },
+ "ok": true,
+ "issues": [],
+ "generator_validation": "PASS",
+ "descriptor_validation": "PASS",
+ "non_pass_checks": [
+  "V25:WARN"
+ ],
+ "frames": 610179,
+ "malicious_frames": 5000,
+ "attacked_vehicles": 10,
+ "attacked_first_last": [
+  "vehicle_001",
+  "vehicle_010"
+ ],
+ "attacked_profiles": [
+  "A",
+  "B",
+  "C"
+ ],
+ "replay_links": 0,
+ "campaigns": {
+  "C_M8_MALF": {
+   "coordinated": "true",
+   "members": 10,
+   "first": "vehicle_001",
+   "last": "vehicle_010",
+   "delays_s": [
+    0.0,
+    2.0,
+    4.0,
+    "...",
+    16.0,
+    18.0
+   ]
+  }
+ },
+ "descriptors": 12126,
+ "reconstructed_descriptors": 793,
+ "recon_max_rel_error": 9.30679144861557e-16,
+ "route_loops": {
+  "P": 20,
+  "R": 21,
+  "I": 9
+ }
+}

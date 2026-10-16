@@ -1,0 +1,149 @@
+{
+ "session_id": "M8_S2_N050_replay_10ind",
+ "fleet_size": 50,
+ "profiles": {
+  "A": 17,
+  "B": 17,
+  "C": 16
+ },
+ "ok": true,
+ "issues": [],
+ "generator_validation": "PASS",
+ "descriptor_validation": "PASS",
+ "non_pass_checks": [
+  "V25:WARN"
+ ],
+ "frames": 339661,
+ "malicious_frames": 15899,
+ "attacked_vehicles": 10,
+ "attacked_first_last": [
+  "vehicle_001",
+  "vehicle_010"
+ ],
+ "attacked_profiles": [
+  "A",
+  "B",
+  "C"
+ ],
+ "replay_links": 15899,
+ "campaigns": {
+  "C_M8_IND_1": {
+   "coordinated": "false",
+   "members": 1,
+   "first": "vehicle_001",
+   "last": "vehicle_001",
+   "delays_s": [
+    0.0,
+    "...",
+    0.0
+   ]
+  },
+  "C_M8_IND_2": {
+   "coordinated": "false",
+   "members": 1,
+   "first": "vehicle_002",
+   "last": "vehicle_002",
+   "delays_s": [
+    0.0,
+    "...",
+    0.0
+   ]
+  },
+  "C_M8_IND_3": {
+   "coordinated": "false",
+   "members": 1,
+   "first": "vehicle_003",
+   "last": "vehicle_003",
+   "delays_s": [
+    0.0,
+    "...",
+    0.0
+   ]
+  },
+  "C_M8_IND_4": {
+   "coordinated": "false",
+   "members": 1,
+   "first": "vehicle_004",
+   "last": "vehicle_004",
+   "delays_s": [
+    0.0,
+    "...",
+    0.0
+   ]
+  },
+  "C_M8_IND_5": {
+   "coordinated": "false",
+   "members": 1,
+   "first": "vehicle_005",
+   "last": "vehicle_005",
+   "delays_s": [
+    0.0,
+    "...",
+    0.0
+   ]
+  },
+  "C_M8_IND_6": {
+   "coordinated": "false",
+   "members": 1,
+   "first": "vehicle_006",
+   "last": "vehicle_006",
+   "delays_s": [
+    0.0,
+    "...",
+    0.0
+   ]
+  },
+  "C_M8_IND_7": {
+   "coordinated": "false",
+   "members": 1,
+   "first": "vehicle_007",
+   "last": "vehicle_007",
+   "delays_s": [
+    0.0,
+    "...",
+    0.0
+   ]
+  },
+  "C_M8_IND_8": {
+   "coordinated": "false",
+   "members": 1,
+   "first": "vehicle_008",
+   "last": "vehicle_008",
+   "delays_s": [
+    0.0,
+    "...",
+    0.0
+   ]
+  },
+  "C_M8_IND_9": {
+   "coordinated": "false",
+   "members": 1,
+   "first": "vehicle_009",
+   "last": "vehicle_009",
+   "delays_s": [
+    0.0,
+    "...",
+    0.0
+   ]
+  },
+  "C_M8_IND_10": {
+   "coordinated": "false",
+   "members": 1,
+   "first": "vehicle_010",
+   "last": "vehicle_010",
+   "delays_s": [
+    0.0,
+    "...",
+    0.0
+   ]
+  }
+ },
+ "descriptors": 6720,
+ "reconstructed_descriptors": 450,
+ "recon_max_rel_error": 4.185020385794047e-16,
+ "route_loops": {
+  "P": 22,
+  "R": 23,
+  "I": 5
+ }
+}

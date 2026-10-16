@@ -1,0 +1,5 @@
+fleet_size,wall_time_s,real_time_factor,cpu_mean_percent,memory_peak_mb,fd_peak,socket_peak,thread_peak,frames_generated,descriptor_count,output_size_mb,S_wall_time_s,S_real_time_factor,S_cpu_mean_percent,S_memory_peak_mb,S_fd_peak,S_socket_peak,S_thread_peak,S_frames_generated,S_descriptor_count,S_output_size_mb,MB_per_vehicle,frames_per_vehicle,desc_per_vehicle,wall_s_per_vehicle,peak_KB_per_frame
+10,18.9,2.1164,114.1,769.4,29,22,19,128667,2559,6.21,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,0.621,12867.0,255.9,1.89,6.12
+20,32.29,1.2387,123.9,1330.8,49,42,29,254248,5053,10.63,1.71,0.59,1.09,1.73,1.69,1.91,1.53,1.98,1.97,1.71,0.532,12712.0,252.6,1.61,5.36
+50,77.76,0.5144,130.2,2941.7,109,102,59,637046,12664,24.62,4.11,0.24,1.14,3.82,3.76,4.64,3.11,4.95,4.95,3.96,0.492,12741.0,253.3,1.56,4.73
+100,155.26,0.2576,133.6,5564.1,209,202,109,1277152,25397,47.94,8.21,0.12,1.17,7.23,7.21,9.18,5.74,9.93,9.92,7.72,0.479,12772.0,254.0,1.55,4.46

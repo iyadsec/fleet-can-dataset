@@ -1,0 +1,45 @@
+ Retrying in 1 seconds
+[M8_ISO_N020_S0] SUMO SUMO 1.28.0 (TraCI API 22); 20.0 s simulated (as fast as possible), bus model=logical, campaigns=[], attacks=[], vehicles -> {'vehicle_001': 'vcan0', 'vehicle_002': 'vcan1', 'vehicle_003': 'vcan2', 'vehicle_004': 'vcan3', 'vehicle_005': 'vcan4', 'vehicle_006': 'vcan5', 'vehicle_007': 'vcan6', 'vehicle_008': 'vcan7', 'vehicle_009': 'vcan8', 'vehicle_010': 'vcan9', 'vehicle_011': 'vcan10', 'vehicle_012': 'vcan11', 'vehicle_013': 'vcan12', 'vehicle_014': 'vcan13', 'vehicle_015': 'vcan14', 'vehicle_016': 'vcan15', 'vehicle_017': 'vcan16', 'vehicle_018': 'vcan17', 'vehicle_019': 'vcan18', 'vehicle_020': 'vcan19'}
+[M8_ISO_N020_S0] transport: {'sent': 125652, 'send_errors': 0, 'captured': 125652, 'matched': 125652, 'content_mismatch': 0, 'missing': 0, 'unexpected': 0}; bus dropped: 0; vcan0 util=0.086, vcan1 util=0.083, vcan2 util=0.068, vcan3 util=0.067, vcan4 util=0.069, vcan5 util=0.066, vcan6 util=0.065, vcan7 util=0.066, vcan8 util=0.063, vcan9 util=0.066, vcan10 util=0.084, vcan11 util=0.084, vcan12 util=0.066, vcan13 util=0.084, vcan14 util=0.066, vcan15 util=0.084, vcan16 util=0.082, vcan17 util=0.063, vcan18 util=0.067, vcan19 util=0.065
+  [PASS] V01 required files exist: all present
+  [PASS] V02 schemas match: frames, labels, drops, attacks, attack_frames, replay_map, campaigns, states
+  [PASS] V03 no missing values in required frame fields: 125652 frames, 0 empty
+  [PASS] V04 session_id and scenario_id match metadata: session=M8_ISO_N020_S0, scenario=S0
+  [PASS] V05 vehicle IDs valid and every configured vehicle present: ['vehicle_001', 'vehicle_002', 'vehicle_003', 'vehicle_004', 'vehicle_005', 'vehicle_006', 'vehicle_007', 'vehicle_008', 'vehicle_009', 'vehicle_010', 'vehicle_011', 'vehicle_012', 'vehicle_013', 'vehicle_014', 'vehicle_015', 'vehicle_016', 'vehicle_017', 'vehicle_018', 'vehicle_019', 'vehicle_020']
+  [PASS] V06 each vehicle captured only on its configured channel: vehicle_001->vcan0, vehicle_002->vcan1, vehicle_003->vcan2, vehicle_004->vcan3, vehicle_005->vcan4, vehicle_006->vcan5, vehicle_007->vcan6, vehicle_008->vcan7, vehicle_009->vcan8, vehicle_010->vcan9, vehicle_011->vcan10, vehicle_012->vcan11, vehicle_013->vcan12, vehicle_014->vcan13, vehicle_015->vcan14, vehicle_016->vcan15, vehicle_017->vcan16, vehicle_018->vcan17, vehicle_019->vcan18, vehicle_020->vcan19
+  [PASS] V07 CAN IDs are valid 11-bit identifiers: 13 distinct IDs in 0x000..0x7FF
+  [PASS] V08 DLC in 0..8 and equals payload length (Classical CAN): all rows consistent
+  [PASS] V09 timestamps = SUMO time; generation times inside simulated interval: generation in [0.000000000, 20.010000000] s
+  [PASS] V10 ECU frames and SUMO states share one timeline (first generation = first SUMO state + switch-on + offset, +-1.0% jitter): all vehicle/message streams aligned
+  [PASS] V11 timestamps monotonic: per vehicle in transmission+capture order; per ECU stream in generation: monotonic
+  [PASS] V12 every ECU message stream (transmitted + dropped) follows its configured period within +-2.0% per interval and with no drift from the nominal grid: 0 gaps, extra frames or drift
+  [PASS] V13 no duplicate records: 0 duplicates
+  [PASS] V14 every bus-transmitted frame captured on vCAN with identical ID+payload; nothing extra: sent=125652 captured=125652 matched=125652
+  [PASS] V15 frame accounting: generated = transmitted + dropped; transmitted = sent to vCAN: generated=125652 dropped=0
+  [PASS] B01 frame duration = exact bit count (from captured ID+payload) x bit time: all frames
+  [PASS] B02 queue delays non-negative and consistent (queue_delay_us = tx_start - generation): min=0.0 us, max=0.0 us
+  [PASS] B03 no overlapping transmissions on any vehicle bus: bus carries one frame at a time
+  [PASS] B04 arbitration: no frame waited while a lower-ID frame that was ready lost the bus: priority order respected for every transmission
+  [PASS] B05 bus utilization within [0, 1] and equal to recomputation from captured frames: vcan0 overall=0.0859 peak=0.0869; vcan1 overall=0.0828 peak=0.0869; vcan2 overall=0.0679 peak=0.0734; vcan3 overall=0.0675 peak=0.0702; vcan4 overall=0.0687 peak=0.0702; vcan5 overall=0.0656 peak=0.0669; vcan6 overall=0.0654 peak=0.0667; vcan7 overall=0.0659 peak=0.0681; vcan8 overall=0.0628 peak=0.0668; vcan9 overall=0.0658 peak=0.0668; vcan10 overall=0.0844 peak=0.0874; vcan11 overall=0.0838 peak=0.0868; vcan12 overall=0.0664 peak=0.0702; vcan13 overall=0.0841 peak=0.0872; vcan14 overall=0.0662 peak=0.0701; vcan15 overall=0.0837 peak=0.0868; vcan16 overall=0.0825 peak=0.0883; vcan17 overall=0.0635 peak=0.0667; vcan18 overall=0.0673 peak=0.0702; vcan19 overall=0.0654 peak=0.0668
+  [PASS] B06 node queues never exceeded the configured limit: within queue_limit
+  [PASS] B07 frame expiry: no frame transmitted after its deadline; expired drops at generation + max age; queue_drop / expired_drop counted separately: policy ['deadline(100.0 ms)']; expired drops=0, queue drops=0
+  [PASS] V16 every ECU payload decodes with the vehicle DBC; rolling counters continuous (incl. dropped): 125652 ECU frames
+  [PASS] V17 decoded benign vehicle speed (role vehicle_speed) equals SUMO speed (sample-and-hold): max |error| = 0.0252 km/h over 26410 frames
+  [PASS] V18 every frame has exactly one ground-truth label row (and vice versa): 125652 label rows
+  [PASS] V19 labels follow provenance: no benign frame labelled malicious and vice versa: benign=125652, malicious=0
+  [PASS] V20 frame -> attack -> campaign chain: benign frames/drops have no campaign; malicious ones carry their attack's campaign: 0 malicious frames traced
+  [NA  ] A01 attack ground truth: no attacks configured
+  [NA  ] A02 attack windows: no attacks configured
+  [NA  ] A03 attack counts: no attacks configured
+  [NA  ] A04 flooding: no attacks configured
+  [NA  ] A05 fuzzy: no attacks configured
+  [NA  ] A06 malfunction: no attacks configured
+  [NA  ] A07 replay: no attacks configured
+  [PASS] C00 scenario S0 consistent with its definition: 0 campaigns (0 coordinated), 0 isolated attacks
+  [NA  ] C01 campaign checks: no campaigns configured
+  [PASS] C02 no campaign ground truth without campaign configuration: empty
+  [PASS] V23 required metadata present; experiment and per-attack seeds saved: seed=83020, SUMO SUMO 1.28.0 (TraCI API 22)
+  [PASS] V27 schema version matches this validator (1.0): schema 1.0, generator 1.2.0, dataset m8-scalability-test
+  [PASS] V24 configuration snapshot saved and hashes match: 11 files
+  [WARN] V25 code version recorded (git commit): dd4256b39c with uncommitted changes
+[M8_ISO_N020_S0] VALIDATION: PASS

@@ -1,0 +1,29 @@
+{
+ "session_id": "M8_S0_N050",
+ "fleet_size": 50,
+ "profiles": {
+  "A": 17,
+  "B": 17,
+  "C": 16
+ },
+ "ok": true,
+ "issues": [],
+ "generator_validation": "PASS",
+ "descriptor_validation": "PASS",
+ "non_pass_checks": [],
+ "frames": 637046,
+ "malicious_frames": 0,
+ "attacked_vehicles": 0,
+ "attacked_first_last": [],
+ "attacked_profiles": [],
+ "replay_links": 0,
+ "campaigns": {},
+ "descriptors": 12664,
+ "reconstructed_descriptors": 831,
+ "recon_max_rel_error": 8.673617379884035e-16,
+ "route_loops": {
+  "P": 20,
+  "R": 23,
+  "I": 7
+ }
+}

@@ -1,0 +1,51 @@
+{
+ "session_id": "M8_CAMP_N100_fuzzy_s02_large",
+ "fleet_size": 100,
+ "profiles": {
+  "A": 34,
+  "B": 33,
+  "C": 33
+ },
+ "ok": true,
+ "issues": [],
+ "generator_validation": "PASS",
+ "descriptor_validation": "PASS",
+ "non_pass_checks": [
+  "V25:WARN"
+ ],
+ "frames": 964266,
+ "malicious_frames": 10000,
+ "attacked_vehicles": 2,
+ "attacked_first_last": [
+  "vehicle_001",
+  "vehicle_100"
+ ],
+ "attacked_profiles": [
+  "A",
+  "B"
+ ],
+ "replay_links": 0,
+ "campaigns": {
+  "C_M8_FUZZ": {
+   "coordinated": "true",
+   "members": 2,
+   "first": "vehicle_001",
+   "last": "vehicle_100",
+   "delays_s": [
+    0.0,
+    10.0,
+    "...",
+    0.0,
+    10.0
+   ]
+  }
+ },
+ "descriptors": 19131,
+ "reconstructed_descriptors": 721,
+ "recon_max_rel_error": 6.062858548538941e-16,
+ "route_loops": {
+  "P": 39,
+  "R": 43,
+  "I": 18
+ }
+}

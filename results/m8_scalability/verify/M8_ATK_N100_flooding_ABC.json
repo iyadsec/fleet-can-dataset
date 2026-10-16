@@ -1,0 +1,72 @@
+{
+ "session_id": "M8_ATK_N100_flooding_ABC",
+ "fleet_size": 100,
+ "profiles": {
+  "A": 34,
+  "B": 33,
+  "C": 33
+ },
+ "ok": true,
+ "issues": [],
+ "generator_validation": "PASS",
+ "descriptor_validation": "PASS",
+ "non_pass_checks": [
+  "V25:WARN"
+ ],
+ "frames": 672411,
+ "malicious_frames": 24000,
+ "attacked_vehicles": 3,
+ "attacked_first_last": [
+  "vehicle_001",
+  "vehicle_004"
+ ],
+ "attacked_profiles": [
+  "A",
+  "B",
+  "C"
+ ],
+ "replay_links": 0,
+ "campaigns": {
+  "C_M8_FLOODING_A": {
+   "coordinated": "false",
+   "members": 1,
+   "first": "vehicle_002",
+   "last": "vehicle_002",
+   "delays_s": [
+    0.0,
+    "...",
+    0.0
+   ]
+  },
+  "C_M8_FLOODING_B": {
+   "coordinated": "false",
+   "members": 1,
+   "first": "vehicle_001",
+   "last": "vehicle_001",
+   "delays_s": [
+    0.0,
+    "...",
+    0.0
+   ]
+  },
+  "C_M8_FLOODING_C": {
+   "coordinated": "false",
+   "members": 1,
+   "first": "vehicle_004",
+   "last": "vehicle_004",
+   "delays_s": [
+    0.0,
+    "...",
+    0.0
+   ]
+  }
+ },
+ "descriptors": 13305,
+ "reconstructed_descriptors": 549,
+ "recon_max_rel_error": 3.469446951953614e-16,
+ "route_loops": {
+  "P": 51,
+  "R": 37,
+  "I": 12
+ }
+}
