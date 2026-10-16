@@ -124,7 +124,8 @@ def cmd_reproduce(out: Path) -> None:
             "evaluation_metrics_identical": _cmp_json(out / "evaluation_metrics.json", tmp / "evaluation_metrics.json"),
             "summary_csvs_identical": {f: pd.read_csv(out / f).equals(pd.read_csv(tmp / f)) for f in
                                        ("attack_profile_summary.csv", "evidence_band_summary.csv", "scenario_summary.csv",
-                                        "campaign_size_summary.csv", "temporal_pattern_summary.csv", "score_distribution_summary.csv")},
+                                        "campaign_size_summary.csv", "temporal_pattern_summary.csv", "attack_start_time_summary.csv",
+                                        "score_distribution_summary.csv")},
         }
         rep["all_identical"] = bool(rep["split_manifest_identical"] and all(rep["model_config_identical_except_paths"].values())
                                     and rep["model_fingerprints_identical"] and rep["training_descriptor_ids_identical"] and same_order

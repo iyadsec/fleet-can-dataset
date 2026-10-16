@@ -156,6 +156,21 @@ def temporal_pattern_summary(T: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def attack_start_time_summary(T: pd.DataFrame) -> pd.DataFrame:
+    """S3 attacked vehicles grouped by when their own attack starts in the session (descriptive control for
+    the temporal-pattern table: later members of staggered campaigns are attacked later in the drive)."""
+    s3 = T[T.scenario == "S3"].copy()
+    a0 = s3[s3.label_A == 1].groupby(["session_id", "vehicle_id"]).window_start_ns.min() / 1e9
+    s3 = s3.join(a0.rename("vehicle_attack_start_s"), on=["session_id", "vehicle_id"])
+    s3 = s3[s3.vehicle_attack_start_s.notna()]
+    s3["attack_start_bin"] = pd.cut(s3.vehicle_attack_start_s, [0, 20, 40, 60, 1e9], labels=["10-20 s", "20-40 s", "40-60 s", ">=60 s"],
+                                    right=False).astype(str)
+    rows = []
+    for (f, b), g in s3.groupby(["attack", "attack_start_bin"]):
+        rows.append({"attack": f, "vehicle_attack_start": b, **_local_summary(g)})
+    return pd.DataFrame(rows)
+
+
 def score_distribution_summary(T: pd.DataFrame) -> pd.DataFrame:
     rows = []
     classes = [("benign_only", T[T.label_A == 0])] + [(f"{f} attack-containing", T[(T.attack == f) & (T.label_A == 1)]) for f in FAMILIES] \
@@ -198,6 +213,9 @@ def false_positive_analysis(T: pd.DataFrame, train_stats: dict[str, pd.DataFrame
     B["weak_cal"], B["strong_cal"] = B.band_calibrated == "weak", B.band_calibrated == "strong"
     t_on = (B.window_start_ns - B.switch_on_ns) / 1e9
     B["since_switch_on"] = pd.cut(t_on, [-1, 1, 2, 5, 10, 1e9], labels=["<1 s", "1-2 s", "2-5 s", "5-10 s", ">=10 s"], right=False).astype(str)
+    # time within the session (benign training sessions S0 are 40 s long)
+    B["session_time"] = pd.cut(B.window_start_ns / 1e9, [0, 10, 20, 30, 40, 60, 90, 1e9],
+                               labels=["0-10 s", "10-20 s", "20-30 s", "30-40 s", "40-60 s", "60-90 s", ">=90 s"], right=False).astype(str)
     last_index = T.groupby(["session_id", "vehicle_id"]).window_index.transform("max")
     B["window_position"] = np.where(B.window_index == 0, "first window",
                                     np.where(B.window_index == last_index.loc[B.index], "last window", "interior"))
@@ -226,7 +244,7 @@ def false_positive_analysis(T: pd.DataFrame, train_stats: dict[str, pd.DataFrame
     B["top_deviating_feature"] = top
     rates = ["fp_det", "weak_fixed", "strong_fixed", "weak_cal", "strong_cal"]
     rows = []
-    dims = ["vehicle_profile", "scenario", "fleet_size", "attack", "attacked_vehicle", "since_switch_on", "window_position",
+    dims = ["vehicle_profile", "scenario", "fleet_size", "attack", "attacked_vehicle", "since_switch_on", "session_time", "window_position",
             "attack_proximity", "speed_change_bin", "accel_bin", "stationary", "top_deviating_feature"]
     rows.append({"dimension": "all", "value": "all", "benign_windows": len(B), **{f"{r}_rate": B[r].mean() for r in rates},
                  **{f"{r}_count": int(B[r].sum()) for r in rates}})
@@ -261,6 +279,7 @@ def run_evaluation(out_dir: Path, desc: pd.DataFrame, labels: pd.DataFrame, scor
     scenario_summary(T).to_csv(out_dir / "scenario_summary.csv", index=False)
     campaign_size_summary(T).to_csv(out_dir / "campaign_size_summary.csv", index=False)
     temporal_pattern_summary(T).to_csv(out_dir / "temporal_pattern_summary.csv", index=False)
+    attack_start_time_summary(T).to_csv(out_dir / "attack_start_time_summary.csv", index=False)
     score_distribution_summary(T).to_csv(out_dir / "score_distribution_summary.csv", index=False)
     if with_fp:
         fp, traces = false_positive_analysis(T, train_feature_stats(desc))
