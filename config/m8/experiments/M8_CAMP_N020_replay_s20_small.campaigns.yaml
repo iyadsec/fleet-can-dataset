@@ -1,0 +1,9 @@
+campaigns:
+  - campaign_id: C_M8_REPLAY
+    attack_type: replay
+    coordinated: true
+    targets: [vehicle_001, vehicle_002, vehicle_003, vehicle_004, vehicle_005, vehicle_006, vehicle_007, vehicle_008, vehicle_009, vehicle_010, vehicle_011, vehicle_012, vehicle_013, vehicle_014, vehicle_015, vehicle_016, vehicle_017, vehicle_018, vehicle_019, vehicle_020]
+    start_s: 10.0
+    delay_pattern: fixed
+    relative_delays_s: [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5]
+    params: {window_relative_s: [-5.0, 0.0], source_vehicle: self, time_offset_ms: 0.25}

@@ -58,6 +58,13 @@ def snapshot_configs(cfg: ExperimentConfig, dest: Path) -> dict:
     return hashes
 
 
+def _rel(p: Path) -> str:
+    try:
+        return str(p.relative_to(PROJECT_ROOT))
+    except ValueError:
+        return str(p)
+
+
 def build_metadata(cfg: ExperimentConfig, session_id: str, run: dict, config_hashes: dict) -> dict:
     return {
         "experiment_id": cfg.experiment_id,
@@ -85,7 +92,7 @@ def build_metadata(cfg: ExperimentConfig, session_id: str, run: dict, config_has
         "simulation": {
             "sumo_version": run["sumo_version"],
             "sumo_command": run["sumo_command"],
-            "sumo_config": str(cfg.sumo_config.relative_to(PROJECT_ROOT)),
+            "sumo_config": _rel(cfg.sumo_config),
             "step_length_s": cfg.step_length_s,
             "step_length_ns": cfg.step_ns,
             "duration_s_configured": cfg.duration_s,
@@ -94,6 +101,7 @@ def build_metadata(cfg: ExperimentConfig, session_id: str, run: dict, config_has
             "steps": run["steps"],
             "realtime_pacing": cfg.realtime,
             "execution": run["execution"],
+            **({"route_generation": run["route_generation"]} if run.get("route_generation") else {}),
         },
         "time_base": {
             "master_clock": "SUMO simulation time",

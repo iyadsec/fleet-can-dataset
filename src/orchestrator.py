@@ -21,13 +21,13 @@ from pathlib import Path
 import can
 import numpy as np
 
-from . import ground_truth, recorder, validator
+from . import ground_truth, recorder, route_generator, validator
 from .attack_engine import build_attacks, resolve_semantic_targets
 from .bus_model import CanBusModel, utilization_bins
 from .campaign_scheduler import attack_configs, build_schedule, check_scenario, describe
 from .can_bus import make_transport
 from .can_generator import VehicleCanGenerator
-from .config import ExperimentConfig, load_experiment
+from .config import ExperimentConfig, derive_seed, load_experiment
 from .metadata import build_metadata, snapshot_configs, write_json
 from .sumo_controller import SumoController
 
@@ -114,6 +114,12 @@ def run(cfg: ExperimentConfig, session_id: str | None = None, validate: bool = T
 
     wall_start = datetime.now(timezone.utc)
     session_id = session_id or f"{cfg.experiment_id}_{wall_start:%Y%m%dT%H%M%SZ}"
+    route_info = None
+    if cfg.route_generation:                          # generator 1.2.0: generated scenario (new path only)
+        scen, route_info = route_generator.write_scenario(
+            cfg.output_root / "generated_sumo" / session_id, Path(cfg.route_generation["network"]),
+            [a.vehicle_id for a in cfg.fleet], derive_seed(cfg.seed, "route_generation"), cfg.duration_s)
+        cfg = replace(cfg, sumo_config=scen)
     channels = [a.channel for a in cfg.fleet]
     check_channels(channels)
 
@@ -253,6 +259,7 @@ def run(cfg: ExperimentConfig, session_id: str | None = None, validate: bool = T
         "execution": {"mode": "realtime" if cfg.realtime else "fast", "flow_control_timeouts": flow_timeouts,
                       "wall_seconds": round((wall_end - wall_start).total_seconds(), 3)},
         "attacks": engine.describe(),
+        "route_generation": route_info,
     }
     write_json(build_metadata(cfg, session_id, run_info, hashes), md / "metadata.json")
     print(f"[{session_id}] transport: {stats.total}; bus dropped: {len(drops)}; "

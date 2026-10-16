@@ -10,3 +10,6 @@ data/**
 # M7 large result files (models, per-descriptor scores) stay on the VM
 results/**/*.parquet
 results/**/*.joblib
+
+# M8 generated SUMO scenarios (per session; reproducible from seed, snapshotted in metadata)
+data/generated_sumo/

@@ -8,8 +8,12 @@ set -euo pipefail
 N="${1:-3}"
 TXQUEUELEN="${TXQUEUELEN:-1000}"   # kernel tx queue per interface (frames)
 
-if ! [[ "$N" =~ ^[0-9]+$ ]] || (( N < 1 || N > 64 )); then
-  echo "error: N must be an integer in 1..64 (got '$N')" >&2; exit 2
+# Upper bound: an input guard against typos, not a kernel limit (Linux has no per-type cap on virtual
+# interfaces at this scale; each vcan costs one netdev + its tx queue). Milestone 1 used 64; Milestone 8
+# raised it to 128 for fleets up to 100 vehicles (measured: docs/m8_scalability_to_100.md). Override: MAX_VCAN.
+MAX_VCAN="${MAX_VCAN:-128}"
+if ! [[ "$N" =~ ^[0-9]+$ ]] || (( N < 1 || N > MAX_VCAN )); then
+  echo "error: N must be an integer in 1..$MAX_VCAN (got '$N')" >&2; exit 2
 fi
 if (( EUID != 0 )); then
   echo "error: run with sudo (needs root for modprobe / ip link)" >&2; exit 1

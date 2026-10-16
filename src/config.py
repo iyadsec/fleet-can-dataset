@@ -63,7 +63,7 @@ class ExperimentConfig:
     scenario_id: str
     description: str
     seed: int
-    sumo_config: Path
+    sumo_config: Path | None             # static scenario (legacy, fleetcan-sim-1.1); None with route_generation
     step_length_s: float
     duration_s: float
     realtime: bool
@@ -81,6 +81,7 @@ class ExperimentConfig:
     tags: dict = field(default_factory=dict)                       # descriptive labels (temporal_pattern, ...)
     dataset_version: str = "unversioned"
     fleet_info: dict = field(default_factory=dict)                 # assignment / switch-on settings and seeds
+    route_generation: dict | None = None                           # generator 1.2.0: generated SUMO scenario (M8)
 
     @property
     def step_ns(self) -> int:
@@ -208,6 +209,21 @@ def _load_profiles(raw: dict, root: Path) -> dict[str, VehicleProfile]:
     return profiles
 
 
+def _route_generation(sim: dict, root: Path) -> dict | None:
+    """Exactly one of simulation.sumo_config (static scenario) or simulation.route_generation (generated, M8)."""
+    rg = sim.get("route_generation")
+    if bool(rg) == bool(sim.get("sumo_config")):
+        raise ConfigError("simulation needs exactly one of sumo_config or route_generation")
+    if not rg:
+        return None
+    rg = dict(rg)
+    if rg.get("method", "grid_loops_v1") != "grid_loops_v1":
+        raise ConfigError(f"unknown route_generation.method {rg.get('method')}")
+    rg["method"] = "grid_loops_v1"
+    rg["network"] = str(_resolve(rg.get("network", "sumo/network/grid4x4.net.xml"), root))
+    return rg
+
+
 def load_experiment(path: str | Path, root: Path = PROJECT_ROOT) -> ExperimentConfig:
     path = _resolve(path, root)
     raw = _read_yaml(path)
@@ -236,7 +252,7 @@ def load_experiment(path: str | Path, root: Path = PROJECT_ROOT) -> ExperimentCo
         scenario_id=str(exp["scenario_id"]),
         description=str(exp.get("description", "")),
         seed=int(exp["seed"]),
-        sumo_config=_resolve(sim["sumo_config"], root),
+        sumo_config=_resolve(sim["sumo_config"], root) if sim.get("sumo_config") else None,
         step_length_s=float(sim["step_length_s"]),
         duration_s=float(sim["duration_s"]),
         realtime=bool(sim.get("realtime", True)),
@@ -255,6 +271,7 @@ def load_experiment(path: str | Path, root: Path = PROJECT_ROOT) -> ExperimentCo
         tags=dict(exp.get("tags") or {}),
         dataset_version=str(exp.get("dataset_version", "unversioned")),
         fleet_info=fleet_info,
+        route_generation=_route_generation(sim, root),
     )
     if profiles_path is not None:
         cfg.source_files["profiles.yaml"] = profiles_path

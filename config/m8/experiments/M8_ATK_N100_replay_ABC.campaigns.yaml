@@ -1,0 +1,22 @@
+campaigns:
+  - campaign_id: C_M8_REPLAY_A
+    attack_type: replay
+    coordinated: false
+    targets: [vehicle_002]
+    start_s: 10.0
+    delay_pattern: simultaneous
+    params: {window_relative_s: [-5.0, 0.0], source_vehicle: self, time_offset_ms: 0.25}
+  - campaign_id: C_M8_REPLAY_B
+    attack_type: replay
+    coordinated: false
+    targets: [vehicle_001]
+    start_s: 10.25
+    delay_pattern: simultaneous
+    params: {window_relative_s: [-5.0, 0.0], source_vehicle: self, time_offset_ms: 0.25}
+  - campaign_id: C_M8_REPLAY_C
+    attack_type: replay
+    coordinated: false
+    targets: [vehicle_004]
+    start_s: 10.5
+    delay_pattern: simultaneous
+    params: {window_relative_s: [-5.0, 0.0], source_vehicle: self, time_offset_ms: 0.25}

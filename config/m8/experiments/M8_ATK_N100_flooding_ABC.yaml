@@ -1,0 +1,25 @@
+# Milestone 8 scalability test (engineering only; not part of any research dataset).
+experiment:
+  experiment_id: M8_ATK_N100_flooding_ABC
+  dataset_version: m8-scalability-test
+  scenario_id: S2
+  description: "M8_ATK_N100_flooding_ABC"
+  seed: 81100
+  tags: {milestone: M8, fleet_size: 100, attack: flooding, campaign_size: 3, pattern: independent}
+simulation:
+  route_generation: {method: grid_loops_v1, network: sumo/network/grid4x4.net.xml}
+  step_length_s: 0.01
+  duration_s: 20.5
+  realtime: false
+can:
+  transport: socketcan
+  bus_model: logical
+  frame_format: classical
+  capture_drain_s: 0.5
+output:
+  root: data
+storage:
+  format: parquet
+fleet_config: config/m8/fleets/fleet_100.yaml
+attacks_config: config/attacks.yaml
+campaigns_config: config/m8/experiments/M8_ATK_N100_flooding_ABC.campaigns.yaml

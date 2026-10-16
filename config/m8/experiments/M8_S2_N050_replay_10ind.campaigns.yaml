@@ -1,0 +1,71 @@
+campaigns:
+  - campaign_id: C_M8_IND_1
+    attack_type: replay
+    coordinated: false
+    targets: [vehicle_001]
+    start_s: 10.0
+    delay_pattern: simultaneous
+    params: {window_relative_s: [-5.0, 0.0], source_vehicle: self, time_offset_ms: 0.25}
+  - campaign_id: C_M8_IND_2
+    attack_type: replay
+    coordinated: false
+    targets: [vehicle_002]
+    start_s: 10.0556
+    delay_pattern: simultaneous
+    params: {window_relative_s: [-5.0, 0.0], source_vehicle: self, time_offset_ms: 0.25}
+  - campaign_id: C_M8_IND_3
+    attack_type: replay
+    coordinated: false
+    targets: [vehicle_003]
+    start_s: 10.1111
+    delay_pattern: simultaneous
+    params: {window_relative_s: [-5.0, 0.0], source_vehicle: self, time_offset_ms: 0.25}
+  - campaign_id: C_M8_IND_4
+    attack_type: replay
+    coordinated: false
+    targets: [vehicle_004]
+    start_s: 10.1667
+    delay_pattern: simultaneous
+    params: {window_relative_s: [-5.0, 0.0], source_vehicle: self, time_offset_ms: 0.25}
+  - campaign_id: C_M8_IND_5
+    attack_type: replay
+    coordinated: false
+    targets: [vehicle_005]
+    start_s: 10.2222
+    delay_pattern: simultaneous
+    params: {window_relative_s: [-5.0, 0.0], source_vehicle: self, time_offset_ms: 0.25}
+  - campaign_id: C_M8_IND_6
+    attack_type: replay
+    coordinated: false
+    targets: [vehicle_006]
+    start_s: 10.2778
+    delay_pattern: simultaneous
+    params: {window_relative_s: [-5.0, 0.0], source_vehicle: self, time_offset_ms: 0.25}
+  - campaign_id: C_M8_IND_7
+    attack_type: replay
+    coordinated: false
+    targets: [vehicle_007]
+    start_s: 10.3333
+    delay_pattern: simultaneous
+    params: {window_relative_s: [-5.0, 0.0], source_vehicle: self, time_offset_ms: 0.25}
+  - campaign_id: C_M8_IND_8
+    attack_type: replay
+    coordinated: false
+    targets: [vehicle_008]
+    start_s: 10.3889
+    delay_pattern: simultaneous
+    params: {window_relative_s: [-5.0, 0.0], source_vehicle: self, time_offset_ms: 0.25}
+  - campaign_id: C_M8_IND_9
+    attack_type: replay
+    coordinated: false
+    targets: [vehicle_009]
+    start_s: 10.4444
+    delay_pattern: simultaneous
+    params: {window_relative_s: [-5.0, 0.0], source_vehicle: self, time_offset_ms: 0.25}
+  - campaign_id: C_M8_IND_10
+    attack_type: replay
+    coordinated: false
+    targets: [vehicle_010]
+    start_s: 10.5
+    delay_pattern: simultaneous
+    params: {window_relative_s: [-5.0, 0.0], source_vehicle: self, time_offset_ms: 0.25}

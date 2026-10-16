@@ -7,5 +7,6 @@ Bump the relevant version whenever a change could alter generated or derived dat
 """
 
 SCHEMA_VERSION = "1.0"
-GENERATOR_VERSION = "1.1.0"   # 1.1.0: N<k profile subset, optional ECU release jitter
+GENERATOR_VERSION = "1.2.0"   # 1.1.0: N<k profile subset, optional ECU release jitter
+                              # 1.2.0: optional generated SUMO routes for arbitrary N (M8); legacy path unchanged
 DESCRIPTOR_VERSION = "1.0"

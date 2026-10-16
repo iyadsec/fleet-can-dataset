@@ -1,0 +1,25 @@
+campaigns:
+  - campaign_id: C_M8_MALFUNCTION_A
+    attack_type: malfunction
+    coordinated: false
+    targets: [vehicle_002]
+    start_s: 10.0
+    delay_pattern: simultaneous
+    duration_s: 5
+    params: {mode: inject, target: vehicle_speed, manipulation: {strategy: constant, value: 250.0}, rate_hz: 100}
+  - campaign_id: C_M8_MALFUNCTION_B
+    attack_type: malfunction
+    coordinated: false
+    targets: [vehicle_001]
+    start_s: 10.25
+    delay_pattern: simultaneous
+    duration_s: 5
+    params: {mode: inject, target: vehicle_speed, manipulation: {strategy: constant, value: 250.0}, rate_hz: 100}
+  - campaign_id: C_M8_MALFUNCTION_C
+    attack_type: malfunction
+    coordinated: false
+    targets: [vehicle_004]
+    start_s: 10.5
+    delay_pattern: simultaneous
+    duration_s: 5
+    params: {mode: inject, target: vehicle_speed, manipulation: {strategy: constant, value: 250.0}, rate_hz: 100}

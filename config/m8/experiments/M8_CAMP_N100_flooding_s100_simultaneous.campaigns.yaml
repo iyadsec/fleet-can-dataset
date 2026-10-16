@@ -1,0 +1,9 @@
+campaigns:
+  - campaign_id: C_M8_FLOOD
+    attack_type: flooding
+    coordinated: true
+    targets: [vehicle_001, vehicle_002, vehicle_003, vehicle_004, vehicle_005, vehicle_006, vehicle_007, vehicle_008, vehicle_009, vehicle_010, vehicle_011, vehicle_012, vehicle_013, vehicle_014, vehicle_015, vehicle_016, vehicle_017, vehicle_018, vehicle_019, vehicle_020, vehicle_021, vehicle_022, vehicle_023, vehicle_024, vehicle_025, vehicle_026, vehicle_027, vehicle_028, vehicle_029, vehicle_030, vehicle_031, vehicle_032, vehicle_033, vehicle_034, vehicle_035, vehicle_036, vehicle_037, vehicle_038, vehicle_039, vehicle_040, vehicle_041, vehicle_042, vehicle_043, vehicle_044, vehicle_045, vehicle_046, vehicle_047, vehicle_048, vehicle_049, vehicle_050, vehicle_051, vehicle_052, vehicle_053, vehicle_054, vehicle_055, vehicle_056, vehicle_057, vehicle_058, vehicle_059, vehicle_060, vehicle_061, vehicle_062, vehicle_063, vehicle_064, vehicle_065, vehicle_066, vehicle_067, vehicle_068, vehicle_069, vehicle_070, vehicle_071, vehicle_072, vehicle_073, vehicle_074, vehicle_075, vehicle_076, vehicle_077, vehicle_078, vehicle_079, vehicle_080, vehicle_081, vehicle_082, vehicle_083, vehicle_084, vehicle_085, vehicle_086, vehicle_087, vehicle_088, vehicle_089, vehicle_090, vehicle_091, vehicle_092, vehicle_093, vehicle_094, vehicle_095, vehicle_096, vehicle_097, vehicle_098, vehicle_099, vehicle_100]
+    start_s: 10.0
+    delay_pattern: simultaneous
+    duration_s: 5
+    params: {can_id: 0x000, rate_hz: 1600, dlc: 8, payload: zeros}

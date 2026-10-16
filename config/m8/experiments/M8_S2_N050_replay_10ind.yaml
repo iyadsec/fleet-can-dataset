@@ -1,0 +1,25 @@
+# Milestone 8 scalability test (engineering only; not part of any research dataset).
+experiment:
+  experiment_id: M8_S2_N050_replay_10ind
+  dataset_version: m8-scalability-test
+  scenario_id: S2
+  description: "M8_S2_N050_replay_10ind"
+  seed: 82150
+  tags: {milestone: M8, fleet_size: 50, attack: replay, campaign_size: 10, pattern: independent}
+simulation:
+  route_generation: {method: grid_loops_v1, network: sumo/network/grid4x4.net.xml}
+  step_length_s: 0.01
+  duration_s: 20.5
+  realtime: false
+can:
+  transport: socketcan
+  bus_model: logical
+  frame_format: classical
+  capture_drain_s: 0.5
+output:
+  root: data
+storage:
+  format: parquet
+fleet_config: config/m8/fleets/fleet_50.yaml
+attacks_config: config/attacks.yaml
+campaigns_config: config/m8/experiments/M8_S2_N050_replay_10ind.campaigns.yaml
