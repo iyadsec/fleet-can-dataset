@@ -1,0 +1,42 @@
+# N10_S2_fuzzy_s05_independent: campaigns (frozen protocol). 5 independent single-vehicle campaigns, starts [10.0, 10.125, 10.25, 10.375, 10.5]
+campaigns:
+  - campaign_id: C_S2_FUZZY_1
+    attack_type: fuzzy
+    coordinated: false
+    targets: [vehicle_01]
+    start_s: 10.0
+    delay_pattern: simultaneous
+    duration_s: 5
+    params: {mode: both, rate_hz: 1000, id_range: [0x000, 0x7FF], dlc: random}
+  - campaign_id: C_S2_FUZZY_2
+    attack_type: fuzzy
+    coordinated: false
+    targets: [vehicle_02]
+    start_s: 10.125
+    delay_pattern: simultaneous
+    duration_s: 5
+    params: {mode: both, rate_hz: 1000, id_range: [0x000, 0x7FF], dlc: random}
+  - campaign_id: C_S2_FUZZY_3
+    attack_type: fuzzy
+    coordinated: false
+    targets: [vehicle_03]
+    start_s: 10.25
+    delay_pattern: simultaneous
+    duration_s: 5
+    params: {mode: both, rate_hz: 1000, id_range: [0x000, 0x7FF], dlc: random}
+  - campaign_id: C_S2_FUZZY_4
+    attack_type: fuzzy
+    coordinated: false
+    targets: [vehicle_04]
+    start_s: 10.375
+    delay_pattern: simultaneous
+    duration_s: 5
+    params: {mode: both, rate_hz: 1000, id_range: [0x000, 0x7FF], dlc: random}
+  - campaign_id: C_S2_FUZZY_5
+    attack_type: fuzzy
+    coordinated: false
+    targets: [vehicle_05]
+    start_s: 10.5
+    delay_pattern: simultaneous
+    duration_s: 5
+    params: {mode: both, rate_hz: 1000, id_range: [0x000, 0x7FF], dlc: random}

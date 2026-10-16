@@ -1,0 +1,10 @@
+# N10_S3_flooding_s10_simultaneous: campaigns (frozen protocol). 
+campaigns:
+  - campaign_id: C_S3_FLOODING
+    attack_type: flooding
+    coordinated: true
+    targets: [vehicle_01, vehicle_02, vehicle_03, vehicle_04, vehicle_05, vehicle_06, vehicle_07, vehicle_08, vehicle_09, vehicle_10]
+    start_s: 10.0
+    delay_pattern: simultaneous
+    duration_s: 5
+    params: {can_id: 0x000, rate_hz: 1600, dlc: 8, payload: zeros}

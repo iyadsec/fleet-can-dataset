@@ -1,0 +1,23 @@
+# N05_S2_replay_s03_independent: campaigns (frozen protocol). 3 independent single-vehicle campaigns, starts [10.0, 10.25, 10.5]
+campaigns:
+  - campaign_id: C_S2_REPLAY_1
+    attack_type: replay
+    coordinated: false
+    targets: [vehicle_01]
+    start_s: 10.0
+    delay_pattern: simultaneous
+    params: {window_relative_s: [-5.0, 0.0], source_vehicle: self, time_offset_ms: 0.25}
+  - campaign_id: C_S2_REPLAY_2
+    attack_type: replay
+    coordinated: false
+    targets: [vehicle_02]
+    start_s: 10.25
+    delay_pattern: simultaneous
+    params: {window_relative_s: [-5.0, 0.0], source_vehicle: self, time_offset_ms: 0.25}
+  - campaign_id: C_S2_REPLAY_3
+    attack_type: replay
+    coordinated: false
+    targets: [vehicle_03]
+    start_s: 10.5
+    delay_pattern: simultaneous
+    params: {window_relative_s: [-5.0, 0.0], source_vehicle: self, time_offset_ms: 0.25}

@@ -18,7 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src import storage  # noqa: E402
 
 MANIFEST_FIELDS = [
-    "session_id", "experiment_id", "dataset_version", "schema_version", "generator_version", "descriptor_version",
+    "session_id", "experiment_id", "configuration_id", "repetition", "dataset_version", "schema_version", "generator_version", "descriptor_version",
     "scenario_id", "tags", "fleet_size", "vehicle_ids", "vehicle_profiles", "profile_assignment", "switch_on_ns", "ecu_jitter",
     "attack_types", "attack_ids", "campaign_ids", "campaign_sizes", "campaign_coordinated", "delay_patterns",
     "configured_relative_delays_s", "seed", "duration_s", "sim_end_s", "execution_mode", "wall_seconds",
@@ -44,6 +44,7 @@ def session_entry(data: Path, sid: str) -> dict:
         n_desc = len(storage.read_table(desc_base, columns=["descriptor_id"]))
     return {
         "session_id": sid, "experiment_id": md["experiment_id"],
+        "configuration_id": (md.get("tags") or {}).get("config_id"), "repetition": (md.get("tags") or {}).get("repetition"),
         "dataset_version": versions.get("dataset_version", "unversioned"),
         "schema_version": versions.get("schema_version", "pre-1.0"),
         "generator_version": versions.get("generator_version", "pre-1.0"),
