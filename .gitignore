@@ -6,3 +6,7 @@ __pycache__/
 data/**
 !data/*/
 !data/*/.gitkeep
+
+# M7 large result files (models, per-descriptor scores) stay on the VM
+results/**/*.parquet
+results/**/*.joblib
