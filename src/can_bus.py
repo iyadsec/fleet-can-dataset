@@ -16,6 +16,7 @@ from __future__ import annotations
 import threading
 import time
 from abc import ABC, abstractmethod
+from collections import deque
 from dataclasses import dataclass
 
 import can
@@ -47,7 +48,12 @@ class CanCapture(ABC):
     def start(self) -> None: ...
 
     @abstractmethod
-    def stop(self, drain_s: float) -> dict[str, list[CapturedFrame]]: ...
+    def stop(self, drain_s: float) -> dict[str, list[CapturedFrame]]:
+        """Stop listening; return the captures not yet taken with take() (all captures if take() was never used)."""
+
+    def take(self, channel: str) -> list[CapturedFrame]:
+        """Remove and return the captures received so far on `channel`, in receive order (generator 1.3.0)."""
+        raise NotImplementedError
 
 
 class SocketCanTransport(CanTransport):
@@ -81,11 +87,15 @@ class SocketCanTransport(CanTransport):
 
 
 class SocketCanCapture(CanCapture):
-    """One listener socket + thread per channel, independent of the sender sockets."""
+    """One listener socket + thread per channel, independent of the sender sockets.
+
+    Captures are queued per channel (thread-safe deque). The recorder takes them incrementally (take) so a
+    session never has to hold every capture in memory (generator 1.3.0); `captured()` counts all receptions."""
 
     def __init__(self, channels: list[str]):
         self.channels = channels
-        self.frames: dict[str, list[CapturedFrame]] = {ch: [] for ch in channels}
+        self.frames: dict[str, deque[CapturedFrame]] = {ch: deque() for ch in channels}
+        self._count: dict[str, int] = {ch: 0 for ch in channels}
         self._stop = threading.Event()
         self._threads: list[threading.Thread] = []
         self._buses = {ch: can.Bus(interface="socketcan", channel=ch) for ch in channels}
@@ -99,7 +109,8 @@ class SocketCanCapture(CanCapture):
                     return
                 continue
             sink.append(CapturedFrame(ch, round(msg.timestamp * 1e9), msg.arbitration_id,
-                                      msg.is_extended_id, msg.dlc, bytes(msg.data), len(sink)))
+                                      msg.is_extended_id, msg.dlc, bytes(msg.data), self._count[ch]))
+            self._count[ch] += 1                   # only this thread writes this channel's counter
 
     def start(self) -> None:
         for ch in self.channels:
@@ -108,7 +119,13 @@ class SocketCanCapture(CanCapture):
             self._threads.append(t)
 
     def captured(self, channel: str) -> int:
-        return len(self.frames[channel])
+        return self._count[channel]
+
+    def take(self, channel: str) -> list[CapturedFrame]:
+        q, out = self.frames[channel], []
+        while q:
+            out.append(q.popleft())
+        return out
 
     def stop(self, drain_s: float) -> dict[str, list[CapturedFrame]]:
         time.sleep(drain_s)
@@ -117,7 +134,7 @@ class SocketCanCapture(CanCapture):
             t.join(timeout=5)
         for b in self._buses.values():
             b.shutdown()
-        return self.frames
+        return {ch: self.take(ch) for ch in self.channels}
 
 
 def make_transport(kind: str, channels: list[str]) -> tuple[CanTransport, CanCapture]:

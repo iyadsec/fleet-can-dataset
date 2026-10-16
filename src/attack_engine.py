@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import zlib
+from collections import deque
 from dataclasses import dataclass, field, replace
 
 import numpy as np
@@ -261,26 +262,28 @@ class Replay(Attack):
                                     f"and window start >= 100 ms before replay start")
         # Replayed frames are generated at start + (tx_end - w0) + offset with w0 <= tx_end < w1.
         self.end_ns = self.start_ns + (self.w1 - self.w0) + self.offset_ns
-        self._queue = None
+        # Source history (generator 1.3.0): the context offers every transmission of the source bus, in bus
+        # order; only those this attack can select are kept (same predicate as before), so memory is bounded
+        # by the source window instead of the whole session.
+        self._queue: deque = deque()
+        self._ctx = ctx
+        ctx.watch_replay(self)
+
+    def offer(self, tx) -> None:
+        if (self.w0 <= tx.end_ns < self.w1 and tx.frame.source == "benign_generator"
+                and (self.ids is None or tx.frame.can_id in self.ids)):
+            self._queue.append((self.start_ns + (tx.end_ns - self.w0) + self.offset_ns, tx))
+            refs = self._ctx.replay_source_refs           # the recorder keeps this frame's UID until replayed
+            refs[id(tx.frame)] = refs.get(id(tx.frame), 0) + 1
 
     def inject(self, t0, t1, ctx):
         if t1 <= self.start_ns or t0 >= self.end_ns:
             return []
-        if self._queue is None:
-            self._queue, self._idx, self._seen = [], 0, 0
-        # Incremental: add frames newly observed on the source bus. A frame needed for replay time
-        # < t1 ended before w0 + (t1 - start) <= t0 (start - w0 >= 100 ms > one step), so its bus
-        # decision is already final when it is needed.
-        seen = ctx.transmitted(self.source_vehicle)
-        for tx in seen[self._seen:]:
-            if (self.w0 <= tx.end_ns < self.w1 and tx.frame.source == "benign_generator"
-                    and (self.ids is None or tx.frame.can_id in self.ids)):
-                self._queue.append((self.start_ns + (tx.end_ns - self.w0) + self.offset_ns, tx))
-        self._seen = len(seen)
+        # A frame needed for replay time < t1 ended before w0 + (t1 - start) <= t0 (start - w0 >= 100 ms >
+        # one step), so its bus decision is already final when it is needed.
         out = []
-        while self._idx < len(self._queue) and self._queue[self._idx][0] < t1:
-            t, tx = self._queue[self._idx]
-            self._idx += 1
+        while self._queue and self._queue[0][0] < t1:
+            t, tx = self._queue.popleft()
             if t < t0:
                 raise AttackConfigError(f"{self.attack_id}: replay frame at {t} ns observed too late")
             o = tx.frame
@@ -299,7 +302,8 @@ class AttackContext:
 
     def __init__(self, profiles: dict):
         self.profiles = profiles               # vehicle_id -> VehicleProfile
-        self._tx: dict[str, list] = {}
+        self._replay_watch: dict[str, list] = {}   # source vehicle -> Replay attacks reading its bus
+        self.replay_source_refs: dict[int, int] = {}  # id(source frame) -> pending replays (recorder UID lookup)
         self._last: dict[tuple, list] = {}
 
     def record_generated(self, frames):
@@ -310,12 +314,16 @@ class AttackContext:
                 if len(hist) > 8:
                     del hist[:-4]
 
-    def record_transmitted(self, txs):
-        for tx in txs:
-            self._tx.setdefault(tx.frame.vehicle_id, []).append(tx)
+    def watch_replay(self, attack) -> None:
+        self._replay_watch.setdefault(attack.source_vehicle, []).append(attack)
 
-    def transmitted(self, vehicle_id):
-        return self._tx.get(vehicle_id, [])
+    def record_transmitted(self, txs):
+        """Offer each transmission (in bus order) to the Replay attacks that read its bus; nothing else is kept."""
+        if not self._replay_watch:
+            return
+        for tx in txs:
+            for a in self._replay_watch.get(tx.frame.vehicle_id, ()):
+                a.offer(tx)
 
     def last_benign(self, vehicle_id, can_id, t):
         hist = self._last.get((vehicle_id, can_id), [])

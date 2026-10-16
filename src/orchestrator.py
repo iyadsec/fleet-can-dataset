@@ -13,6 +13,8 @@ Usage: python -m src.orchestrator --config config/experiment.yaml [--duration S]
 from __future__ import annotations
 
 import argparse
+import os
+import shutil
 import time
 from dataclasses import replace
 from datetime import datetime, timezone
@@ -23,7 +25,11 @@ import numpy as np
 
 from . import ground_truth, recorder, route_generator, validator
 from .attack_engine import build_attacks, resolve_semantic_targets
+from . import storage
 from .bus_model import CanBusModel, utilization_bins
+from .bus_stats import BusStatsAccumulator
+from .chunked import DEFAULT_CHUNK_ROWS, ChunkedTable
+from .stream_recorder import FrameStream
 from .campaign_scheduler import attack_configs, build_schedule, check_scenario, describe
 from .can_bus import make_transport
 from .can_generator import VehicleCanGenerator
@@ -102,7 +108,17 @@ def bus_statistics(cfg, buses, all_txs, all_drops, engine, sim_end_ns) -> dict:
     return out
 
 
-def run(cfg: ExperimentConfig, session_id: str | None = None, validate: bool = True) -> tuple[str, str]:
+SESSION_DIRS = ("raw", "ground_truth", "validation", "metadata")     # metadata last: its presence = complete session
+
+
+def run(cfg: ExperimentConfig, session_id: str | None = None, validate: bool = True,
+        chunk_rows: int = DEFAULT_CHUNK_ROWS) -> tuple[str, str]:
+    """Generate one session with bounded memory (generator 1.3.0).
+
+    Frames are recorded as they are captured (src/stream_recorder.py) through chunked writers
+    (src/chunked.py); the session is assembled under <output>/.incomplete/<session>/, validated there and only
+    then moved into <output>/{raw,ground_truth,validation,metadata}/<session> (metadata last). An interrupted run
+    never leaves an apparently complete session; an existing session is never overwritten."""
     profiles_by_vehicle = {a.vehicle_id: cfg.profiles[a.profile] for a in cfg.fleet}
     campaigns = build_schedule(cfg.campaigns, cfg.seed, [a.vehicle_id for a in cfg.fleet])
     problems = check_scenario(cfg.scenario_id, cfg.attacks, campaigns)
@@ -114,10 +130,18 @@ def run(cfg: ExperimentConfig, session_id: str | None = None, validate: bool = T
 
     wall_start = datetime.now(timezone.utc)
     session_id = session_id or f"{cfg.experiment_id}_{wall_start:%Y%m%dT%H%M%SZ}"
+    root = cfg.output_root
+    existing = [str(root / d / session_id) for d in SESSION_DIRS if (root / d / session_id).exists()]
+    if existing:
+        raise SystemExit(f"session {session_id} already exists ({existing}); refusing to overwrite")
+    stage = root / ".incomplete" / session_id                  # never a valid session location
+    if stage.exists():
+        shutil.rmtree(stage)                                   # left over from an interrupted run of this id
+    stage.mkdir(parents=True)
     route_info = None
     if cfg.route_generation:                          # generator 1.2.0: generated scenario (new path only)
         scen, route_info = route_generator.write_scenario(
-            cfg.output_root / "generated_sumo" / session_id, Path(cfg.route_generation["network"]),
+            root / "generated_sumo" / session_id, Path(cfg.route_generation["network"]),
             [a.vehicle_id for a in cfg.fleet], derive_seed(cfg.seed, "route_generation"), cfg.duration_s)
         cfg = replace(cfg, sumo_config=scen)
     channels = [a.channel for a in cfg.fleet]
@@ -129,11 +153,16 @@ def run(cfg: ExperimentConfig, session_id: str | None = None, validate: bool = T
             for a in cfg.fleet}
     buses = {a.channel: CanBusModel(replace(cfg.profiles[a.profile].bus, enabled=cfg.bus_model == "logical"), a.channel)
              for a in cfg.fleet}
-    tx_log: dict[str, list[recorder.TxRecord]] = {ch: [] for ch in channels}
-    all_txs = {ch: [] for ch in channels}
-    all_drops = {ch: [] for ch in channels}
+    all_drops = {ch: [] for ch in channels}          # bounded by the attack load (frames that never reach the bus)
     send_errors = {ch: 0 for ch in channels}
-    states_all = []
+    raw, gt, md = stage / "raw" / session_id, stage / "ground_truth" / session_id, stage / "metadata" / session_id
+    fmt = cfg.output_format
+    tables = {"frames": ChunkedTable(raw / "can_frames", recorder.FRAME_COLUMNS, fmt, chunk_rows),
+              "states": ChunkedTable(raw / "vehicle_states", recorder.STATE_COLUMNS, fmt, chunk_rows),
+              "labels": ChunkedTable(gt / "frame_labels", ground_truth.LABEL_COLUMNS, fmt, chunk_rows),
+              "attack_frames": ChunkedTable(gt / "attack_frames", ground_truth.ATTACK_FRAME_COLUMNS, fmt, chunk_rows),
+              "replay": ChunkedTable(gt / "replay_map", ground_truth.REPLAY_COLUMNS, fmt, chunk_rows)}
+    bstat = BusStatsAccumulator(buses, engine.attacks, UTIL_BIN_NS, stage / "tmp" / "queue_delays")
 
     transport, capture = make_transport(cfg.transport, channels)
     capture.start()
@@ -149,13 +178,13 @@ def run(cfg: ExperimentConfig, session_id: str | None = None, validate: bool = T
             except can.CanError:
                 send_errors[tx.frame.channel] += 1    # counted and reported, never retried silently
                 continue
-            tx_log[tx.frame.channel].append(recorder.TxRecord(tx, tx_ns))
+            stream.on_sent(recorder.TxRecord(tx, tx_ns))
 
     def advance(t_end):
         txs = []
         for ch, bus in buses.items():
             t, d = bus.advance_until(t_end) if t_end is not None else bus.drain()
-            all_txs[ch].extend(t)
+            bstat.add(ch, t)
             all_drops[ch].extend(d)
             txs.extend(t)
         engine.observe(txs)
@@ -164,6 +193,7 @@ def run(cfg: ExperimentConfig, session_id: str | None = None, validate: bool = T
     sumo = SumoController(str(cfg.sumo_config), cfg.step_length_s, cfg.seed)
     sumo.start()
     anchor_wall_ns, anchor_perf_ns = time.time_ns(), time.perf_counter_ns()   # SUMO t=0 <-> wall clock
+    stream = FrameStream(session_id, cfg.scenario_id, channels, anchor_wall_ns if cfg.realtime else None, tables, engine.ctx)
     print(f"[{session_id}] SUMO {sumo.version}; {cfg.duration_s:.1f} s simulated "
           f"({'real-time' if cfg.realtime else 'as fast as possible'}), bus model={cfg.bus_model}, "
           f"campaigns={[c.campaign_id for c in campaigns]}, attacks={[a.attack_id for a in engine.attacks]}, vehicles -> {dict((a.vehicle_id, a.channel) for a in cfg.fleet)}")
@@ -174,7 +204,7 @@ def run(cfg: ExperimentConfig, session_id: str | None = None, validate: bool = T
         never depend on this; it only prevents kernel receive-buffer overflow (lost captures)."""
         nonlocal flow_timeouts
         deadline = time.perf_counter() + timeout_s
-        while any(capture.captured(ch) < len(tx_log[ch]) for ch in channels):
+        while any(capture.captured(ch) < stream.counts[ch]["sent"] for ch in channels):
             if time.perf_counter() > deadline:
                 flow_timeouts += 1
                 return
@@ -184,7 +214,8 @@ def run(cfg: ExperimentConfig, session_id: str | None = None, validate: bool = T
     try:
         while sumo.sim_time_ns < cfg.duration_ns:
             states = sumo.step()
-            states_all.extend(states)
+            for s in states:
+                tables["states"].add(recorder.state_row(s, session_id))
             t0, t1 = sumo.sim_time_ns, sumo.sim_time_ns + cfg.step_ns
             frames = []
             for s in states:
@@ -203,44 +234,42 @@ def run(cfg: ExperimentConfig, session_id: str | None = None, validate: bool = T
             send(due)
             if not cfg.realtime:
                 wait_for_capture()
+            stream.pump(capture)
             if sumo.vehicles_remaining() == 0:
                 break
         sim_end_ns = sumo.sim_time_ns
         held.extend(advance(None))                   # drain queues: frames generated before the end
         held.sort(key=lambda x: (x.end_ns, x.frame.vehicle_id))
         send(held)
+    except BaseException:
+        for t in tables.values():
+            t.abort()
+        raise
     finally:
         sumo.close()
-        captures = capture.stop(cfg.capture_drain_s)
+        remaining = capture.stop(cfg.capture_drain_s)
         transport.close()
     wall_end = datetime.now(timezone.utc)
 
-    # --- record -----------------------------------------------------------------------------
+    # --- finish recording (bounded: rows were written while the run progressed) ----------------
+    stats = stream.finish(remaining, send_errors)
     drops = [d for ch in channels for d in all_drops[ch]]
-    pairs, unexpected, stats = recorder.associate(tx_log, captures, send_errors)
-    frame_rows, label_seeds, uid_of = recorder.build_frame_rows(pairs, session_id, cfg.scenario_id,
-                                                                anchor_wall_ns if cfg.realtime else None)
-    attack_detail, replay_map = ground_truth.attack_frame_rows(pairs, uid_of)
-    w = recorder.make_writer(cfg.output_format)
-    root = cfg.output_root
-    raw, gt, md = root / "raw" / session_id, root / "ground_truth" / session_id, root / "metadata" / session_id
-    w.write(raw / "can_frames", recorder.FRAME_COLUMNS, frame_rows)
-    w.write(raw / "vehicle_states", recorder.STATE_COLUMNS, recorder.build_state_rows(states_all, session_id))
-    w.write(raw / "unmatched_captures", ["channel", "capture_time_ns", "can_id", "dlc", "payload", "seq"],
-            [{"channel": c.channel, "capture_time_ns": c.capture_time_ns, "can_id": f"0x{c.can_id:03X}",
-              "dlc": c.dlc, "payload": c.data.hex().upper(), "seq": c.seq} for c in unexpected])
-    w.write(gt / "frame_labels", ground_truth.LABEL_COLUMNS, ground_truth.frame_label_rows(label_seeds, session_id))
-    w.write(gt / "dropped_frames", ground_truth.DROP_COLUMNS, ground_truth.dropped_rows(drops, session_id))
-    w.write(gt / "attacks", ground_truth.ATTACK_COLUMNS,
-            ground_truth.attack_rows(engine, pairs, drops, cfg.scenario_id, session_id))
-    w.write(gt / "attack_frames", ground_truth.ATTACK_FRAME_COLUMNS, attack_detail)
-    w.write(gt / "replay_map", ground_truth.REPLAY_COLUMNS, replay_map)
+    for t in tables.values():
+        t.finalize()
+    unexpected = stream.unexpected_captures()
+    storage.write_table(raw / "unmatched_captures", ["channel", "capture_time_ns", "can_id", "dlc", "payload", "seq"],
+                        [{"channel": c.channel, "capture_time_ns": c.capture_time_ns, "can_id": f"0x{c.can_id:03X}",
+                          "dlc": c.dlc, "payload": c.data.hex().upper(), "seq": c.seq} for c in unexpected], fmt)
+    storage.write_table(gt / "dropped_frames", ground_truth.DROP_COLUMNS, ground_truth.dropped_rows(drops, session_id), fmt)
+    storage.write_table(gt / "attacks", ground_truth.ATTACK_COLUMNS,
+                        ground_truth.attack_rows_from_tally(engine, stream.tally, drops, cfg.scenario_id, session_id), fmt)
     c_rows, m_rows, o_rows = ground_truth.campaign_rows(campaigns, cfg.scenario_id, session_id)
-    w.write(gt / "campaigns", ground_truth.CAMPAIGN_COLUMNS, c_rows)
-    w.write(gt / "campaign_membership", ground_truth.MEMBERSHIP_COLUMNS, m_rows)
-    w.write(gt / "campaign_overlap", ground_truth.OVERLAP_COLUMNS, o_rows)
+    storage.write_table(gt / "campaigns", ground_truth.CAMPAIGN_COLUMNS, c_rows, fmt)
+    storage.write_table(gt / "campaign_membership", ground_truth.MEMBERSHIP_COLUMNS, m_rows, fmt)
+    storage.write_table(gt / "campaign_overlap", ground_truth.OVERLAP_COLUMNS, o_rows, fmt)
 
-    bstats = bus_statistics(cfg, buses, all_txs, all_drops, engine, sim_end_ns)
+    bstats = bstat.finalize(sim_end_ns, all_drops)
+    bstat.cleanup()
     write_json(bstats, md / "bus_stats.json")
     hashes = snapshot_configs(cfg, md / "config_snapshot")
     run_info = {
@@ -248,7 +277,7 @@ def run(cfg: ExperimentConfig, session_id: str | None = None, validate: bool = T
         "steps": sumo.step_index, "anchor_wall_ns": anchor_wall_ns if cfg.realtime else None,
         "wall_start_utc": wall_start.isoformat(), "wall_end_utc": wall_end.isoformat(),
         "match_stats": {"per_channel": stats.per_channel, "total": stats.total},
-        "bus_totals": {ch: {"generated": len(all_txs[ch]) + len(all_drops[ch]), "transmitted": len(all_txs[ch]),
+        "bus_totals": {ch: {"generated": bstat.count[ch] + len(all_drops[ch]), "transmitted": bstat.count[ch],
                             "dropped": len(all_drops[ch]),
                             "queue_dropped": sum(d.kind == "queue_drop" for d in all_drops[ch]),
                             "expired_dropped": sum(d.kind == "expired_drop" for d in all_drops[ch])}
@@ -257,22 +286,32 @@ def run(cfg: ExperimentConfig, session_id: str | None = None, validate: bool = T
         "campaign_schedule": describe(campaigns),
         "model_stats": {"values_clamped_to_dbc_range": {v: g.clamped for v, g in gens.items()}},
         "execution": {"mode": "realtime" if cfg.realtime else "fast", "flow_control_timeouts": flow_timeouts,
-                      "wall_seconds": round((wall_end - wall_start).total_seconds(), 3)},
+                      "wall_seconds": round((wall_end - wall_start).total_seconds(), 3),
+                      "recorder": {"streaming": True, "chunk_rows": chunk_rows,
+                                   "max_frames_awaiting_capture": stream.max_waiting}},
         "attacks": engine.describe(),
         "route_generation": route_info,
     }
     write_json(build_metadata(cfg, session_id, run_info, hashes), md / "metadata.json")
+    shutil.rmtree(stage / "tmp", ignore_errors=True)
     print(f"[{session_id}] transport: {stats.total}; bus dropped: {len(drops)}; "
           + ", ".join(f"{ch} util={v['utilization_overall']:.3f}" for ch, v in bstats["channels"].items()))
 
     overall = "SKIPPED"
     if validate:
-        rep = validator.validate(session_id, root)
-        validator.write_report(rep, session_id, validator.session_paths(root, session_id)["out_dir"])
+        rep = validator.validate(session_id, stage)
+        validator.write_report(rep, session_id, validator.session_paths(stage, session_id)["out_dir"])
         for c in rep.checks:
             print(f"  [{c['status']:4s}] {c['id']} {c['check']}: {c['detail']}")
         overall = rep.overall
         print(f"[{session_id}] VALIDATION: {overall}")
+    # --- publish: move the finished session into place, metadata last --------------------------
+    for d in SESSION_DIRS:
+        src = stage / d / session_id
+        if src.exists():
+            (root / d).mkdir(parents=True, exist_ok=True)
+            os.replace(src, root / d / session_id)
+    shutil.rmtree(stage, ignore_errors=True)
     return session_id, overall
 
 
@@ -285,6 +324,8 @@ def main(argv=None) -> int:
     ap.add_argument("--realtime", action="store_true", help="force real-time pacing (overrides simulation.realtime)")
     ap.add_argument("--storage", choices=["csv", "parquet"], help="override storage.format")
     ap.add_argument("--session-id", help="explicit session id (default: <experiment_id>_<UTC start>)")
+    ap.add_argument("--chunk-rows", type=int, default=DEFAULT_CHUNK_ROWS,
+                    help="rows buffered per table before a chunk is written (implementation detail, not semantics)")
     a = ap.parse_args(argv)
     cfg = load_experiment(a.config)
     if a.duration:
@@ -297,7 +338,7 @@ def main(argv=None) -> int:
         cfg.realtime = True
     if a.storage:
         cfg.output_format = a.storage
-    _, overall = run(cfg, session_id=a.session_id, validate=not a.no_validate)
+    _, overall = run(cfg, session_id=a.session_id, validate=not a.no_validate, chunk_rows=a.chunk_rows)
     return 0 if overall in ("PASS", "SKIPPED") else 1
 
 

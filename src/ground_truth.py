@@ -68,9 +68,12 @@ def _label_fields(f) -> dict:
             "attack_id": f.attack_id or "None", "frame_source": f.source, "message_name": f.message}
 
 
+def label_row(frame_uid: str, frame, session_id: str) -> dict:
+    return {"frame_uid": frame_uid, "session_id": session_id, **_label_fields(frame)}
+
+
 def frame_label_rows(label_seeds: list[dict], session_id: str) -> list[dict]:
-    return [{"frame_uid": r["frame_uid"], "session_id": session_id, **_label_fields(r["frame"])}
-            for r in label_seeds]
+    return [label_row(r["frame_uid"], r["frame"], session_id) for r in label_seeds]
 
 
 def dropped_rows(drops, session_id: str) -> list[dict]:
@@ -84,42 +87,81 @@ def dropped_rows(drops, session_id: str) -> list[dict]:
     return rows
 
 
-def attack_rows(engine, pairs, drops, scenario_id: str, session_id: str) -> list[dict]:
-    cap_count, tx_count, drop_count, qdrop, xdrop = {}, {}, {}, {}, {}
-    gen_times: dict[str, list[int]] = {}
-    for rec, _ in pairs:
-        a = rec.frame.attack_id
+class AttackTally:
+    """Per-attack counters from captured (paired) frames, accumulated one frame at a time (generator 1.3.0)."""
+
+    def __init__(self):
+        self.captured: dict[str, int] = {}
+        self.gen_min: dict[str, int] = {}
+        self.gen_max: dict[str, int] = {}
+
+    def add(self, frame) -> None:
+        a = frame.attack_id
         if a:
-            cap_count[a] = cap_count.get(a, 0) + 1
-            gen_times.setdefault(a, []).append(rec.frame.sim_time_ns)
+            self.captured[a] = self.captured.get(a, 0) + 1
+            t = frame.sim_time_ns
+            self.gen_min[a] = min(self.gen_min.get(a, t), t)
+            self.gen_max[a] = max(self.gen_max.get(a, t), t)
+
+
+def attack_rows(engine, pairs, drops, scenario_id: str, session_id: str) -> list[dict]:
+    tally = AttackTally()
+    for rec, _ in pairs:
+        tally.add(rec.frame)
+    return attack_rows_from_tally(engine, tally, drops, scenario_id, session_id)
+
+
+def attack_rows_from_tally(engine, tally: AttackTally, drops, scenario_id: str, session_id: str) -> list[dict]:
+    drop_count, qdrop, xdrop = {}, {}, {}
+    gmin, gmax = dict(tally.gen_min), dict(tally.gen_max)
     for d in drops:
         a = d.frame.attack_id
         if a:
             drop_count[a] = drop_count.get(a, 0) + 1
             kind = qdrop if d.kind == "queue_drop" else xdrop
             kind[a] = kind.get(a, 0) + 1
-            gen_times.setdefault(a, []).append(d.frame.sim_time_ns)
-    for a in engine.attacks:
-        tx_count[a.attack_id] = engine.transmitted.get(a.attack_id, 0)
+            t = d.frame.sim_time_ns
+            gmin[a] = min(gmin.get(a, t), t)
+            gmax[a] = max(gmax.get(a, t), t)
     rows = []
     for a in engine.attacks:
-        g = gen_times.get(a.attack_id, [])
         dur_s = (a.end_ns - a.start_ns) / 1e9
+        cap = tally.captured.get(a.attack_id, 0)
         rows.append({
             "attack_id": a.attack_id, "scenario_id": scenario_id, "session_id": session_id,
             "campaign_id": a.campaign_id or "None",
             "attack_type": a.attack_type, "vehicle_id": a.vehicle_id, "channel": a.channel,
             "configured_start": fmt_time(a.start_ns), "configured_end": fmt_time(a.end_ns),
             "start_ns": a.start_ns, "end_ns": a.end_ns,
-            "first_generated_ns": min(g) if g else "", "last_generated_ns": max(g) if g else "",
+            "first_generated_ns": gmin.get(a.attack_id, ""), "last_generated_ns": gmax.get(a.attack_id, ""),
             "requested_rate_hz": "" if a.requested_rate_hz is None else f"{a.requested_rate_hz:.3f}",
-            "generated": a.generated, "transmitted": tx_count[a.attack_id], "dropped": drop_count.get(a.attack_id, 0),
+            "generated": a.generated, "transmitted": engine.transmitted.get(a.attack_id, 0),
+            "dropped": drop_count.get(a.attack_id, 0),
             "queue_dropped": qdrop.get(a.attack_id, 0), "expired_dropped": xdrop.get(a.attack_id, 0),
-            "captured": cap_count.get(a.attack_id, 0), "skipped_inactive": a.skipped_inactive,
-            "observed_rate_hz": f"{cap_count.get(a.attack_id, 0) / dur_s:.3f}",
+            "captured": cap, "skipped_inactive": a.skipped_inactive,
+            "observed_rate_hz": f"{cap / dur_s:.3f}",
             "attack_seed": a.seed, "params": a.params_json,
         })
     return rows
+
+
+def attack_frame_row(frame_uid: str, f) -> dict:
+    ref = f.ref or {}
+    return {"frame_uid": frame_uid, "attack_id": f.attack_id, "attack_type": f.attack_type,
+            "frame_source": f.source, "can_id": f"0x{f.can_id:03X}", "message_name": f.message,
+            "fuzzy_mode": ref.get("fuzzy_mode", ""), "signal": ref.get("signal", ""),
+            "expected_value": ref.get("expected_value", ""), "malicious_value": ref.get("malicious_value", ""),
+            "original_payload": ref.get("original_payload", ""), "payload": f.data.hex().upper()}
+
+
+def replay_row(frame_uid: str, f, tx_end_ns: int, original_uid: str) -> dict:
+    ref = f.ref
+    return {"replay_frame_uid": frame_uid, "attack_id": f.attack_id, "original_frame_uid": original_uid,
+            "source_vehicle": ref["source_vehicle"], "target_vehicle": ref["target_vehicle"],
+            "can_id": f"0x{f.can_id:03X}", "original_timestamp": fmt_time(ref["original_sim_time_ns"]),
+            "original_transmission_timestamp": fmt_time(ref["original_tx_end_ns"]),
+            "replay_timestamp": fmt_time(f.sim_time_ns), "replay_transmission_timestamp": fmt_time(tx_end_ns),
+            "original_payload": ref["original_payload"], "replayed_payload": f.data.hex().upper()}
 
 
 def attack_frame_rows(pairs, uid_of) -> tuple[list[dict], list[dict]]:
@@ -128,23 +170,10 @@ def attack_frame_rows(pairs, uid_of) -> tuple[list[dict], list[dict]]:
         f = rec.frame
         if not f.attack_id:
             continue
-        ref = f.ref or {}
         uid = uid_of[id(f)]
-        detail.append({"frame_uid": uid, "attack_id": f.attack_id, "attack_type": f.attack_type,
-                       "frame_source": f.source, "can_id": f"0x{f.can_id:03X}", "message_name": f.message,
-                       "fuzzy_mode": ref.get("fuzzy_mode", ""), "signal": ref.get("signal", ""),
-                       "expected_value": ref.get("expected_value", ""), "malicious_value": ref.get("malicious_value", ""),
-                       "original_payload": ref.get("original_payload", ""), "payload": f.data.hex().upper()})
+        detail.append(attack_frame_row(uid, f))
         if f.attack_type == "replay":
-            o = ref["original_frame"]
-            replay.append({"replay_frame_uid": uid, "attack_id": f.attack_id,
-                           "original_frame_uid": uid_of.get(id(o), ""),
-                           "source_vehicle": ref["source_vehicle"], "target_vehicle": ref["target_vehicle"],
-                           "can_id": f"0x{f.can_id:03X}", "original_timestamp": fmt_time(ref["original_sim_time_ns"]),
-                           "original_transmission_timestamp": fmt_time(ref["original_tx_end_ns"]),
-                           "replay_timestamp": fmt_time(f.sim_time_ns),
-                           "replay_transmission_timestamp": fmt_time(rec.tx.end_ns),
-                           "original_payload": ref["original_payload"], "replayed_payload": f.data.hex().upper()})
+            replay.append(replay_row(uid, f, rec.tx.end_ns, uid_of.get(id(f.ref["original_frame"]), "")))
     return detail, replay
 
 

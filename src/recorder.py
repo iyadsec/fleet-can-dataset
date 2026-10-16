@@ -104,32 +104,45 @@ def associate(tx_log: dict[str, list[TxRecord]], captures: dict[str, list[Captur
     return pairs, unexpected, stats
 
 
+def frame_row(rec: TxRecord, cap: CapturedFrame, frame_uid: str, session_id: str, scenario_id: str,
+              anchor_wall_ns: int | None) -> dict:
+    f, tx = rec.frame, rec.tx
+    offset = "" if anchor_wall_ns is None else f"{(cap.capture_time_ns - (anchor_wall_ns + tx.end_ns)) / 1e3:.1f}"
+    return {
+        "frame_uid": frame_uid, "session_id": session_id, "scenario_id": scenario_id,
+        "timestamp": fmt_time(f.sim_time_ns), "sim_time_ns": f.sim_time_ns,
+        "transmission_timestamp": fmt_time(tx.end_ns), "tx_start_ns": tx.start_ns, "tx_end_ns": tx.end_ns,
+        "queue_delay_us": f"{tx.queue_delay_ns / 1e3:.3f}", "frame_bits": tx.bits,
+        "capture_time_ns": cap.capture_time_ns, "capture_offset_us": offset,
+        "vehicle_id": f.vehicle_id, "channel": cap.channel,
+        "can_id": f"0x{cap.can_id:03X}", "dlc": cap.dlc, "payload": cap.data.hex().upper(),
+    }
+
+
+def frame_uid(session_id: str, i: int) -> str:
+    return f"{session_id}-F{i:09d}"
+
+
 def build_frame_rows(pairs, session_id: str, scenario_id: str, anchor_wall_ns: int | None):
     """Return (frame_rows, label_seeds, uid_by_frame). Rows in modelled transmission order."""
     pairs = sorted(pairs, key=lambda p: (p[0].tx.end_ns, p[0].frame.vehicle_id))
     frames, labels, uid_of = [], [], {}
     for i, (rec, cap) in enumerate(pairs):
-        f, tx = rec.frame, rec.tx
-        uid = f"{session_id}-F{i:09d}"
-        uid_of[id(f)] = uid
-        offset = "" if anchor_wall_ns is None else f"{(cap.capture_time_ns - (anchor_wall_ns + tx.end_ns)) / 1e3:.1f}"
-        frames.append({
-            "frame_uid": uid, "session_id": session_id, "scenario_id": scenario_id,
-            "timestamp": fmt_time(f.sim_time_ns), "sim_time_ns": f.sim_time_ns,
-            "transmission_timestamp": fmt_time(tx.end_ns), "tx_start_ns": tx.start_ns, "tx_end_ns": tx.end_ns,
-            "queue_delay_us": f"{tx.queue_delay_ns / 1e3:.3f}", "frame_bits": tx.bits,
-            "capture_time_ns": cap.capture_time_ns, "capture_offset_us": offset,
-            "vehicle_id": f.vehicle_id, "channel": cap.channel,
-            "can_id": f"0x{cap.can_id:03X}", "dlc": cap.dlc, "payload": cap.data.hex().upper(),
-        })
-        labels.append({"frame_uid": uid, "frame": f})
+        uid = frame_uid(session_id, i)
+        uid_of[id(rec.frame)] = uid
+        frames.append(frame_row(rec, cap, uid, session_id, scenario_id, anchor_wall_ns))
+        labels.append({"frame_uid": uid, "frame": rec.frame})
     return frames, labels, uid_of
 
 
-def build_state_rows(states, session_id: str) -> list[dict]:
-    return [{
+def state_row(s, session_id: str) -> dict:
+    return {
         "session_id": session_id, "timestamp": fmt_time(s.sim_time_ns), "sim_time_ns": s.sim_time_ns,
         "vehicle_id": s.vehicle_id, "speed_mps": f"{s.speed_mps:.4f}", "accel_mps2": f"{s.accel_mps2:.4f}",
         "x_m": f"{s.x_m:.3f}", "y_m": f"{s.y_m:.3f}", "angle_deg": f"{s.angle_deg:.3f}",
         "lane_id": s.lane_id, "edge_id": s.edge_id, "route_id": s.route_id,
-    } for s in states]
+    }
+
+
+def build_state_rows(states, session_id: str) -> list[dict]:
+    return [state_row(s, session_id) for s in states]
