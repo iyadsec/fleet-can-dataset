@@ -1,6 +1,6 @@
-# Final dataset-generation protocol (Milestone 5, dataset_version `fleetcan-sim-1.0`)
+# Final dataset-generation protocol (FROZEN at Milestone 5.1: generator 1.1.0, schema 1.0, descriptor 1.0)
 
-Status: **proposed, not generated**. Every number below comes from Milestone 3–5 measurements
+Status: **frozen, not generated**. Final dataset_version: `fleetcan-sim-1.1`. Frozen fleet files: `config/final/fleets/fleet_{2,5,10}.yaml`. Every number below comes from Milestone 3–5 measurements
 (scripts in `scripts/m5_*.py`); see the Milestone 5 report.
 
 ## 1. Fleet
@@ -8,8 +8,9 @@ Status: **proposed, not generated**. Every number below comes from Milestone 3�
 | Item | Setting | Basis |
 |---|---|---|
 | Fleet sizes | 2, 5, 10 | M3 scaling, original FLEET-GUARD campaign sizes |
-| Profiles | A / B / C (`config/profiles/profiles_abc.yaml`), assigned by seeded `balanced_shuffle` (counts differ by <= 1) | §2 |
+| Profiles | A / B / C (`config/profiles/profiles_abc.yaml`), seeded `balanced_shuffle`: N >= 3 balanced counts (differ by <= 1) in seeded order; N < 3 seeded subset without replacement (N=2 reaches A+B, A+C, B+C) | §2, M5.1 |
 | Switch-on offset | per vehicle, seeded, uniform **[0, 1.0] s**, 1 µs resolution | phase sensitivity: 0–1.0 s gives grid misalignment ≈ ideal Uniform(0, stride/2) |
+| ECU release jitter | per (vehicle, message) seeded stream, release = nominal + U(−1 %, +1 %) × period (±0.1 ms @10 ms, ±0.2 ms @20 ms, ±0.5 ms @50 ms); no accumulation, nominal period preserved | M5.1 jitter sensitivity |
 | Bus | 500 kbit/s logical model, exact stuffing, queue 32/node, drop_newest, priority order, **deadline expiry 100 ms** | M2/M3 |
 | Execution | fast mode (logically identical to real time, M5 equivalence) | §6 |
 | Storage | Parquet (zstd); CSV only for examples/debugging | §6 |
@@ -74,6 +75,20 @@ Seeds: one experiment seed per run drives SUMO, profile assignment, switch-on, c
 (sub-seeds derived and recorded). Durations: 10 s warm-up (switch-on + benign calibration period,
 attacks never before 10 s), attacks, 5 s tail.
 
+## 4b. Seed derivation (independent random processes)
+
+| Random process | Seed | Changing it affects only |
+|---|---|---|
+| SUMO driver imperfection | experiment seed (`--seed`) | mobility |
+| Profile assignment | `derive_seed(seed, "profile_assignment")` (or explicit) | which profile each vehicle gets |
+| Switch-on offsets | `derive_seed(seed, "switch_on")`, one draw per vehicle in vehicle order | ECU start phase (adding vehicles appends draws; existing vehicles keep theirs) |
+| ECU release jitter | `derive_seed(derive_seed(seed, "ecu_jitter"), "ecu_jitter/<vehicle>/<message>")` | that one message stream |
+| Campaign delays (uniform_random) | `SeedSequence([seed, crc32("campaign:" + campaign_id)])` | that campaign |
+| Attack randomness (fuzzy IDs/payloads, random payloads) | `SeedSequence([seed, crc32(attack_id)])` | that attack |
+
+`derive_seed(seed, tag) = SeedSequence([seed, crc32(tag)]).generate_state(1)[0]`. Every sub-seed is recorded
+in metadata. Adding, removing or changing one attack/campaign/vehicle stream does not change any other stream.
+
 ## 5. Estimated size (measured rates)
 
 ~5.0 h simulated, ~50 M frames, ~2.7 GB Parquet (incl. descriptors; CSV would be ~23 GB),
@@ -85,6 +100,14 @@ attacks never before 10 s), attacks, 5 s tail.
 * Fast and real-time mode are logically identical (all tables and descriptors bit-equal); capture times differ.
 * Every run must pass generator validation (V/B/A/C checks) and descriptor validation (D01–D07).
 
+## 6b. Storage location (decision before generation)
+
+Final generation needs ~2.7 GB (measured rate) plus headroom; the VM root volume has ~5.0 GB free.
+The VM disk (`vda`, 64 GB virtual) holds a 60.9 GB LVM physical volume of which the root logical volume uses
+30.5 GB, i.e. ~30 GB is unallocated inside the existing volume group. Recommended (safest): extend the root
+LV online inside the VM (`sudo vgs` to confirm free space, then `sudo lvextend -r -L +20G /dev/ubuntu-vg/ubuntu-lv`);
+no VM shutdown, no change to the UTM image or partition table, no data moved. Do not generate before this is done.
+
 ## 7. Manifest and versions
 
 `scripts/build_manifest.py` writes `data/manifest.jsonl` (one object per session) with: session/experiment
@@ -94,6 +117,6 @@ delay patterns and configured relative delays, seed, durations, execution mode, 
 counts, storage format, raw / ground-truth / descriptor locations, descriptor count, git commit and dirty
 flag, generator and descriptor validation status, bytes on disk.
 
-Versions (`src/version.py`): `schema_version` 1.0 (tables), `generator_version` 1.0.0,
-`descriptor_version` 1.0; `dataset_version` set per experiment config (`fleetcan-sim-1.0` for the final
-dataset, `-pilot` / `-dev` otherwise). Validator V27 refuses sessions with another schema version.
+Versions (`src/version.py`): `schema_version` 1.0 (tables), `generator_version` 1.1.0 (1.0.0 + N<3 profile subset + ECU jitter),
+`descriptor_version` 1.0; `dataset_version` set per experiment config (`fleetcan-sim-1.1` for the final
+dataset, `-pilot` / `-dev` otherwise). The manifest also records the ECU jitter setting per session. Validator V27 refuses sessions with another schema version.
