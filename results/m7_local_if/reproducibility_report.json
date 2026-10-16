@@ -1,0 +1,56 @@
+{
+ "run_1": "/home/ubuntu/fleet-can-dataset/results/m7_local_if",
+ "run_2": "temporary directory (deleted after comparison)",
+ "split_manifest_identical": true,
+ "model_config_identical_except_paths": {
+  "dataset_version": true,
+  "git": true,
+  "variant": true,
+  "isolation_forest": true,
+  "granularity": true,
+  "features": true,
+  "preprocessing": true,
+  "score": true,
+  "training_sessions": true,
+  "training_descriptor_ids_file": true,
+  "split_seed": true
+ },
+ "model_fingerprints": {
+  "IF-A": [
+   "561d69e8fde375e4b7be8709bb3cf784709b0ca4622d828972bd8255464fa919",
+   "561d69e8fde375e4b7be8709bb3cf784709b0ca4622d828972bd8255464fa919"
+  ],
+  "IF-B": [
+   "15acd0d1cdf937a089dcbb86f6e2b107250dfec6dd5f03edf0ac400fbff4ba20",
+   "15acd0d1cdf937a089dcbb86f6e2b107250dfec6dd5f03edf0ac400fbff4ba20"
+  ],
+  "IF-C": [
+   "14785fdc071b8f3afffbc8dabea1c0df20159546a4d99ff7c078d92717c8766d",
+   "14785fdc071b8f3afffbc8dabea1c0df20159546a4d99ff7c078d92717c8766d"
+  ]
+ },
+ "model_fingerprints_identical": true,
+ "training_descriptor_ids_identical": true,
+ "descriptor_order_identical": true,
+ "max_abs_raw_score_difference": 0.0,
+ "max_abs_anomaly_score_difference": 0.0,
+ "thresholds_identical": true,
+ "predictions_identical": {
+  "split": true,
+  "band_fixed": true,
+  "band_calibrated": true,
+  "alert_det": true,
+  "alert_fixed_080": true
+ },
+ "evaluation_metrics_identical": true,
+ "summary_csvs_identical": {
+  "attack_profile_summary.csv": true,
+  "evidence_band_summary.csv": true,
+  "scenario_summary.csv": true,
+  "campaign_size_summary.csv": true,
+  "temporal_pattern_summary.csv": true,
+  "attack_start_time_summary.csv": true,
+  "score_distribution_summary.csv": true
+ },
+ "all_identical": true
+}

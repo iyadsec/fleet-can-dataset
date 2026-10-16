@@ -1,0 +1,24 @@
+{
+ "before": {
+  "dataset_version": "fleetcan-sim-1.1",
+  "sessions": 610,
+  "sha256sums_matches_freeze": true,
+  "manifest_matches_freeze": true,
+  "matrix_matches_freeze": true,
+  "files_checked": 20805,
+  "files_mismatched": 0,
+  "mismatched_examples": [],
+  "ok": true
+ },
+ "after": {
+  "dataset_version": "fleetcan-sim-1.1",
+  "sessions": 610,
+  "sha256sums_matches_freeze": true,
+  "manifest_matches_freeze": true,
+  "matrix_matches_freeze": true,
+  "files_checked": 20805,
+  "files_mismatched": 0,
+  "mismatched_examples": [],
+  "ok": true
+ }
+}

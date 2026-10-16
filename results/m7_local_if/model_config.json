@@ -1,0 +1,82 @@
+{
+ "dataset_version": "fleetcan-sim-1.1",
+ "git": {
+  "commit": "d089a196f8e96d80446c4004dda0ac9c3a794d93",
+  "dirty": false
+ },
+ "variant": "raw_24d",
+ "isolation_forest": {
+  "n_estimators": 200,
+  "contamination": "auto",
+  "random_state": 42,
+  "n_jobs": -1,
+  "max_samples": "auto",
+  "max_features": 1.0,
+  "bootstrap": false
+ },
+ "granularity": "one model per profile (A/B/C); profile used only for routing",
+ "features": [
+  "frame_count",
+  "unique_can_id_count",
+  "can_id_entropy",
+  "most_common_can_id_ratio",
+  "mean_inter_arrival_time",
+  "std_inter_arrival_time",
+  "mean_dlc",
+  "std_dlc",
+  "byte_mean_0",
+  "byte_mean_1",
+  "byte_mean_2",
+  "byte_mean_3",
+  "byte_mean_4",
+  "byte_mean_5",
+  "byte_mean_6",
+  "byte_mean_7",
+  "byte_std_0",
+  "byte_std_1",
+  "byte_std_2",
+  "byte_std_3",
+  "byte_std_4",
+  "byte_std_5",
+  "byte_std_6",
+  "byte_std_7"
+ ],
+ "preprocessing": "float, fillna(0.0), float32, no scaling",
+ "score": {
+  "raw": "-decision_function (higher = more anomalous)",
+  "anomaly_score": "searchsorted(sorted(train_raw), raw, 'right') / n_train, clipped to [0,1]"
+ },
+ "training_sessions": [
+  "FC11_N02_S0_none_none_none_R1",
+  "FC11_N02_S0_none_none_none_R4",
+  "FC11_N02_S0_none_none_none_R5",
+  "FC11_N05_S0_none_none_none_R1",
+  "FC11_N05_S0_none_none_none_R3",
+  "FC11_N05_S0_none_none_none_R4",
+  "FC11_N10_S0_none_none_none_R1",
+  "FC11_N10_S0_none_none_none_R2",
+  "FC11_N10_S0_none_none_none_R3"
+ ],
+ "training_descriptor_ids_file": "training_descriptor_ids.json",
+ "models": {
+  "IF-A": {
+   "path": "models/IF-A.joblib",
+   "n_train_descriptors": 5493,
+   "n_train_vehicle_traces": 20,
+   "fingerprint_sha256": "561d69e8fde375e4b7be8709bb3cf784709b0ca4622d828972bd8255464fa919"
+  },
+  "IF-B": {
+   "path": "models/IF-B.joblib",
+   "n_train_descriptors": 3809,
+   "n_train_vehicle_traces": 18,
+   "fingerprint_sha256": "15acd0d1cdf937a089dcbb86f6e2b107250dfec6dd5f03edf0ac400fbff4ba20"
+  },
+  "IF-C": {
+   "path": "models/IF-C.joblib",
+   "n_train_descriptors": 3584,
+   "n_train_vehicle_traces": 13,
+   "fingerprint_sha256": "14785fdc071b8f3afffbc8dabea1c0df20159546a4d99ff7c078d92717c8766d"
+  }
+ },
+ "split_seed": 42
+}

@@ -1,0 +1,145 @@
+windows,profile,band_set,n,pct_low,pct_weak,pct_strong,variant
+benign_only (all test sessions),A,original fixed 0.55/0.80,167614,43.70219671387832,26.01095373894782,30.286849547173865,primary raw 24-D
+benign_only (all test sessions),A,calibrated FPR<=10%/<=5%,167614,90.83668428651544,4.617156084813917,4.546159628670636,primary raw 24-D
+benign_only (all test sessions),B,original fixed 0.55/0.80,105451,37.115816824876006,32.405572256308616,30.478610918815374,primary raw 24-D
+benign_only (all test sessions),B,calibrated FPR<=10%/<=5%,105451,89.84172743738799,5.541910460782733,4.616362101829286,primary raw 24-D
+benign_only (all test sessions),C,original fixed 0.55/0.80,117728,47.422873063332425,28.116505843979343,24.460621092688232,primary raw 24-D
+benign_only (all test sessions),C,calibrated FPR<=10%/<=5%,117728,90.3897118782278,4.893483283500951,4.716804838271269,primary raw 24-D
+benign_only (all test sessions),all,original fixed 0.55/0.80,390793,43.04580685938591,28.370774297390177,28.583418843223907,primary raw 24-D
+benign_only (all test sessions),all,calibrated FPR<=10%/<=5%,390793,90.43355433695076,4.9499351318984735,4.616510531150762,primary raw 24-D
+flooding,A,original fixed 0.55/0.80,33051,0.0121025082448337,0.0605125412241687,99.927384950531,primary raw 24-D
+flooding,A,calibrated FPR<=10%/<=5%,33051,0.8744062206892378,2.027170131009652,97.09842364830112,primary raw 24-D
+flooding,B,original fixed 0.55/0.80,26233,0.0152479701139785,0.10673579079785,99.87801623908815,primary raw 24-D
+flooding,B,calibrated FPR<=10%/<=5%,26233,0.2973354172225822,0.1486677086112911,99.55399687416612,primary raw 24-D
+flooding,C,original fixed 0.55/0.80,24003,0.0,0.0041661458984293,99.99583385410158,primary raw 24-D
+flooding,C,calibrated FPR<=10%/<=5%,24003,0.012498437695288,0.0708244802732991,99.9166770820314,primary raw 24-D
+flooding,all,original fixed 0.55/0.80,83287,0.0096053405693565,0.0588327109873089,99.93156194844332,primary raw 24-D
+flooding,all,calibrated FPR<=10%/<=5%,83287,0.444247001332741,0.871684656669108,98.68406834199816,primary raw 24-D
+fuzzy,A,original fixed 0.55/0.80,22968,0.0087077673284569,0.0435388366422849,99.94775339602926,primary raw 24-D
+fuzzy,A,calibrated FPR<=10%/<=5%,22968,0.239463601532567,0.1044932079414838,99.65604319052596,primary raw 24-D
+fuzzy,B,original fixed 0.55/0.80,18543,0.0,0.0269643531251685,99.97303564687483,primary raw 24-D
+fuzzy,B,calibrated FPR<=10%/<=5%,18543,0.1510003775009437,0.1510003775009437,99.69799924499812,primary raw 24-D
+fuzzy,C,original fixed 0.55/0.80,15998,0.0312539067383422,0.0500062507813476,99.9187398424803,primary raw 24-D
+fuzzy,C,calibrated FPR<=10%/<=5%,15998,0.1437679709963745,0.0625078134766845,99.79372421552694,primary raw 24-D
+fuzzy,all,original fixed 0.55/0.80,57509,0.0121720078596393,0.0399937401102436,99.94783425203012,primary raw 24-D
+fuzzy,all,calibrated FPR<=10%/<=5%,57509,0.1843189761602531,0.1078092124710914,99.70787181136866,primary raw 24-D
+malfunction,A,original fixed 0.55/0.80,7328,0.1501091703056768,0.4503275109170305,99.3995633187773,primary raw 24-D
+malfunction,A,calibrated FPR<=10%/<=5%,7328,3.4661572052401746,5.93613537117904,90.5977074235808,primary raw 24-D
+malfunction,B,original fixed 0.55/0.80,6073,0.0823316318129425,0.7080520335913058,99.20961633459576,primary raw 24-D
+malfunction,B,calibrated FPR<=10%/<=5%,6073,4.429441791536308,7.837971348592129,87.73258685987156,primary raw 24-D
+malfunction,C,original fixed 0.55/0.80,5366,0.7454342154304883,6.932538203503541,92.32202758106595,primary raw 24-D
+malfunction,C,calibrated FPR<=10%/<=5%,5366,33.35818114051435,33.50726798360045,33.1345508758852,primary raw 24-D
+malfunction,all,original fixed 0.55/0.80,18767,0.2983961208504289,2.3871689668034315,97.31443491234614,primary raw 24-D
+malfunction,all,calibrated FPR<=10%/<=5%,18767,12.324825491554323,14.4349123461395,73.24026216230618,primary raw 24-D
+replay,A,original fixed 0.55/0.80,11888,6.813593539703903,32.528600269179,60.657806191117096,primary raw 24-D
+replay,A,calibrated FPR<=10%/<=5%,11888,87.97106325706595,5.484522207267833,6.544414535666218,primary raw 24-D
+replay,B,original fixed 0.55/0.80,8726,1.0428604171441669,41.40499656199862,57.55214302085721,primary raw 24-D
+replay,B,calibrated FPR<=10%/<=5%,8726,86.17923447169379,4.205821682328673,9.61494384597754,primary raw 24-D
+replay,C,original fixed 0.55/0.80,8876,28.222172149616945,22.71293375394322,49.06489409643984,primary raw 24-D
+replay,C,calibrated FPR<=10%/<=5%,8876,71.95808922938261,13.035150968904912,15.006759801712484,primary raw 24-D
+replay,all,original fixed 0.55/0.80,29490,11.549677856900644,32.20074601559851,56.249576127500845,primary raw 24-D
+replay,all,calibrated FPR<=10%/<=5%,29490,82.62122753475755,7.378772465242455,10.0,primary raw 24-D
+flooding majority-malicious,A,original fixed 0.55/0.80,32697,0.0,0.0,100.0,primary raw 24-D
+flooding majority-malicious,A,calibrated FPR<=10%/<=5%,32697,0.1406856898186378,1.8747897360614123,97.98452457411994,primary raw 24-D
+flooding majority-malicious,B,original fixed 0.55/0.80,25962,0.0,0.0,100.0,primary raw 24-D
+flooding majority-malicious,B,calibrated FPR<=10%/<=5%,25962,0.0,0.0,100.0,primary raw 24-D
+flooding majority-malicious,C,original fixed 0.55/0.80,23742,0.0,0.0,100.0,primary raw 24-D
+flooding majority-malicious,C,calibrated FPR<=10%/<=5%,23742,0.0,0.0,100.0,primary raw 24-D
+flooding majority-malicious,all,original fixed 0.55/0.80,82401,0.0,0.0,100.0,primary raw 24-D
+flooding majority-malicious,all,calibrated FPR<=10%/<=5%,82401,0.0558245652358587,0.7439230106430748,99.20025242412106,primary raw 24-D
+fuzzy majority-malicious,A,original fixed 0.55/0.80,22583,0.0,0.0,100.0,primary raw 24-D
+fuzzy majority-malicious,A,calibrated FPR<=10%/<=5%,22583,0.0,0.0,100.0,primary raw 24-D
+fuzzy majority-malicious,B,original fixed 0.55/0.80,18213,0.0,0.0,100.0,primary raw 24-D
+fuzzy majority-malicious,B,calibrated FPR<=10%/<=5%,18213,0.0,0.0,100.0,primary raw 24-D
+fuzzy majority-malicious,C,original fixed 0.55/0.80,15717,0.0,0.0,100.0,primary raw 24-D
+fuzzy majority-malicious,C,calibrated FPR<=10%/<=5%,15717,0.0,0.0,100.0,primary raw 24-D
+fuzzy majority-malicious,all,original fixed 0.55/0.80,56513,0.0,0.0,100.0,primary raw 24-D
+fuzzy majority-malicious,all,calibrated FPR<=10%/<=5%,56513,0.0,0.0,100.0,primary raw 24-D
+malfunction majority-malicious,A,original fixed 0.55/0.80,0,,,,primary raw 24-D
+malfunction majority-malicious,A,calibrated FPR<=10%/<=5%,0,,,,primary raw 24-D
+malfunction majority-malicious,B,original fixed 0.55/0.80,0,,,,primary raw 24-D
+malfunction majority-malicious,B,calibrated FPR<=10%/<=5%,0,,,,primary raw 24-D
+malfunction majority-malicious,C,original fixed 0.55/0.80,0,,,,primary raw 24-D
+malfunction majority-malicious,C,calibrated FPR<=10%/<=5%,0,,,,primary raw 24-D
+malfunction majority-malicious,all,original fixed 0.55/0.80,0,,,,primary raw 24-D
+malfunction majority-malicious,all,calibrated FPR<=10%/<=5%,0,,,,primary raw 24-D
+replay majority-malicious,A,original fixed 0.55/0.80,11318,6.564764092595865,32.620604347057785,60.81463156034635,primary raw 24-D
+replay majority-malicious,A,calibrated FPR<=10%/<=5%,11318,88.07209754373564,5.398480296872239,6.529422159392119,primary raw 24-D
+replay majority-malicious,B,original fixed 0.55/0.80,8137,0.8111097456064889,40.64151407152513,58.547376182868376,primary raw 24-D
+replay majority-malicious,B,calibrated FPR<=10%/<=5%,8137,86.125107533489,4.178444144033428,9.696448322477572,primary raw 24-D
+replay majority-malicious,C,original fixed 0.55/0.80,8450,28.130177514792894,22.792899408284025,49.07692307692308,primary raw 24-D
+replay majority-malicious,C,calibrated FPR<=10%/<=5%,8450,71.97633136094674,12.934911242603553,15.088757396449704,primary raw 24-D
+replay majority-malicious,all,original fixed 0.55/0.80,27905,11.41730872603476,31.983515499014512,56.59917577495072,primary raw 24-D
+replay majority-malicious,all,calibrated FPR<=10%/<=5%,27905,82.63035298333632,7.324852177029206,10.044794839634474,primary raw 24-D
+benign_only (all test sessions),A,original fixed 0.55/0.80,167614,43.55483432171537,26.037801138329733,30.407364539954894,ablation standardized
+benign_only (all test sessions),A,calibrated FPR<=10%/<=5%,167614,90.80864366938324,4.571217201427088,4.620139129189686,ablation standardized
+benign_only (all test sessions),B,original fixed 0.55/0.80,105451,37.20021621416582,32.762135968364454,30.037647817469725,ablation standardized
+benign_only (all test sessions),B,calibrated FPR<=10%/<=5%,105451,89.76017297133265,5.165432286085481,5.074394742581863,ablation standardized
+benign_only (all test sessions),C,original fixed 0.55/0.80,117728,48.38950801848328,27.363923620549063,24.24656836096765,ablation standardized
+benign_only (all test sessions),C,calibrated FPR<=10%/<=5%,117728,90.50438298450666,4.806842892090242,4.688774123403099,ablation standardized
+benign_only (all test sessions),all,original fixed 0.55/0.80,390793,43.296579007300544,28.25178547210416,28.451635520595303,ablation standardized
+benign_only (all test sessions),all,calibrated FPR<=10%/<=5%,390793,90.43406611684446,4.802542522511918,4.763391360643614,ablation standardized
+flooding,A,original fixed 0.55/0.80,33051,0.0121025082448337,0.0574869141629602,99.9304105775922,ablation standardized
+flooding,A,calibrated FPR<=10%/<=5%,33051,0.8713805936280294,2.2117333817433664,96.9168860246286,ablation standardized
+flooding,B,original fixed 0.55/0.80,26233,0.0228719551709678,0.1143597758548393,99.8627682689742,ablation standardized
+flooding,B,calibrated FPR<=10%/<=5%,26233,0.3163953798650554,0.1410437235543018,99.54256089658064,ablation standardized
+flooding,C,original fixed 0.55/0.80,24003,0.0,0.0041661458984293,99.99583385410158,ablation standardized
+flooding,C,calibrated FPR<=10%/<=5%,24003,0.0083322917968587,0.0708244802732991,99.92084322792984,ablation standardized
+flooding,all,original fixed 0.55/0.80,83287,0.0120066757116957,0.0600333785584785,99.92795994572982,ablation standardized
+flooding,all,calibrated FPR<=10%/<=5%,83287,0.4478490040462497,0.9425240433681128,98.60962695258564,ablation standardized
+fuzzy,A,original fixed 0.55/0.80,22968,0.0087077673284569,0.0522466039707419,99.9390456287008,ablation standardized
+fuzzy,A,calibrated FPR<=10%/<=5%,22968,0.2351097178683385,0.1219087425983977,99.64298153953328,ablation standardized
+fuzzy,B,original fixed 0.55/0.80,18543,0.0,0.0323572237502022,99.9676427762498,ablation standardized
+fuzzy,B,calibrated FPR<=10%/<=5%,18543,0.1510003775009437,0.1240360243757752,99.72496359812328,ablation standardized
+fuzzy,C,original fixed 0.55/0.80,15998,0.0312539067383422,0.068758594824353,99.8999874984373,ablation standardized
+fuzzy,C,calibrated FPR<=10%/<=5%,15998,0.150018752344043,0.068758594824353,99.7812226528316,ablation standardized
+fuzzy,all,original fixed 0.55/0.80,57509,0.0121720078596393,0.0504268897042202,99.93740110243614,ablation standardized
+fuzzy,all,calibrated FPR<=10%/<=5%,57509,0.1843189761602531,0.1078092124710914,99.70787181136866,ablation standardized
+malfunction,A,original fixed 0.55/0.80,7328,0.1910480349344978,0.4366812227074236,99.37227074235808,ablation standardized
+malfunction,A,calibrated FPR<=10%/<=5%,7328,3.356986899563319,5.854257641921397,90.78875545851528,ablation standardized
+malfunction,B,original fixed 0.55/0.80,6073,0.065865305450354,0.7080520335913058,99.22608266095834,ablation standardized
+malfunction,B,calibrated FPR<=10%/<=5%,6073,4.215379548822658,6.2078050386958665,89.57681541248148,ablation standardized
+malfunction,C,original fixed 0.55/0.80,5366,0.8572493477450615,6.895266492732016,92.24748415952293,ablation standardized
+malfunction,C,calibrated FPR<=10%/<=5%,5366,31.45732389116661,33.76816995900112,34.77450614983228,ablation standardized
+malfunction,all,original fixed 0.55/0.80,18767,0.3410241381147759,2.3711834603293016,97.28779240155592,ablation standardized
+malfunction,all,calibrated FPR<=10%/<=5%,18767,11.66941972611499,13.950018649757553,74.38056162412745,ablation standardized
+replay,A,original fixed 0.55/0.80,11888,6.636944818304173,32.88189771197847,60.48115746971736,ablation standardized
+replay,A,calibrated FPR<=10%/<=5%,11888,88.40006729475101,5.223755047106326,6.376177658142665,ablation standardized
+replay,B,original fixed 0.55/0.80,8726,1.363740545496218,46.04629841851937,52.589961035984416,ablation standardized
+replay,B,calibrated FPR<=10%/<=5%,8726,87.27939491175796,3.174421269768508,9.546183818473528,ablation standardized
+replay,C,original fixed 0.55/0.80,8876,28.59396124380352,23.366381252816584,48.0396575033799,ablation standardized
+replay,C,calibrated FPR<=10%/<=5%,8876,72.39747634069401,12.753492564218115,14.849031095087875,ablation standardized
+replay,all,original fixed 0.55/0.80,29490,11.685317056629366,33.91319091217362,54.401492031197016,ablation standardized
+replay,all,calibrated FPR<=10%/<=5%,29490,83.2519498134961,6.883689386232621,9.864360800271278,ablation standardized
+flooding majority-malicious,A,original fixed 0.55/0.80,32697,0.0,0.0,100.0,ablation standardized
+flooding majority-malicious,A,calibrated FPR<=10%/<=5%,32697,0.1437440743799125,2.0491176560540723,97.807138269566,ablation standardized
+flooding majority-malicious,B,original fixed 0.55/0.80,25962,0.0,0.0,100.0,ablation standardized
+flooding majority-malicious,B,calibrated FPR<=10%/<=5%,25962,0.0,0.0,100.0,ablation standardized
+flooding majority-malicious,C,original fixed 0.55/0.80,23742,0.0,0.0,100.0,ablation standardized
+flooding majority-malicious,C,calibrated FPR<=10%/<=5%,23742,0.0,0.0,100.0,ablation standardized
+flooding majority-malicious,all,original fixed 0.55/0.80,82401,0.0,0.0,100.0,ablation standardized
+flooding majority-malicious,all,calibrated FPR<=10%/<=5%,82401,0.0570381427409861,0.8130969284353345,99.12986492882368,ablation standardized
+fuzzy majority-malicious,A,original fixed 0.55/0.80,22583,0.0,0.0,100.0,ablation standardized
+fuzzy majority-malicious,A,calibrated FPR<=10%/<=5%,22583,0.0,0.0,100.0,ablation standardized
+fuzzy majority-malicious,B,original fixed 0.55/0.80,18213,0.0,0.0,100.0,ablation standardized
+fuzzy majority-malicious,B,calibrated FPR<=10%/<=5%,18213,0.0,0.0,100.0,ablation standardized
+fuzzy majority-malicious,C,original fixed 0.55/0.80,15717,0.0,0.0,100.0,ablation standardized
+fuzzy majority-malicious,C,calibrated FPR<=10%/<=5%,15717,0.0,0.0,100.0,ablation standardized
+fuzzy majority-malicious,all,original fixed 0.55/0.80,56513,0.0,0.0,100.0,ablation standardized
+fuzzy majority-malicious,all,calibrated FPR<=10%/<=5%,56513,0.0,0.0,100.0,ablation standardized
+malfunction majority-malicious,A,original fixed 0.55/0.80,0,,,,ablation standardized
+malfunction majority-malicious,A,calibrated FPR<=10%/<=5%,0,,,,ablation standardized
+malfunction majority-malicious,B,original fixed 0.55/0.80,0,,,,ablation standardized
+malfunction majority-malicious,B,calibrated FPR<=10%/<=5%,0,,,,ablation standardized
+malfunction majority-malicious,C,original fixed 0.55/0.80,0,,,,ablation standardized
+malfunction majority-malicious,C,calibrated FPR<=10%/<=5%,0,,,,ablation standardized
+malfunction majority-malicious,all,original fixed 0.55/0.80,0,,,,ablation standardized
+malfunction majority-malicious,all,calibrated FPR<=10%/<=5%,0,,,,ablation standardized
+replay majority-malicious,A,original fixed 0.55/0.80,11318,6.379218943276197,32.98285916239618,60.63792189432762,ablation standardized
+replay majority-malicious,A,calibrated FPR<=10%/<=5%,11318,88.51387170878247,5.124580314543206,6.361547976674324,ablation standardized
+replay majority-malicious,B,original fixed 0.55/0.80,8137,1.1552169104092418,45.43443529556348,53.41034779402728,ablation standardized
+replay majority-malicious,B,calibrated FPR<=10%/<=5%,8137,87.28032444389824,3.146122649625169,9.57355290647659,ablation standardized
+replay majority-malicious,C,original fixed 0.55/0.80,8450,28.46153846153846,23.43195266272189,48.10650887573964,ablation standardized
+replay majority-malicious,C,calibrated FPR<=10%/<=5%,8450,72.43786982248521,12.662721893491124,14.899408284023668,ablation standardized
+replay majority-malicious,all,original fixed 0.55/0.80,27905,11.542734277011288,33.721555276832106,54.7357104461566,ablation standardized
+replay majority-malicious,all,calibrated FPR<=10%/<=5%,27905,83.28614943558502,6.830317147464612,9.883533416950367,ablation standardized

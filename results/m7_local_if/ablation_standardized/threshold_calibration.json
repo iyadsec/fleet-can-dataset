@@ -1,0 +1,51 @@
+{
+ "data": "validation split only (test sessions never used)",
+ "label_definition_primary": "A: malicious_frame_count > 0 vs benign_only",
+ "procedure": "candidates = unique 300 quantiles (0.001..0.999) of validation scores; FPR <= cap, then highest recall; predict score >= t",
+ "fixed_bands": {
+  "weak": 0.55,
+  "strong": 0.8
+ },
+ "profiles": {
+  "A": {
+   "theta_det": 0.976333515383215,
+   "method": "FPR<=5%",
+   "used_fallback": false,
+   "validation_recall_A": 0.8294604473230688,
+   "validation_fpr_A": 0.04776569724885295,
+   "theta_weak_calibrated": 0.950118332423084,
+   "theta_strong_calibrated": 0.976333515383215,
+   "sensitivity_theta_label_B": 0.995266703076643,
+   "validation_descriptors": 164829,
+   "validation_positives_A": 52803,
+   "validation_positives_B": 46597
+  },
+  "B": {
+   "theta_det": 0.9614071934891047,
+   "method": "FPR<=5%",
+   "used_fallback": false,
+   "validation_recall_A": 0.8536489974708628,
+   "validation_fpr_A": 0.04968305395126074,
+   "theta_weak_calibrated": 0.9322656865318981,
+   "theta_strong_calibrated": 0.9614071934891047,
+   "sensitivity_theta_label_B": 0.9863481228668942,
+   "validation_descriptors": 109343,
+   "validation_positives_A": 38353,
+   "validation_positives_B": 33993
+  },
+  "C": {
+   "theta_det": 0.9662388392857143,
+   "method": "FPR<=5%",
+   "used_fallback": false,
+   "validation_recall_A": 0.7965068239450666,
+   "validation_fpr_A": 0.04913576188248385,
+   "theta_weak_calibrated": 0.9243861607142857,
+   "theta_strong_calibrated": 0.9662388392857143,
+   "sensitivity_theta_label_B": 0.9743303571428571,
+   "validation_descriptors": 114184,
+   "validation_positives_A": 35097,
+   "validation_positives_B": 30748
+  }
+ },
+ "pooled_reference_theta_A": 0.9692335699981796
+}

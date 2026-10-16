@@ -1,0 +1,193 @@
+{
+ "allowed_features": [
+  "frame_count",
+  "unique_can_id_count",
+  "can_id_entropy",
+  "most_common_can_id_ratio",
+  "mean_inter_arrival_time",
+  "std_inter_arrival_time",
+  "mean_dlc",
+  "std_dlc",
+  "byte_mean_0",
+  "byte_mean_1",
+  "byte_mean_2",
+  "byte_mean_3",
+  "byte_mean_4",
+  "byte_mean_5",
+  "byte_mean_6",
+  "byte_mean_7",
+  "byte_std_0",
+  "byte_std_1",
+  "byte_std_2",
+  "byte_std_3",
+  "byte_std_4",
+  "byte_std_5",
+  "byte_std_6",
+  "byte_std_7"
+ ],
+ "n_allowed": 24,
+ "all_descriptors": {
+  "shape": [
+   981088,
+   24
+  ],
+  "nan_per_feature": {},
+  "inf_values": 0
+ },
+ "profiles": {
+  "A": {
+   "input_shape": [
+    5493,
+    24
+   ],
+   "input_dtype": "float32",
+   "feature_names": [
+    "frame_count",
+    "unique_can_id_count",
+    "can_id_entropy",
+    "most_common_can_id_ratio",
+    "mean_inter_arrival_time",
+    "std_inter_arrival_time",
+    "mean_dlc",
+    "std_dlc",
+    "byte_mean_0",
+    "byte_mean_1",
+    "byte_mean_2",
+    "byte_mean_3",
+    "byte_mean_4",
+    "byte_mean_5",
+    "byte_mean_6",
+    "byte_mean_7",
+    "byte_std_0",
+    "byte_std_1",
+    "byte_std_2",
+    "byte_std_3",
+    "byte_std_4",
+    "byte_std_5",
+    "byte_std_6",
+    "byte_std_7"
+   ],
+   "columns_equal_allow_list": true,
+   "prohibited_columns_present": [],
+   "nan_before_fillna": 0,
+   "nan_after_fillna": 0,
+   "inf_values": 0,
+   "constant_features": [
+    "frame_count",
+    "unique_can_id_count",
+    "mean_dlc",
+    "std_dlc",
+    "byte_mean_4",
+    "byte_mean_5",
+    "byte_mean_6",
+    "byte_std_4",
+    "byte_std_5",
+    "byte_std_6"
+   ],
+   "near_constant_features_top_value_share_ge_0.99": {}
+  },
+  "B": {
+   "input_shape": [
+    3809,
+    24
+   ],
+   "input_dtype": "float32",
+   "feature_names": [
+    "frame_count",
+    "unique_can_id_count",
+    "can_id_entropy",
+    "most_common_can_id_ratio",
+    "mean_inter_arrival_time",
+    "std_inter_arrival_time",
+    "mean_dlc",
+    "std_dlc",
+    "byte_mean_0",
+    "byte_mean_1",
+    "byte_mean_2",
+    "byte_mean_3",
+    "byte_mean_4",
+    "byte_mean_5",
+    "byte_mean_6",
+    "byte_mean_7",
+    "byte_std_0",
+    "byte_std_1",
+    "byte_std_2",
+    "byte_std_3",
+    "byte_std_4",
+    "byte_std_5",
+    "byte_std_6",
+    "byte_std_7"
+   ],
+   "columns_equal_allow_list": true,
+   "prohibited_columns_present": [],
+   "nan_before_fillna": 0,
+   "nan_after_fillna": 0,
+   "inf_values": 0,
+   "constant_features": [
+    "frame_count",
+    "unique_can_id_count",
+    "mean_dlc",
+    "std_dlc",
+    "byte_mean_4",
+    "byte_mean_5",
+    "byte_mean_6",
+    "byte_std_4",
+    "byte_std_5",
+    "byte_std_6"
+   ],
+   "near_constant_features_top_value_share_ge_0.99": {}
+  },
+  "C": {
+   "input_shape": [
+    3584,
+    24
+   ],
+   "input_dtype": "float32",
+   "feature_names": [
+    "frame_count",
+    "unique_can_id_count",
+    "can_id_entropy",
+    "most_common_can_id_ratio",
+    "mean_inter_arrival_time",
+    "std_inter_arrival_time",
+    "mean_dlc",
+    "std_dlc",
+    "byte_mean_0",
+    "byte_mean_1",
+    "byte_mean_2",
+    "byte_mean_3",
+    "byte_mean_4",
+    "byte_mean_5",
+    "byte_mean_6",
+    "byte_mean_7",
+    "byte_std_0",
+    "byte_std_1",
+    "byte_std_2",
+    "byte_std_3",
+    "byte_std_4",
+    "byte_std_5",
+    "byte_std_6",
+    "byte_std_7"
+   ],
+   "columns_equal_allow_list": true,
+   "prohibited_columns_present": [],
+   "nan_before_fillna": 0,
+   "nan_after_fillna": 0,
+   "inf_values": 0,
+   "constant_features": [
+    "frame_count",
+    "unique_can_id_count"
+   ],
+   "near_constant_features_top_value_share_ge_0.99": {}
+  }
+ },
+ "rejection_probes": {
+  "profile": "rejected",
+  "session_id": "rejected",
+  "malicious_frame_ratio": "rejected",
+  "scenario": "rejected",
+  "attack": "rejected",
+  "window_start_ns": "rejected"
+ },
+ "pass": true
+}
