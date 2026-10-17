@@ -1,0 +1,246 @@
+{
+ "matrix": "/home/ubuntu/fleet-can-dataset/configs/fleetcan_sim_scale_1_0.yaml",
+ "matrix_sha256": "9fc005de3f9b712045c7eec5c610043a375ab2dad362fff5b54a092a17a1e735",
+ "configurations": 167,
+ "sessions": 835,
+ "approved_for_generation": false,
+ "verdict": "PASS",
+ "checks": {
+  "C01_167_configurations": {
+   "status": "PASS",
+   "detail": {
+    "configurations": 167
+   }
+  },
+  "C02_835_sessions": {
+   "status": "PASS",
+   "detail": {
+    "sessions": 835
+   }
+  },
+  "C03_repetitions": {
+   "status": "PASS",
+   "detail": {
+    "bad": []
+   }
+  },
+  "C04_G0_exact": {
+   "status": "PASS",
+   "detail": {
+    "configs": [
+     "FCS10_G0_N010_S0_none_K000_none",
+     "FCS10_G0_N010_S3_replay_K005_simultaneous",
+     "FCS10_G0_N010_S3_flooding_K005_simultaneous",
+     "FCS10_G0_N010_S3_fuzzy_K005_small",
+     "FCS10_G0_N010_S3_malfunction_K005_small"
+    ],
+    "families": {
+     "simultaneous": [
+      "flooding",
+      "replay"
+     ],
+     "small": [
+      "fuzzy",
+      "malfunction"
+     ]
+    }
+   }
+  },
+  "C05_G1_absent": {
+   "status": "PASS",
+   "detail": {
+    "G1_like": [],
+    "fleet_sizes": [
+     10,
+     20,
+     50,
+     100
+    ]
+   }
+  },
+  "C06_config_ids": {
+   "status": "PASS",
+   "detail": {
+    "distinct": 167,
+    "bad_format": [],
+    "collisions": []
+   }
+  },
+  "C07_session_ids": {
+   "status": "PASS",
+   "detail": {
+    "distinct": 835,
+    "already_existing": [],
+    "existing_checked": 1114,
+    "expected_sessions_csv_rows": 835,
+    "csv_consistent": true
+   }
+  },
+  "C08_seeds": {
+   "status": "PASS",
+   "detail": {
+    "distinct": 835,
+    "range": [
+     920001,
+     921665
+    ],
+    "formula_mismatch": [],
+    "collisions": [],
+    "existing_seeds_checked": 669,
+    "existing_range": [
+     42,
+     611215
+    ]
+   }
+  },
+  "C09_K_le_N": {
+   "status": "PASS",
+   "detail": {
+    "bad": []
+   }
+  },
+  "C10_member_feasibility": {
+   "status": "PASS",
+   "detail": {
+    "bad": [],
+    "rule_inputs": "seed + frozen fleet only"
+   }
+  },
+  "C11_profile_balance": {
+   "status": "PASS",
+   "detail": {
+    "bad": [],
+    "scaled_campaign_spread_histogram": {
+     "1": 555
+    },
+    "S1_target_profiles_per_N": {
+     "20": {
+      "C": 4,
+      "B": 9,
+      "A": 7
+     },
+     "50": {
+      "B": 3,
+      "C": 12,
+      "A": 5
+     },
+     "100": {
+      "C": 8,
+      "B": 5,
+      "A": 7
+     }
+    },
+    "G0": "baseline_first_k (vehicle_01..05, as fleetcan-sim-1.1): composition reported, balance not imposed"
+   }
+  },
+  "C12_scenario_and_preflight": {
+   "status": "PASS",
+   "detail": {
+    "bad": [],
+    "preflight_sessions": 835
+   }
+  },
+  "C13_attack_parameters_frozen": {
+   "status": "PASS",
+   "detail": {
+    "bad": [],
+    "reference": "config/final/matrix (fleetcan-sim-1.1)"
+   }
+  },
+  "C14_timing": {
+   "status": "PASS",
+   "detail": {
+    "bad": []
+   }
+  },
+  "C15_bounded_spread": {
+   "status": "PASS",
+   "detail": {
+    "bad": [],
+    "configurations": 18,
+    "rule": "t_i = t_0 + W i / (K - 1), t_{K-1} - t_0 = W"
+   }
+  },
+  "C16_partial_overlap": {
+   "status": "PASS",
+   "detail": {
+    "bad": [],
+    "configurations": 6,
+    "convention": "half-open [start, end); replay members +0.25 ms"
+   }
+  },
+  "C17_duration": {
+   "status": "PASS",
+   "detail": {
+    "bad": []
+   }
+  },
+  "C18_S2_independent": {
+   "status": "PASS",
+   "detail": {
+    "bad": []
+   }
+  },
+  "C19_S3_coordinated": {
+   "status": "PASS",
+   "detail": {
+    "bad": []
+   }
+  },
+  "C20_status_frozen": {
+   "status": "PASS",
+   "detail": {
+    "matrix_status": "frozen",
+    "matrix_id": "fleetcan-sim-scale-1.0-matrix-v1"
+   }
+  },
+  "C21_not_approved": {
+   "status": "PASS",
+   "detail": {
+    "approved_for_generation": false
+   }
+  },
+  "C22_no_consumer": {
+   "status": "PASS",
+   "detail": {
+    "referenced_by": [],
+    "allowed": [
+     "m91_freeze.py",
+     "validate_m91_matrix.py"
+    ]
+   }
+  },
+  "C23_identity": {
+   "status": "PASS",
+   "detail": {
+    "rebuild_byte_identical": true,
+    "manifest": {
+     "matrix_sha256": "9fc005de3f9b712045c7eec5c610043a375ab2dad362fff5b54a092a17a1e735",
+     "matches": true
+    },
+    "matrix_sha256": "9fc005de3f9b712045c7eec5c610043a375ab2dad362fff5b54a092a17a1e735"
+   }
+  },
+  "C24_M9_consistency": {
+   "status": "PASS",
+   "detail": {
+    "main_configurations": 162,
+    "field_differences": [],
+    "members_identical_to_M9": true
+   }
+  },
+  "C25_frozen_code": {
+   "status": "PASS",
+   "detail": {
+    "source_commit": "559179f2624e1bc120bda1c772a5e1d1b637c88f",
+    "diff": "none"
+   }
+  },
+  "C26_provenance_declared": {
+   "status": "PASS",
+   "detail": {
+    "missing": []
+   }
+  }
+ }
+}
