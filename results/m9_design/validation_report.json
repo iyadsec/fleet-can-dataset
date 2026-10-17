@@ -1,0 +1,134 @@
+{
+ "matrix": "configs/m9_expanded_matrix_proposed.yaml",
+ "approved_for_generation": false,
+ "configurations": 162,
+ "sessions": 810,
+ "verdict": "PASS",
+ "checks": {
+  "M01_not_approved": {
+   "status": "PASS",
+   "detail": {
+    "approved_for_generation": false,
+    "referenced_by": []
+   }
+  },
+  "M02_schema": {
+   "status": "PASS",
+   "detail": {
+    "configurations": 162,
+    "bad": []
+   }
+  },
+  "M03_scenario_attack_pattern": {
+   "status": "PASS",
+   "detail": {
+    "bad": []
+   }
+  },
+  "M04_K_le_N": {
+   "status": "PASS",
+   "detail": {
+    "bad": [],
+    "penetration_rho": [
+     0.02,
+     0.04,
+     0.05,
+     0.1,
+     0.2,
+     0.25,
+     0.4,
+     0.5,
+     1.0
+    ]
+   }
+  },
+  "M05_repetitions": {
+   "status": "PASS",
+   "detail": {
+    "repetitions": 5,
+    "bad": []
+   }
+  },
+  "M06_unique_ids": {
+   "status": "PASS",
+   "detail": {
+    "config_ids": 162,
+    "distinct": 162,
+    "session_ids": 810,
+    "distinct_sessions": 810,
+    "bad_form": []
+   }
+  },
+  "M07_unique_seeds": {
+   "status": "PASS",
+   "detail": {
+    "seeds": 810,
+    "distinct": 810,
+    "range": [
+     920001,
+     921615
+    ],
+    "formula_mismatch": []
+   }
+  },
+  "M08_no_duplicate_configs": {
+   "status": "PASS",
+   "detail": {
+    "duplicates": []
+   }
+  },
+  "M09_no_collision": {
+   "status": "PASS",
+   "detail": {
+    "existing_session_ids": 899,
+    "existing_metadata_sessions": 899,
+    "existing_seeds": 668,
+    "existing_seed_range": [
+     42,
+     611215
+    ],
+    "session_collisions": [],
+    "seed_collisions": []
+   }
+  },
+  "M10_timing_and_duration": {
+   "status": "PASS",
+   "detail": {
+    "bad": [],
+    "duration_range_s": [
+     20.0,
+     60.0
+    ]
+   }
+  },
+  "M11_profile_feasibility": {
+   "status": "PASS",
+   "detail": {
+    "sessions": 810,
+    "bad": []
+   }
+  },
+  "M12_membership_feasibility": {
+   "status": "PASS",
+   "detail": {
+    "sessions": 810,
+    "members_csv": "members_B_balanced.csv",
+    "bad": [],
+    "K_A_K_B_K_C_spread_max": 1
+   }
+  },
+  "M13_scheduler_compatibility": {
+   "status": "PASS",
+   "detail": {
+    "sessions": 810,
+    "bad": []
+   }
+  },
+  "M14_attack_coverage": {
+   "status": "PASS",
+   "detail": {
+    "gaps": {}
+   }
+  }
+ }
+}

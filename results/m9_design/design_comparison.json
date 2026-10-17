@@ -1,0 +1,83 @@
+[
+ {
+  "design": "A_minimal",
+  "configurations": 39,
+  "sessions": 195,
+  "simulated_hours": 1.39,
+  "vehicle_hours": 116.7,
+  "frames_million": 146.1,
+  "descriptors_million": 2.91,
+  "storage_gb": 7.7,
+  "generation_hours": 6.0,
+  "storage_gb_per_N": {
+   "20": 0.2,
+   "50": 0.5,
+   "100": 6.9
+  },
+  "storage_gb_per_scenario": {
+   "S0": 0.57,
+   "S1": 0.67,
+   "S2": 0.62,
+   "S3": 5.46,
+   "S3-mixed": 0.22,
+   "S3-probe": 0.17
+  },
+  "storage_gb_per_phase": {},
+  "longest_session": "FCS10_N100_S3_flooding_K005_large (100 vehicles x 60.0 s)"
+ },
+ {
+  "design": "B_balanced",
+  "configurations": 162,
+  "sessions": 810,
+  "simulated_hours": 5.86,
+  "vehicle_hours": 345.1,
+  "frames_million": 445.7,
+  "descriptors_million": 8.87,
+  "storage_gb": 23.5,
+  "generation_hours": 18.6,
+  "storage_gb_per_N": {
+   "20": 2.6,
+   "50": 6.7,
+   "100": 14.2
+  },
+  "storage_gb_per_scenario": {
+   "S0": 0.57,
+   "S1": 1.14,
+   "S2": 5.02,
+   "S3": 15.65,
+   "S3-mixed": 0.77,
+   "S3-probe": 0.29
+  },
+  "storage_gb_per_phase": {
+   "1": 9.9,
+   "2": 13.5
+  },
+  "longest_session": "FCS10_N100_S2_malfunction_K000_independent_I05sepa (100 vehicles x 60.0 s)"
+ },
+ {
+  "design": "C_comprehensive",
+  "configurations": 518,
+  "sessions": 2590,
+  "simulated_hours": 44.69,
+  "vehicle_hours": 3234.9,
+  "frames_million": 3957.7,
+  "descriptors_million": 78.76,
+  "storage_gb": 207.2,
+  "generation_hours": 161.0,
+  "storage_gb_per_N": {
+   "20": 10.0,
+   "50": 43.6,
+   "100": 153.6
+  },
+  "storage_gb_per_scenario": {
+   "S0": 0.57,
+   "S1": 1.14,
+   "S2": 13.16,
+   "S3": 187.35,
+   "S3-mixed": 4.65,
+   "S3-probe": 0.29
+  },
+  "storage_gb_per_phase": {},
+  "longest_session": "FCS10_N100_S3_flooding_K100_large (100 vehicles x 1010.0 s)"
+ }
+]
