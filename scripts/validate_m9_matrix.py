@@ -70,7 +70,23 @@ class Report:
         return all(c["status"] == "PASS" for c in self.checks.values())
 
 
+FROZEN_MATRIX_ID = "fleetcan-sim-scale-1.0-matrix-v1"
+FROZEN_MATRIX_SHA = "9fc005de3f9b712045c7eec5c610043a375ab2dad362fff5b54a092a17a1e735"
+
+
+def generated_matrix_sessions() -> dict:
+    """Sessions published by M10 from the frozen matrix (provenance tags carry its id and SHA-256): they are the
+    matrix's own output, not collisions (session_id -> seed)."""
+    own = {}
+    for f in glob.glob(str(ROOT / "data" / "metadata" / "FCS10_*" / "metadata.json")):
+        t = json.loads(Path(f).read_text()).get("tags") or {}
+        if t.get("matrix_id") == FROZEN_MATRIX_ID and t.get("matrix_sha256") == FROZEN_MATRIX_SHA:
+            own[t.get("session_id")] = t.get("seed")
+    return own
+
+
 def existing_ids_and_seeds():
+    own = generated_matrix_sessions()
     sids, seeds = set(), set()
     base = ROOT / "data" / "final" / "fleetcan-sim-1.1" / "manifest.jsonl"
     for line in base.read_text().splitlines():
@@ -85,13 +101,15 @@ def existing_ids_and_seeds():
         seeds.add(int(r["seed"]))
     n_meta = 0
     for f in glob.glob(str(ROOT / "data" / "metadata" / "*" / "metadata.json")):
+        if Path(f).parent.name in own:
+            continue
         d = json.loads(Path(f).read_text())
         sids.add(d.get("session_id") or Path(f).parent.name)
         if isinstance(d.get("random_seed"), int):
             seeds.add(d["random_seed"])
         n_meta += 1
     for d in (ROOT / "data").glob("*/*"):
-        if d.is_dir() and d.parent.name in ("raw", "ground_truth", "validation", "analysis", ".incomplete"):
+        if d.is_dir() and d.parent.name in ("raw", "ground_truth", "validation", "analysis", ".incomplete") and d.name not in own:
             sids.add(d.name)
     cfg_seeds = set()
     for f in glob.glob(str(ROOT / "config" / "**" / "*.yaml"), recursive=True):

@@ -53,3 +53,18 @@ def test_session_configuration_matches_matrix(tmp_path, monkeypatch):
         assert yaml.safe_load((p.parent / "campaigns.yaml").read_text())["campaigns"] == s["campaigns"]
         assert yaml.safe_load((p.parent / "attacks.yaml").read_text())["attacks"] == s["isolated_attacks"]
         assert p.read_bytes() == R.write_configs(s, c, doc, sha).read_bytes()         # deterministic
+
+
+def test_raw_only_completion_rule(tmp_path):
+    import json
+    from session_state import session_state
+    sid = "X_RAW"
+    for d in ("raw", "ground_truth", "validation", "metadata"):
+        (tmp_path / d / sid).mkdir(parents=True)
+    (tmp_path / "metadata" / sid / "metadata.json").write_text(json.dumps({"tags": {"matrix_sha256": "a"}}))
+    (tmp_path / "validation" / sid / "validation_report.json").write_text(json.dumps({"overall": "PASS"}))
+    assert session_state(sid, tmp_path, {"matrix_sha256": "a"}, require_analysis=False)["state"] == "complete"
+    assert session_state(sid, tmp_path, {"matrix_sha256": "a"})["state"] == "analysis_pending"       # default unchanged
+    (tmp_path / "analysis" / sid).mkdir(parents=True)
+    assert session_state(sid, tmp_path, {"matrix_sha256": "a"}, require_analysis=False)["state"] == "unexpected_derived_outputs"
+    assert "analysis" not in R.PUBLISH and R.PUBLISH[-1] == "metadata"

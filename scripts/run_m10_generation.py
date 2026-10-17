@@ -1,5 +1,8 @@
 """Milestone 10: controlled generation of fleetcan-sim-scale-1.0 from the FROZEN matrix (matrix v1).
 
+SCOPE (user decision during M10): the component is RAW CAN data + separate ground truth only. Descriptor extraction
+is part of the FLEET-GUARD pipeline and is NOT run here; no data/analysis/<sid> is produced or published.
+
 Authorisation: the frozen matrix keeps `approved_for_generation: false` (its bytes and SHA-256 are immutable). M10 was
 authorised explicitly for exactly this matrix; the runner therefore requires
   --authorize-matrix-sha 9fc005de3f9b712045c7eec5c610043a375ab2dad362fff5b54a092a17a1e735
@@ -13,11 +16,11 @@ Per session (deterministic order: phase 1, phase 2, G0; config_index, repetition
   2 disk gate (>= --min-free-gb free before starting) and memory gate (previous session peak RSS)
   3 write the per-session experiment / campaigns / attacks files (data/m10_configs/<sid>/), derived only from the matrix
   4 generator into a private staging root data/.m10_stage (the orchestrator itself stages in <root>/.incomplete
-    and validates there), then the frozen descriptor analysis on the staging root
-  5 verify: generator validation PASS, descriptor validation PASS, provenance tags, seed, versions, clean git,
-    fleet/profiles, campaign + membership GT against the matrix (integer ns), isolated attacks, replay linkage,
-    unique frame UIDs, transport/capture accounting, descriptor schema and finiteness
-  6 publish atomically (os.replace, same filesystem): raw, ground_truth, validation, analysis, generated_sumo,
+    and validates there); no descriptor analysis
+  5 verify: generator validation PASS, provenance tags, seed, versions, clean git, fleet/profiles, campaign +
+    membership GT against the matrix (integer ns), isolated attacks, replay linkage, unique frame UIDs,
+    transport/capture accounting, no derived (analysis) outputs
+  6 publish atomically (os.replace, same filesystem): raw, ground_truth, validation, generated_sumo,
     metadata LAST; re-classify the final location (must be COMPLETE)
   7 ledger row + execution log; at the end of each phase a checkpoint incl. full fleetcan-sim-1.1 integrity
 Any generation, validation or verification failure STOPS the run (stage kept for investigation).
@@ -66,24 +69,16 @@ LEDGER = RUN / "session_status.csv"
 EXECLOG = RUN / "execution_log.jsonl"
 LOCK = DATA / ".m10_runner.lock"
 PY = str(ROOT / ".venv" / "bin" / "python")
-PUBLISH = ("raw", "ground_truth", "validation", "analysis", "generated_sumo", "metadata")   # metadata last
+PUBLISH = ("raw", "ground_truth", "validation", "generated_sumo", "metadata")   # metadata last; raw-only: no analysis
 BASE = ROOT / "data" / "final" / "fleetcan-sim-1.1"
 BASE_HASHES = {"SHA256SUMS": "bc523937dc3c8e4d927ac892bd994bbe99b6a3ca51aa2fff56ba72c5761818c8",
                "FREEZE.json": "df58000aeb15229af5587d92d10922a2180d6bfae21a33c5d0c8b823e779a160",
                "manifest.jsonl": "aebfd8e07d5539ab9fb544c354b7c921b532209cd0dd535421167822d7e8e979"}
 MEMORY_LIMIT_MB = 3000.0          # M8.1 max 1,414 MB (N = 100, 180 s); exceeding this stops the run for investigation
 NS = 1_000_000_000
-DESC_COLS = ["descriptor_id", "session_id", "vehicle_id", "window_index", "first_frame_uid", "last_frame_uid", "n_frames",
-             "window_start_time", "window_end_time", "descriptor_timestamp", "window_start_ns", "window_end_ns",
-             "descriptor_timestamp_ns", "time_basis", "nan_filled_features", "frame_count", "unique_can_id_count",
-             "can_id_entropy", "most_common_can_id_ratio", "mean_inter_arrival_time", "std_inter_arrival_time", "mean_dlc",
-             "std_dlc", *[f"byte_mean_{i}" for i in range(8)], *[f"byte_std_{i}" for i in range(8)]]
-FEATURES = DESC_COLS[15:]
 LEDGER_COLS = ["session_id", "config_id", "phase", "N", "K", "repetition", "seed", "scenario", "attack", "temporal_pattern",
-               "status", "start_time", "end_time", "wall_time", "generation_wall_s", "analysis_wall_s", "frame_count",
-               "descriptor_count", "storage_bytes", "peak_rss", "analysis_peak_rss", "peak_threads", "peak_fds",
-               "temp_peak_mb", "free_disk_after_gb", "generator_validation", "descriptor_validation",
-               "provenance_validation", "error"]
+               "status", "start_time", "end_time", "wall_time", "frame_count", "storage_bytes", "peak_rss", "peak_threads",
+               "peak_fds", "temp_peak_mb", "free_disk_after_gb", "generator_validation", "provenance_validation", "error"]
 
 
 class Stop(Exception):
@@ -287,15 +282,14 @@ def verify(s, c, root: Path, msha: str, head: str) -> tuple[list[str], dict]:
     sid, P, info = s["session_id"], [], {}
     meta = json.loads((root / "metadata" / sid / "metadata.json").read_text())
     val = json.loads((root / "validation" / sid / "validation_report.json").read_text())
-    dval = json.loads((root / "analysis" / sid / "descriptor_validation.json").read_text())
-    info["generator_validation"], info["descriptor_validation"] = val["overall"], dval["overall"]
+    info["generator_validation"] = val["overall"]
+    if (root / "analysis" / sid).exists():
+        P.append("unexpected derived outputs (analysis) in a raw-only component")
     # V26 (capture jitter of the host vCAN capture layer) may WARN under host load: non-authoritative, recorded only
     bad_checks = [x["id"] for x in val["checks"] if x["status"] not in ("PASS", "NA") and not (x["id"] == "V26" and x["status"] == "WARN")]
     info["warnings"] = [x["id"] for x in val["checks"] if x["status"] == "WARN"]
     if val["overall"] != "PASS" or bad_checks:
         P.append(f"generator validation {val['overall']}: {bad_checks}")
-    if dval["overall"] != "PASS" or any(x["status"] != "PASS" for x in dval["checks"]):
-        P.append(f"descriptor validation {dval['overall']}")
     # provenance
     tags = meta.get("tags") or {}
     exp = expected_tags(s, c, msha)
@@ -414,18 +408,6 @@ def verify(s, c, root: Path, msha: str, head: str) -> tuple[list[str], dict]:
         return 0
     if timeouts(meta["transport_stats"]):
         P.append("flow-control timeouts")
-    # descriptors
-    dp = root / "analysis" / sid / "descriptors.parquet"
-    if pq.read_schema(dp).names != DESC_COLS:
-        P.append("descriptor schema")
-    else:
-        feat = pq.read_table(dp, columns=FEATURES).to_pandas().to_numpy(dtype=float)
-        if not np.isfinite(feat).all():
-            P.append("descriptor NaN/Inf")
-        info["descriptor_count"] = len(feat)
-    lab = pq.read_schema(root / "analysis" / sid / "descriptor_labels.parquet").names
-    if set(lab) & set(FEATURES):
-        P.append("labels contain features")
     return P, info
 
 
@@ -450,10 +432,8 @@ def checkpoint(name: str, sel, rows):
     cp = {"checkpoint": name, "expected": len(sel), "complete": len(done),
           "cumulative_complete": sum(r["status"] == "COMPLETE" for r in rows),
           "status_counts": dict(Counter(r["status"] for r in sel)), "frames": int(num("frame_count")),
-          "descriptors": int(num("descriptor_count")), "storage_GB": round(num("storage_bytes") / 1e9, 3),
-          "generation_plus_analysis_h": round(num("wall_time") / 3600, 3),
+          "storage_GB": round(num("storage_bytes") / 1e9, 3), "generation_h": round(num("wall_time") / 3600, 3),
           "peak_rss_MB": max((float(r["peak_rss"] or 0) for r in done), default=0.0),
-          "peak_analysis_rss_MB": max((float(r["analysis_peak_rss"] or 0) for r in done), default=0.0),
           "free_disk_GB": round(free_gb(), 2), "baseline": baseline_check(), "time": now()}
     (RUN / f"checkpoint_{name}.json").write_text(json.dumps(cp, indent=1))
     log_event({"event": "checkpoint", **{k: v for k, v in cp.items() if k != "status_counts"}})
@@ -467,7 +447,7 @@ def checkpoint(name: str, sel, rows):
 def classify(s, c, msha):
     sid = s["session_id"]
     st = session_state(sid, DATA, expect={"matrix_id": MATRIX_ID, "matrix_sha256": msha, "config_id": c["config_id"],
-                                          "session_id": sid, "component": COMPONENT})
+                                          "session_id": sid, "component": COMPONENT}, require_analysis=False)
     if st["state"] == "complete":
         meta = json.loads((DATA / "metadata" / sid / "metadata.json").read_text())
         ok = meta.get("random_seed") == s["seed"] and (meta.get("tags") or {}).get("seed") == s["seed"]
@@ -509,13 +489,8 @@ def run_session(s, c, doc, msha, head, row, min_free):
     if rc != 0:
         row.update(status="FAILED", error=f"orchestrator exit {rc}")
         raise Stop(f"{sid}: orchestrator exit {rc} (see {LOGS / (sid + '.gen.log')})")
-    rc, aw, apk = sampled([PY, "-m", "analysis.run_session", sid, "--data", str(STAGE)], LOGS / f"{sid}.ana.log")
-    if rc != 0:
-        row.update(status="FAILED", error=f"analysis exit {rc}")
-        raise Stop(f"{sid}: analysis exit {rc}")
     problems, info = verify(s, c, STAGE, msha, head)
-    row.update(generator_validation=info.get("generator_validation", ""), descriptor_validation=info.get("descriptor_validation", ""),
-               provenance_validation="PASS" if not problems else "FAIL")
+    row.update(generator_validation=info.get("generator_validation", ""), provenance_validation="PASS" if not problems else "FAIL")
     if problems:
         row.update(status="FAILED", error="; ".join(problems)[:500])
         raise Stop(f"{sid}: verification failed: {problems}")
@@ -532,15 +507,14 @@ def run_session(s, c, doc, msha, head, row, min_free):
     if cls2 != "COMPLETE":
         row.update(status="INVALID", error=f"after publish: {st2['state']}")
         raise Stop(f"{sid}: not COMPLETE after publication ({st2})")
-    row.update(status="COMPLETE", end_time=now(), wall_time=round(time.time() - t0, 1), generation_wall_s=round(gw, 1),
-               analysis_wall_s=round(aw, 1), frame_count=info["frame_count"], descriptor_count=info["descriptor_count"],
-               storage_bytes=du([DATA / d / sid for d in PUBLISH]), peak_rss=round(gpk[0], 1), analysis_peak_rss=round(apk[0], 1),
-               peak_threads=max(gpk[1], apk[1]), peak_fds=max(gpk[2], apk[2]), temp_peak_mb=round(gpk[3], 1),
+    row.update(status="COMPLETE", end_time=now(), wall_time=round(time.time() - t0, 1), frame_count=info["frame_count"],
+               storage_bytes=du([DATA / d / sid for d in PUBLISH]), peak_rss=round(gpk[0], 1),
+               peak_threads=gpk[1], peak_fds=gpk[2], temp_peak_mb=round(gpk[3], 1),
                free_disk_after_gb=round(free_gb(), 2), error=("warnings: " + ",".join(info["warnings"])) if info["warnings"] else "")
     log_event({"event": "complete", "session_id": sid, "wall_s": row["wall_time"], "frames": info["frame_count"],
-               "descriptors": info["descriptor_count"], "peak_rss_MB": row["peak_rss"], "replay_links": info.get("replay_links")})
-    if gpk[0] > MEMORY_LIMIT_MB or apk[0] > MEMORY_LIMIT_MB:
-        raise Stop(f"{sid}: peak RSS {gpk[0]:.0f}/{apk[0]:.0f} MB above {MEMORY_LIMIT_MB} MB; investigate memory")
+               "peak_rss_MB": row["peak_rss"], "replay_links": info.get("replay_links")})
+    if gpk[0] > MEMORY_LIMIT_MB:
+        raise Stop(f"{sid}: peak RSS {gpk[0]:.0f} MB above {MEMORY_LIMIT_MB} MB; investigate memory")
     return "generated"
 
 

@@ -15,6 +15,10 @@ analysis/run_session.py) says PASS, and — when expected values are given — t
   provenance_mismatch         complete, but tags differ from the expected      -> STOP: belongs to another matrix
   complete                    -> skip
 
+Raw-only components (require_analysis=False, fleetcan-sim-scale-1.0 after the M10 scope change): no analysis
+step exists; COMPLETE needs everything above except descriptor_validation.json, and a present data/analysis/<sid>
+is reported as unexpected_derived_outputs (INVALID for the runner).
+
 Only clear_partial() deletes anything, and only for staged_incomplete / partial_published states (no metadata),
 never for fleetcan-sim-1.1 (FC11_*) sessions.
 
@@ -42,7 +46,7 @@ def _json(p: Path):
         return None
 
 
-def session_state(sid: str, root: Path = DATA, expect: dict | None = None) -> dict:
+def session_state(sid: str, root: Path = DATA, expect: dict | None = None, require_analysis: bool = True) -> dict:
     present = {d: (root / d / sid).exists() for d in PUBLISHED}
     stage = (root / ".incomplete" / sid).exists()
     meta = _json(root / "metadata" / sid / "metadata.json") if present["metadata"] else None
@@ -61,13 +65,17 @@ def session_state(sid: str, root: Path = DATA, expect: dict | None = None) -> di
     if val.get("overall") != "PASS":
         out["state"] = "generated_validation_failed"
         return out
-    dv = _json(root / "analysis" / sid / "descriptor_validation.json")
-    out["descriptor_validation"] = dv.get("overall") if dv else None
-    if dv is None:
-        out["state"] = "analysis_pending"
-        return out
-    if dv.get("overall") != "PASS":
-        out["state"] = "analysis_failed"
+    if require_analysis:
+        dv = _json(root / "analysis" / sid / "descriptor_validation.json")
+        out["descriptor_validation"] = dv.get("overall") if dv else None
+        if dv is None:
+            out["state"] = "analysis_pending"
+            return out
+        if dv.get("overall") != "PASS":
+            out["state"] = "analysis_failed"
+            return out
+    elif (root / "analysis" / sid).exists():
+        out["state"] = "unexpected_derived_outputs"
         return out
     tags = meta.get("tags") or {}
     mism = {k: (tags.get(k), v) for k, v in (expect or {}).items() if tags.get(k) != v}

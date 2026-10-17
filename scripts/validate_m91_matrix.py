@@ -42,7 +42,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import m9_design as D  # noqa: E402
 import m91_freeze as F  # noqa: E402
 from src.campaign_scheduler import build_schedule, check_scenario, pair_overlaps  # noqa: E402
-from validate_m9_matrix import existing_ids_and_seeds  # noqa: E402
+from validate_m9_matrix import existing_ids_and_seeds, generated_matrix_sessions  # noqa: E402
 
 NS = 1_000_000_000
 EPS = 1e-9
@@ -149,9 +149,11 @@ def main(argv=None):
     # C06-C08 ---------------------------------------------------------------------------------------------------------
     eng, base_cfg = engineering_ids()
     ex_sids, ex_seeds, n_meta = existing_ids_and_seeds()
+    own = generated_matrix_sessions()                 # M10 output of this frozen matrix (provenance-tagged): not a collision
     for d in ("generated_sumo",):
         for p in (ROOT / "data" / d).glob("*"):
-            ex_sids.add(p.name)
+            if p.name not in own:
+                ex_sids.add(p.name)
     cids = [r["config_id"] for r in rows]
     fmt = [x for x in cids if not CID_RE.match(x)]
     coll = sorted(set(cids) & (base_cfg | eng | ex_sids))
@@ -168,8 +170,11 @@ def main(argv=None):
         csv_detail = len(crow)
     except FileNotFoundError:
         csv_ok, csv_detail = False, "missing"
+    wrong_own = [x for x, sd in own.items() if x not in set(sids) or sd != next((s["seed"] for s in sessions if s["session_id"] == x), None)]
+    exist += wrong_own
     R.add("C07_session_ids", len(sids) == len(set(sids)) == 835 and not exist and csv_ok,
           {"distinct": len(set(sids)), "already_existing": exist[:5], "existing_checked": len(ex_sids | eng),
+           "generated_by_M10_from_this_matrix": len(own),
            "expected_sessions_csv_rows": csv_detail, "csv_consistent": csv_ok})
     seeds = [s["seed"] for s in sessions]
     formula = [s["session_id"] for s in sessions if s["seed"] != 920000 + 10 * byid[s["config_id"]]["config_index"] + s["repetition"]
