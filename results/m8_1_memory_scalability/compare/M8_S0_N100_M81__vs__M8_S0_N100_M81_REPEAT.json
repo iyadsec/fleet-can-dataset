@@ -1,0 +1,36 @@
+{
+ "a": "M8_S0_N100_M81",
+ "b": "M8_S0_N100_M81_REPEAT",
+ "tables": {
+  "attack_frames": "IDENTICAL (0 rows)",
+  "attacks": "IDENTICAL (0 rows)",
+  "campaign_membership": "IDENTICAL (0 rows)",
+  "campaign_overlap": "IDENTICAL (0 rows)",
+  "campaigns": "IDENTICAL (0 rows)",
+  "can_frames": "IDENTICAL (1277152 rows)",
+  "dropped_frames": "IDENTICAL (0 rows)",
+  "frame_labels": "IDENTICAL (1277152 rows)",
+  "replay_map": "IDENTICAL (0 rows)",
+  "vehicle_states": "IDENTICAL (400000 rows)",
+  "descriptors": "IDENTICAL (25397 descriptors, max |feature diff| = 0)"
+ },
+ "labels": {
+  "descriptor_labels": "IDENTICAL"
+ },
+ "bus_stats_identical": true,
+ "metadata_differences": [
+  "simulation.execution.wall_seconds",
+  "simulation.sumo_command",
+  "simulation.sumo_config"
+ ],
+ "metadata_unexpected_differences": [],
+ "validation_checks_identical": true,
+ "validation_info_identical": true,
+ "capture_layer_differences": [],
+ "validation_overall": [
+  "PASS",
+  "PASS"
+ ],
+ "descriptor_validation_identical": true,
+ "identical": true
+}

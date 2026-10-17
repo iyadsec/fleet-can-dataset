@@ -1,0 +1,41 @@
+{
+ "session_id": "M81_CAMP_N100_fuzzy_s10_large_R",
+ "ok": true,
+ "issues": [],
+ "frames": 3592146,
+ "ecu_streams": 467,
+ "release_mismatches": 0,
+ "reconstructed_descriptors": 9655,
+ "reconstructed_vehicles": [
+  "vehicle_001",
+  "vehicle_002",
+  "vehicle_003",
+  "vehicle_004",
+  "vehicle_005",
+  "vehicle_006",
+  "vehicle_007",
+  "vehicle_008",
+  "vehicle_009",
+  "vehicle_010",
+  "vehicle_051",
+  "vehicle_100"
+ ],
+ "recon_max_rel_error": 2.5218542532012833e-15,
+ "campaigns": {
+  "C_M81_FUZZ": {
+   "members": 10,
+   "delays_s": [
+    0.0,
+    10.0,
+    20.0,
+    30.0,
+    40.0,
+    50.0,
+    60.0,
+    70.0,
+    80.0,
+    90.0
+   ]
+  }
+ }
+}

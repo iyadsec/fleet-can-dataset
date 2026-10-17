@@ -1,0 +1,16 @@
+{
+ "session_id": "M81_S0_N100_D180_R",
+ "ok": true,
+ "issues": [],
+ "frames": 5807553,
+ "ecu_streams": 467,
+ "release_mismatches": 0,
+ "reconstructed_descriptors": 3473,
+ "reconstructed_vehicles": [
+  "vehicle_001",
+  "vehicle_051",
+  "vehicle_100"
+ ],
+ "recon_max_rel_error": 3.952133759144161e-15,
+ "campaigns": {}
+}

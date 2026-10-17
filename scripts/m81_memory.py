@@ -177,6 +177,143 @@ def compare_full(a: str, b: str) -> dict:
     return out
 
 
+def verify_long(sid: str, group_size: int = 5) -> dict:
+    """Independent bounded verification of a long session (no use of src/validator.py): frame UIDs dense and
+    unique; IDs, profiles, switch-on and route re-derived from the seed; every ECU release time re-derived from its
+    jitter stream (per vehicle group); descriptors of first / middle / last vehicle (and campaign members)
+    recomputed from raw frames; campaign membership delays exact."""
+    import yaml
+    from final_requirements_audit import FEATURES, descriptor_features, expected_profiles, expected_switch_on, sub_seed
+    from src import route_generator, session_groups
+    md = json.loads((DATA / "metadata" / sid / "metadata.json").read_text())
+    seed, veh = md["random_seed"], md["fleet"]["vehicles"]
+    vids = [v["vehicle_id"] for v in veh]
+    issues = []
+
+    def need(c, m):
+        if not c:
+            issues.append(m)
+    need(vids == [f"vehicle_{i:03d}" for i in range(1, len(vids) + 1)], "vehicle ids")
+    need([v["profile"] for v in veh] == expected_profiles(seed, len(vids)), "profiles")
+    need([int(v["switch_on_ns"]) for v in veh] == expected_switch_on(seed, len(vids)), "switch-on")
+    rg = md["simulation"].get("route_generation")
+    if rg:
+        _, info = route_generator.generate(ROOT / "sumo/network/grid4x4.net.xml", vids, sub_seed(seed, "route_generation"),
+                                           md["simulation"]["duration_s_configured"])
+        need(info["route_sha256"] == rg["route_sha256"], "route not reproducible")
+    raw, gt = DATA / "raw" / sid, DATA / "ground_truth" / sid
+    n, bad_uid = 0, 0
+    for b in session_groups.iter_column_batches(raw / "can_frames", ["frame_uid"]):
+        want = [f"{sid}-F{i:09d}" for i in range(n, n + len(b))]
+        bad_uid += int((b.frame_uid.to_numpy() != np.array(want)).sum())
+        n += len(b)
+    need(bad_uid == 0, f"{bad_uid} frame UIDs not dense/ordered")
+    P = yaml.safe_load((ROOT / "config/profiles/profiles_abc.yaml").read_text())["profiles"]
+    msgs = {p: {m["name"]: m for m in P[p]["messages"]} for p in P}
+    prof = {v["vehicle_id"]: v["profile"] for v in veh}
+    so = {v["vehicle_id"]: int(v["switch_on_ns"]) for v in veh}
+    jseed = sub_seed(seed, "ecu_jitter")
+    memb = storage.read_table(gt / "campaign_membership")
+    recon_v = sorted({vids[0], vids[len(vids) // 2], vids[-1], *memb.vehicle_id})
+    mism = streams = n_desc = 0
+    err = 0.0
+    d_all = storage.read_table(DATA / "analysis" / sid / "descriptors")
+    d_all = d_all[d_all.vehicle_id.isin(recon_v)]
+    for grp in session_groups.vehicle_groups(vids, group_size):
+        f = session_groups.read_filtered(raw / "can_frames", "vehicle_id", grp, columns=["frame_uid", "vehicle_id", "sim_time_ns", "tx_end_ns", "can_id", "dlc", "payload"])
+        lab = session_groups.read_filtered(gt / "frame_labels", "frame_uid", set(f.frame_uid), columns=["frame_uid", "frame_label", "message_name"])
+        st = session_groups.read_filtered(raw / "vehicle_states", "vehicle_id", grp, columns=["vehicle_id", "sim_time_ns"])
+        f = f.merge(lab, on="frame_uid")
+        for c in ("sim_time_ns", "tx_end_ns", "dlc"):
+            f[c] = f[c].astype("int64")
+        t0 = st.assign(t=st.sim_time_ns.astype("int64")).groupby("vehicle_id").t.min()
+        for (v, m), g in f[f.frame_label == "benign"].groupby(["vehicle_id", "message_name"]):
+            spec = msgs[prof[v]][m]
+            Pn, off = round(spec["period_ms"] * 1e6), round(spec["offset_ms"] * 1e6)
+            t = np.sort(g.sim_time_ns.to_numpy())
+            nominal = int(t0[v]) + so[v] + off + np.arange(len(t)) * Pn
+            rel = nominal + np.round(np.random.default_rng(sub_seed(jseed, f"ecu_jitter/{v}/{m}")).uniform(-0.01, 0.01, size=len(t)) * Pn).astype(np.int64)
+            rel[0] = max(int(t0[v]), rel[0])
+            mism += int((rel != t).sum())
+            streams += 1
+        d = d_all
+        for v in [x for x in grp if x in recon_v]:
+            g = f[f.vehicle_id == v].sort_values(["tx_end_ns", "frame_uid"]).reset_index(drop=True)
+            g["cid"] = g.can_id.map(lambda x: int(x, 0))
+            for row in d[d.vehicle_id == v].itertuples():
+                k = int(row.window_index)
+                w = g.iloc[k * 50: k * 50 + 100]
+                x = descriptor_features(w.cid.to_numpy(), w.dlc.to_numpy(), list(w.payload), w.tx_end_ns.to_numpy())
+                sv = np.array([float(getattr(row, c)) for c in FEATURES])
+                err = max(err, float(np.max(np.abs(x - sv) / np.maximum(1.0, np.abs(sv)))))
+                need(w.frame_uid.iloc[0] == row.first_frame_uid and w.frame_uid.iloc[-1] == row.last_frame_uid, f"{row.descriptor_id} span")
+                n_desc += 1
+        del f, lab, st
+        session_groups.release_memory()
+    need(mism == 0, f"{mism} ECU release times differ from seed re-derivation")
+    need(err < 1e-9, f"descriptor reconstruction error {err}")
+    camp = {}
+    if len(memb):
+        for cid, g in memb.groupby("campaign_id"):
+            camp[cid] = {"members": len(g), "delays_s": sorted(int(x) / 1e9 for x in g.relative_delay_ns)}
+    res = {"session_id": sid, "ok": not issues, "issues": issues[:10], "frames": n, "ecu_streams": streams, "release_mismatches": mism,
+           "reconstructed_descriptors": n_desc, "reconstructed_vehicles": recon_v, "recon_max_rel_error": err, "campaigns": camp}
+    (OUT / "verify").mkdir(parents=True, exist_ok=True)
+    (OUT / "verify" / f"{sid}.json").write_text(json.dumps(res, indent=1))
+    print(json.dumps({k: res[k] for k in ("session_id", "ok", "issues", "frames", "ecu_streams", "release_mismatches", "reconstructed_descriptors", "recon_max_rel_error", "campaigns")}))
+    return res
+
+
+def compare_stream(a: str, b: str) -> dict:
+    """Bounded comparison of two (long) sessions: big tables compared batch by batch in file order (frame UIDs
+    compared by index), small tables / descriptors / bus_stats / validation compared whole."""
+    from compare_sessions import GT_TABLES, LOGICAL_FRAME
+    from src import session_groups
+    res = {}
+
+    def batches(sid, sub, name, cols):
+        return session_groups.iter_column_batches(DATA / sub / sid / name, cols)
+
+    def big(sub, name, cols, uid_col=None):
+        n, same = 0, True
+        for x, y in zip(batches(a, sub, name, cols), batches(b, sub, name, cols)):
+            if uid_col:
+                x[uid_col] = x[uid_col].str.replace(a, "", regex=False)
+                y[uid_col] = y[uid_col].str.replace(b, "", regex=False)
+            same &= x.reset_index(drop=True).equals(y.reset_index(drop=True))
+            n += len(x)
+        na, nb = (session_groups.num_rows(DATA / sub / s / name) for s in (a, b))
+        return f"IDENTICAL ({n} rows)" if same and na == nb == n else f"DIFFERENT (rows {na}/{nb})"
+    res["can_frames"] = big("raw", "can_frames", ["frame_uid"] + LOGICAL_FRAME, "frame_uid")
+    res["vehicle_states"] = big("raw", "vehicle_states", [c for c in storage.read_columns(DATA / "raw" / a / "vehicle_states") if c != "session_id"])
+    res["frame_labels"] = big("ground_truth", "frame_labels", [c for c in storage.read_columns(DATA / "ground_truth" / a / "frame_labels") if c != "session_id"], "frame_uid")
+    for t in GT_TABLES:
+        if t == "frame_labels":
+            continue
+        x, y = (storage.read_table(DATA / "ground_truth" / s / t) for s in (a, b))
+        for c in [c for c in x.columns if "uid" in c or c == "session_id"]:
+            x[c] = x[c].str.replace(a, "", regex=False)
+            y[c] = y[c].str.replace(b, "", regex=False)
+        res[t] = f"IDENTICAL ({len(x)} rows)" if x.equals(y) else "DIFFERENT"
+    for t in ("descriptors", "descriptor_labels"):
+        x, y = (storage.read_table(DATA / "analysis" / s / t) for s in (a, b))
+        cols = [c for c in x.columns if c not in ("descriptor_id", "session_id", "first_frame_uid", "last_frame_uid")]
+        same = x[cols].equals(y[cols])
+        if "first_frame_uid" in x:
+            same &= x.first_frame_uid.str.replace(a, "", regex=False).equals(y.first_frame_uid.str.replace(b, "", regex=False))
+        res[t] = f"IDENTICAL ({len(x)} rows)" if same else "DIFFERENT"
+    ba, bb = (json.loads((DATA / "metadata" / s / "bus_stats.json").read_text()) for s in (a, b))
+    res["bus_stats"] = "IDENTICAL" if ba == bb else "DIFFERENT"
+    va, vb = (json.loads((DATA / "validation" / s / "validation_report.json").read_text()) for s in (a, b))
+    res["validation_checks"] = "IDENTICAL" if [(c["id"], c["status"], c["detail"].replace(a, "<sid>")) for c in va["checks"] if c["id"] not in ("V25", "V27")] == \
+        [(c["id"], c["status"], c["detail"].replace(b, "<sid>")) for c in vb["checks"] if c["id"] not in ("V25", "V27")] else "DIFFERENT"
+    out = {"a": a, "b": b, "tables": res, "identical": all(v.startswith("IDENTICAL") for v in res.values())}
+    (OUT / "compare").mkdir(parents=True, exist_ok=True)
+    (OUT / "compare" / f"{a}__vs__{b}.stream.json").write_text(json.dumps(out, indent=1))
+    print(json.dumps(out))
+    return out
+
+
 def write_configs() -> None:
     """Long N=100 engineering tests (not research configurations). Same frozen fleet/CAN/attack settings as M8;
     the 40 s run reuses the M8 seed so its output can be compared with the generator 1.2.0 session M8_S0_N100."""
@@ -200,7 +337,7 @@ def write_configs() -> None:
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["run", "regress", "compare", "configs"])
+    ap.add_argument("cmd", choices=["run", "regress", "compare", "compare-stream", "configs", "verify-long"])
     ap.add_argument("args", nargs="*")
     ap.add_argument("--suffix", default="")
     ap.add_argument("--chunk-rows", type=int, default=None)
@@ -223,3 +360,8 @@ if __name__ == "__main__":
         compare_full(a.args[0], a.args[1])
     elif a.cmd == "configs":
         write_configs()
+    elif a.cmd == "compare-stream":
+        compare_stream(a.args[0], a.args[1])
+    elif a.cmd == "verify-long":
+        for sid in a.args:
+            verify_long(sid)

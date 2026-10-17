@@ -1,0 +1,3 @@
+M8_S0_N010 analysis_peak_kb=427152 validator_peak_kb=495668 an=PASS va=PASS
+M8_S0_N050 analysis_peak_kb=1114872 validator_peak_kb=1592136 an=PASS va=PASS
+M8_S0_N100 analysis_peak_kb=2040796 validator_peak_kb=2930716 an=PASS va=PASS

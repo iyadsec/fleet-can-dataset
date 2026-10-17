@@ -1,0 +1,45 @@
+ Retrying in 1 seconds
+[M81_REG_FC11_N02_S1_malfunction_s01_isolated_R3] SUMO SUMO 1.28.0 (TraCI API 22); 20.0 s simulated (as fast as possible), bus model=logical, campaigns=[], attacks=['A_S1_MALFUNCTION'], vehicles -> {'vehicle_01': 'vcan0', 'vehicle_02': 'vcan1'}
+[M81_REG_FC11_N02_S1_malfunction_s01_isolated_R3] transport: {'sent': 12589, 'send_errors': 0, 'captured': 12589, 'matched': 12589, 'content_mismatch': 0, 'missing': 0, 'unexpected': 0}; bus dropped: 0; vcan0 util=0.071, vcan1 util=0.083
+  [PASS] V01 required files exist: all present
+  [PASS] V02 schemas match: frames, labels, drops, attacks, attack_frames, replay_map, campaigns, states
+  [PASS] V03 no missing values in required frame fields: 12589 frames, 0 empty
+  [PASS] V04 session_id and scenario_id match metadata: session=M81_REG_FC11_N02_S1_malfunction_s01_isolated_R3, scenario=S1
+  [PASS] V05 vehicle IDs valid and every configured vehicle present: ['vehicle_01', 'vehicle_02']
+  [PASS] V06 each vehicle captured only on its configured channel: vehicle_01->vcan0, vehicle_02->vcan1
+  [PASS] V07 CAN IDs are valid 11-bit identifiers: 9 distinct IDs in 0x000..0x7FF
+  [PASS] V08 DLC in 0..8 and equals payload length (Classical CAN): all rows consistent
+  [PASS] V09 timestamps = SUMO time; generation times inside simulated interval: generation in [0.000000000, 20.010000000] s
+  [PASS] V10 ECU frames and SUMO states share one timeline (first generation = first SUMO state + switch-on + offset, +-1.0% jitter): all vehicle/message streams aligned
+  [PASS] V11 timestamps monotonic: per vehicle in transmission+capture order; per ECU stream in generation: monotonic
+  [PASS] V12 every ECU message stream (transmitted + dropped) follows its configured period within +-2.0% per interval and with no drift from the nominal grid: 0 gaps, extra frames or drift
+  [PASS] V13 no duplicate records: 0 duplicates
+  [PASS] V14 every bus-transmitted frame captured on vCAN with identical ID+payload; nothing extra: sent=12589 captured=12589 matched=12589
+  [PASS] V15 frame accounting: generated = transmitted + dropped; transmitted = sent to vCAN: generated=12589 dropped=0
+  [PASS] B01 frame duration = exact bit count (from captured ID+payload) x bit time: all frames
+  [PASS] B02 queue delays non-negative and consistent (queue_delay_us = tx_start - generation): min=0.0 us, max=0.0 us
+  [PASS] B03 no overlapping transmissions on any vehicle bus: bus carries one frame at a time
+  [PASS] B04 arbitration: no frame waited while a lower-ID frame that was ready lost the bus: priority order respected for every transmission
+  [PASS] B05 bus utilization within [0, 1] and equal to recomputation from captured frames: vcan0 overall=0.0711 peak=0.0908; vcan1 overall=0.0833 peak=0.0882
+  [PASS] B06 node queues never exceeded the configured limit: within queue_limit
+  [PASS] B07 frame expiry: no frame transmitted after its deadline; expired drops at generation + max age; queue_drop / expired_drop counted separately: policy ['deadline(100.0 ms)']; expired drops=0, queue drops=0
+  [PASS] V16 every ECU payload decodes with the vehicle DBC; rolling counters continuous (incl. dropped): 12089 ECU frames
+  [PASS] V17 decoded benign vehicle speed (role vehicle_speed) equals SUMO speed (sample-and-hold): max |error| = 0.0249 km/h over 2937 frames
+  [PASS] V18 every frame has exactly one ground-truth label row (and vice versa): 12589 label rows
+  [PASS] V19 labels follow provenance: no benign frame labelled malicious and vice versa: benign=12089, malicious=500
+  [PASS] V20 frame -> attack -> campaign chain: benign frames/drops have no campaign; malicious ones carry their attack's campaign: 500 malicious frames traced
+  [PASS] A01 every malicious frame/drop has an attack_id that exists in attacks.csv; every configured attack present: 1 attacks, 500 malicious frames
+  [PASS] A02 attack start/end match configuration; every attack frame generated inside its window on its vehicle: all windows consistent
+  [PASS] A03 per attack: generated = transmitted + dropped; transmitted = captured; matches frame files: A_S1_MALFUNCTION: gen=500 tx=500 drop=0
+  [NA  ] A04 flooding: no flooding attack
+  [NA  ] A05 fuzzy: no fuzzy attack
+  [PASS] A06 malfunction frames: target message ID; decoded signal = configured manipulation (within DBC resolution): 500 frames checked
+  [NA  ] A07 replay: no replay attack
+  [PASS] C00 scenario S1 consistent with its definition: 0 campaigns (0 coordinated), 1 isolated attacks
+  [NA  ] C01 campaign checks: no campaigns configured
+  [PASS] C02 no campaign ground truth without campaign configuration: empty
+  [PASS] V23 required metadata present; experiment and per-attack seeds saved: seed=610153, SUMO SUMO 1.28.0 (TraCI API 22)
+  [PASS] V27 schema version matches this validator (1.0): schema 1.0, generator 1.3.0, dataset m81-regression-test
+  [PASS] V24 configuration snapshot saved and hashes match: 14 files
+  [WARN] V25 code version recorded (git commit): e4538fbeca with uncommitted changes
+[M81_REG_FC11_N02_S1_malfunction_s01_isolated_R3] VALIDATION: PASS

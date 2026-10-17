@@ -1,0 +1,37 @@
+{
+ "a": "FC11_N10_S2_fuzzy_s05_independent_R2",
+ "b": "M81_REG_FC11_N10_S2_fuzzy_s05_independent_R2",
+ "tables": {
+  "attack_frames": "IDENTICAL (25000 rows)",
+  "attacks": "IDENTICAL (5 rows)",
+  "campaign_membership": "IDENTICAL (5 rows)",
+  "campaign_overlap": "IDENTICAL (0 rows)",
+  "campaigns": "IDENTICAL (5 rows)",
+  "can_frames": "IDENTICAL (90263 rows)",
+  "dropped_frames": "IDENTICAL (0 rows)",
+  "frame_labels": "IDENTICAL (90263 rows)",
+  "replay_map": "IDENTICAL (0 rows)",
+  "vehicle_states": "IDENTICAL (20500 rows)",
+  "descriptors": "IDENTICAL (1790 descriptors, max |feature diff| = 0)"
+ },
+ "labels": {
+  "descriptor_labels": "IDENTICAL"
+ },
+ "bus_stats_identical": true,
+ "metadata_differences": [
+  "simulation.execution.recorder.chunk_rows",
+  "simulation.execution.recorder.max_frames_awaiting_capture",
+  "simulation.execution.recorder.streaming",
+  "simulation.execution.wall_seconds"
+ ],
+ "metadata_unexpected_differences": [],
+ "validation_checks_identical": true,
+ "validation_info_identical": true,
+ "capture_layer_differences": [],
+ "validation_overall": [
+  "PASS",
+  "PASS"
+ ],
+ "descriptor_validation_identical": true,
+ "identical": true
+}

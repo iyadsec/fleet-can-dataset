@@ -1,0 +1,21 @@
+{
+ "a": "M81_S0_N100_D120",
+ "b": "M81_S0_N100_D120_R",
+ "tables": {
+  "can_frames": "IDENTICAL (3865952 rows)",
+  "vehicle_states": "IDENTICAL (1200000 rows)",
+  "frame_labels": "IDENTICAL (3865952 rows)",
+  "dropped_frames": "IDENTICAL (0 rows)",
+  "attacks": "IDENTICAL (0 rows)",
+  "attack_frames": "IDENTICAL (0 rows)",
+  "replay_map": "IDENTICAL (0 rows)",
+  "campaigns": "IDENTICAL (0 rows)",
+  "campaign_membership": "IDENTICAL (0 rows)",
+  "campaign_overlap": "IDENTICAL (0 rows)",
+  "descriptors": "IDENTICAL (77173 rows)",
+  "descriptor_labels": "IDENTICAL (77173 rows)",
+  "bus_stats": "IDENTICAL",
+  "validation_checks": "IDENTICAL"
+ },
+ "identical": true
+}

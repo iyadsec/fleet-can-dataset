@@ -1,0 +1,42 @@
+{
+ "a": "M8_CAMP_N050_malfunction_s10_medium",
+ "b": "M8_CAMP_N050_malfunction_s10_medium_M81",
+ "tables": {
+  "attack_frames": "IDENTICAL (5000 rows)",
+  "attacks": "IDENTICAL (10 rows)",
+  "campaign_membership": "IDENTICAL (10 rows)",
+  "campaign_overlap": "IDENTICAL (45 rows)",
+  "campaigns": "IDENTICAL (1 rows)",
+  "can_frames": "IDENTICAL (610179 rows)",
+  "dropped_frames": "IDENTICAL (0 rows)",
+  "frame_labels": "IDENTICAL (610179 rows)",
+  "replay_map": "IDENTICAL (0 rows)",
+  "vehicle_states": "IDENTICAL (190000 rows)",
+  "descriptors": "IDENTICAL (12126 descriptors, max |feature diff| = 0)"
+ },
+ "labels": {
+  "descriptor_labels": "IDENTICAL"
+ },
+ "bus_stats_identical": true,
+ "metadata_differences": [
+  "simulation.execution.recorder.chunk_rows",
+  "simulation.execution.recorder.max_frames_awaiting_capture",
+  "simulation.execution.recorder.streaming",
+  "simulation.execution.wall_seconds",
+  "simulation.sumo_command",
+  "simulation.sumo_config"
+ ],
+ "metadata_unexpected_differences": [],
+ "validation_checks_identical": true,
+ "validation_info_identical": true,
+ "capture_layer_differences": [
+  "C05",
+  "info.campaign_delay_by_layer.first_capture_delay_s"
+ ],
+ "validation_overall": [
+  "PASS",
+  "PASS"
+ ],
+ "descriptor_validation_identical": true,
+ "identical": true
+}
