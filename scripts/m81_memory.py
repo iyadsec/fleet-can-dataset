@@ -134,8 +134,10 @@ def compare_full(a: str, b: str) -> dict:
     ma, mb = (json.loads((DATA / "metadata" / s / "metadata.json").read_text()) for s in (a, b))
     fa, fb = _flat({k: v for k, v in ma.items() if k not in VOLATILE_META}), _flat({k: v for k, v in mb.items() if k not in VOLATILE_META})
     meta_diff = sorted(k for k in set(fa) | set(fb) if fa.get(k) != fb.get(k))
+    # simulation.sumo_config / sumo_command: path of the per-session generated scenario directory (contains the session id);
+    # the route content itself is compared through simulation.route_generation (route_sha256, per-vehicle assignment)
     expected_meta = [k for k in meta_diff if k.startswith(("simulation.execution.", "time_base.wall_anchor", "simulation.sumo_command",
-                                                           "dataset_version"))]
+                                                           "simulation.sumo_config", "dataset_version"))]
     va, vb = (json.loads((DATA / "validation" / s / "validation_report.json").read_text()) for s in (a, b))
     skip = {"V25", "V27"}                                  # git commit / generator version (expected to differ)
     import re
@@ -192,7 +194,7 @@ def write_configs() -> None:
         txt = EXPERIMENT.format(eid=e["eid"], dv="m81-memory-test", scen=e["scen"], desc=e["eid"], seed=e["seed"], n=100,
                                 attack=e["attack"], size=e["size"], pattern=e["pattern"], dur=e["dur"],
                                 attacks="config/attacks.yaml", campaigns=campaigns)
-        (d / f"{e['eid']}.yaml").write_text(txt.replace("# Milestone 8 scalability test", "# Milestone 8.1 memory test"))
+        (d / f"{e['eid']}.yaml").write_text(txt.replace("# Milestone 8 scalability test", "# Milestone 8.1 memory test").replace("milestone: M8,", "milestone: M8.1,"))
     print([e["eid"] for e in exps])
 
 

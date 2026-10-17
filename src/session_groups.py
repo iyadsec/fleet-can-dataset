@@ -18,6 +18,23 @@ GROUP_VEHICLES = 5            # vehicles per group (implementation detail; resul
 BATCH_ROWS = 131_072
 
 
+def release_memory() -> None:
+    """Return memory freed after a vehicle group to the OS (Python GC, Arrow pool, glibc heap). Results are unaffected;
+    without it, RSS keeps the high-water mark of earlier groups through allocator fragmentation."""
+    import ctypes
+    import gc
+    gc.collect()
+    try:
+        import pyarrow as pa
+        pa.default_memory_pool().release_unused()
+    except Exception:
+        pass
+    try:
+        ctypes.CDLL("libc.so.6").malloc_trim(0)
+    except Exception:
+        pass
+
+
 def vehicle_groups(vehicle_ids, size: int = GROUP_VEHICLES) -> list[list[str]]:
     ids = sorted(vehicle_ids)
     return [ids[i:i + size] for i in range(0, len(ids), max(1, size))]

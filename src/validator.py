@@ -307,6 +307,7 @@ def validate(sid: str, data: Path, group_size: int = GROUP_VEHICLES) -> Report:
         else:
             cap_all_set = False
         del f, lab, st, ecu, streams
+        session_groups.release_memory()
 
     # labels: one row per frame and vice versa (streamed over the whole label file)
     lab_sess, n_lab, lab_ok = set(), 0, True

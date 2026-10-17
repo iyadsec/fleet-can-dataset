@@ -123,9 +123,12 @@ class ChunkedTable:
                 t = src.read_row_group(i)
                 cols = [t.column(c) if types[c] == pa.string() else pc.cast(t.column(c), types[c]) for c in self.columns]
                 out.write_table(pa.Table.from_arrays(cols, schema=schema))
+                del t, cols
         finally:
             out.close()
         self.part.unlink()
+        from .session_groups import release_memory
+        release_memory()
         return self.final
 
     def abort(self) -> None:

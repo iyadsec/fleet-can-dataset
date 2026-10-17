@@ -52,6 +52,7 @@ def analyse(session_id: str, data: Path, out_root: Path | None = None, group_siz
             desc_parts.append(desc)
             label_parts.append(labels)
         del obs, lab
+        session_groups.release_memory()
     desc = pd.concat(desc_parts, ignore_index=True) if desc_parts else build_descriptors(_empty_obs())
     labels = pd.concat(label_parts, ignore_index=True) if label_parts else pd.DataFrame(columns=LABEL_COLUMNS)
     storage.write_frame(out / "descriptors", desc, fmt)
