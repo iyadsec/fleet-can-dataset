@@ -46,7 +46,7 @@ from validate_m9_matrix import existing_ids_and_seeds  # noqa: E402
 
 NS = 1_000_000_000
 EPS = 1e-9
-ALLOWED_REFS = ("m91_freeze.py", "validate_m91_matrix.py")
+ALLOWED_REFS = ("m91_freeze.py", "validate_m91_matrix.py", "run_m10_generation.py")   # M10 runner: explicitly authorised (M10 brief section 5)
 SCEN_PATTERNS = {"S0": {"none"}, "S1": {"isolated"}, "S2": {"independent"},
                  "S3": {"simultaneous", "small", "medium", "large", "partial", *D.BOUNDED}, "S3-probe": {"probe"}, "S3-mixed": {"small"}}
 CID_RE = re.compile(r"^FCS10_(G0_)?N\d{3}_(S0|S1|S2|S3|S3-probe|S3-mixed)_(none|flooding|fuzzy|malfunction|replay)_K\d{3}_[A-Za-z0-9_]+$")
