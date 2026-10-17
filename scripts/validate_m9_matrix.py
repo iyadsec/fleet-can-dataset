@@ -144,7 +144,7 @@ def main():
     refs = subprocess.run(["grep", "-rl", "--include=*.py", "--include=*.sh", "--include=*.yaml", "m9_expanded_matrix_proposed",
                            "src", "scripts", "analysis", "detection", "config"],
                           cwd=ROOT, capture_output=True, text=True).stdout.split()
-    foreign = [r for r in refs if not re.search(r"(m9_design|validate_m9_matrix)\.py$", r)]
+    foreign = [r for r in refs if not re.search(r"(m9_design|validate_m9_matrix|m91_freeze)\.py$", r)]
     R.add("M01_not_approved", doc.get("approved_for_generation") is False and not foreign,
           {"approved_for_generation": doc.get("approved_for_generation"), "referenced_by": foreign})
 

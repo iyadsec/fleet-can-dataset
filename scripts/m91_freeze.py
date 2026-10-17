@@ -1,0 +1,333 @@
+"""Milestone 9.1: build the FROZEN generation specification of fleetcan-sim-scale-1.0 (matrix v1).
+
+Approved input: M9 design B (162 configurations, scripts/m9_design.py, unchanged) + the G0 route-source bridge
+(5 configurations at N = 10). G1 is rejected and absent. 167 configurations x 5 repetitions = 835 sessions.
+
+Writes (nothing under data/, no SUMO, no CAN):
+  configs/fleetcan_sim_scale_1_0.yaml          frozen matrix: every configuration AND every session with its seed,
+                                               resolved targets, profile composition and explicit campaign/attack
+                                               definitions (matrix_status: frozen, approved_for_generation: false)
+  results/m9_1_freeze/expected_sessions.csv    planned-session manifest (not dataset data)
+
+  --check     rebuild in memory and verify the committed files are byte-identical (determinism / immutability)
+  --manifest  write results/m9_1_freeze/matrix_freeze_manifest.json for the COMMITTED matrix
+
+The frozen matrix is never overwritten with different content: a scientific change needs a new matrix version.
+Usage: .venv/bin/python scripts/m91_freeze.py [--check | --manifest]
+"""
+
+from __future__ import annotations
+
+import argparse
+import csv
+import hashlib
+import io
+import json
+import subprocess
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+import numpy as np
+import yaml
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "scripts"))
+import m9_design as D  # noqa: E402
+from src.config import build_fleet  # noqa: E402
+from src.version import DESCRIPTOR_VERSION, GENERATOR_VERSION, SCHEMA_VERSION  # noqa: E402
+
+MATRIX_ID = "fleetcan-sim-scale-1.0-matrix-v1"
+COMPONENT = "fleetcan-sim-scale-1.0"
+MATRIX = ROOT / "configs" / "fleetcan_sim_scale_1_0.yaml"
+PROPOSAL = ROOT / "configs" / "m9_expanded_matrix_proposed.yaml"
+FREEZE = ROOT / "results" / "m9_1_freeze"
+SESSIONS_CSV = FREEZE / "expected_sessions.csv"
+MANIFEST = FREEZE / "matrix_freeze_manifest.json"
+GENERATOR_SOURCE_COMMIT = "559179f2624e1bc120bda1c772a5e1d1b637c88f"   # last commit touching src/ analysis/ config/profiles sumo/
+BASELINE = {"dataset_version": "fleetcan-sim-1.1", "sessions": 610, "fleet_sizes": [2, 5, 10],
+            "SHA256SUMS_sha256": "bc523937dc3c8e4d927ac892bd994bbe99b6a3ca51aa2fff56ba72c5761818c8",
+            "FREEZE_json_sha256": "df58000aeb15229af5587d92d10922a2180d6bfae21a33c5d0c8b823e779a160",
+            "manifest_jsonl_sha256": "aebfd8e07d5539ab9fb544c354b7c921b532209cd0dd535421167822d7e8e979",
+            "matrix_spec_sha256": "4e6dd99dab4bfcbce4614cd5fe817895b7aff85e09ab48147d83ec0cbcac34fb",
+            "status": "immutable dependency; never regenerated, modified or copied"}
+SCALE_FLEET = "config/m8/fleets/fleet_{n}.yaml"
+G0_FLEET = "config/final/fleets/fleet_10.yaml"            # the frozen baseline N = 10 fleet (vehicle_01 .. vehicle_10)
+ROUTE_GENERATED = {"method": "grid_loops_v1", "network": "sumo/network/grid4x4.net.xml"}
+# G0 attack families (M9 rotation rule latin(i) = [F[i mod 4], F[(i+1) mod 4]]):
+#   small        -> latin(rot(20, 5)) = latin(1): identical to the matched scaled cell N = 20, K = 5, small
+#   simultaneous -> latin(3): the complementary pair, so the five G0 configurations cover all four families
+G0_FAMILIES = {"simultaneous": D.latin(3), "small": D.latin(D.rot(20, 5))}
+PROVENANCE_TAGS = ["component", "matrix_id", "matrix_sha256", "config_id", "config_index", "session_id", "repetition", "phase",
+                   "purpose", "N", "K", "scenario", "attack", "temporal_pattern", "independent_timing", "route_source",
+                   "member_selection", "coordinated_members", "independent_targets", "isolated_target",
+                   "K_A", "K_B", "K_C", "N_A", "N_B", "N_C"]
+
+
+# ------------------------------------------------------------------ configurations
+def g0_configs() -> list[dict]:
+    out = [D.cfg("G0_route_source_bridge", "S0", 10, "none", note="route-source bridge: benign N = 10 on generated routes")]
+    for pat in ("simultaneous", "small"):
+        for f in G0_FAMILIES[pat]:
+            out.append(D.cfg("G0_route_source_bridge", "S3", 10, f, pat, 5,
+                             note=f"route-source bridge: baseline N10_S3_{f}_s05_{pat} with generated routes"))
+    for c in out:
+        c["config_id"] = c["config_id"].replace(D.SESSION_PREFIX, D.SESSION_PREFIX + "G0_", 1)
+        c["phase"] = "G0"
+    return out
+
+
+def configurations() -> list[dict]:
+    rows = []
+    for c in D.design_B() + g0_configs():
+        g0 = c["phase"] == "G0"
+        r = dict(c)
+        r["config_index"] = len(rows)
+        r["purpose"] = "route_source_bridge" if g0 else "expanded_scaling"
+        r["description"] = r.pop("note") or D.PURPOSE.get(c["family"], "")
+        r["mixed_attack_count"] = r.pop("mixed_independent_count")
+        r["scenario_id"] = c["scenario"].split("-")[0]
+        r["fleet_config"] = G0_FLEET if g0 else SCALE_FLEET.format(n=c["N"])
+        r["route_source"] = "generated:grid_loops_v1"
+        r["member_selection"] = "baseline_first_k" if g0 else "seeded_profile_balanced_v1"
+        if c["scenario"] in ("S3", "S3-probe", "S3-mixed"):
+            r["member_relative_delays_s"] = D.delays(c["temporal_pattern"], c["K"])
+            r["member_attack_duration_s"] = D.attack_seconds(c["temporal_pattern"])
+        if c["scenario"] == "S2":
+            r["independent_start_s"] = D.s2_starts(c["independent_attack_count"], c["independent_timing"])
+        if c["scenario"] == "S3-mixed":
+            r["independent_start_s"] = [round(D.WARMUP_S + 0.25 + 0.5 * j, 6) for j in range(r["mixed_attack_count"])]
+        r["seeds"] = D.seeds_for(r["config_index"])
+        r["session_ids"] = [f"{c['config_id']}_R{rep}" for rep in range(1, D.REPS + 1)]
+        rows.append(r)
+    return rows
+
+
+# ------------------------------------------------------------------ sessions
+def load_fleet(path: str, seed: int):
+    sec = yaml.safe_load((ROOT / path).read_text())["fleet"]
+    return build_fleet(sec, {p: None for p in ("profile_A", "profile_B", "profile_C")}, seed)[0]
+
+
+def attack_params(family: str, attack_s: float) -> dict:
+    if family == "replay":
+        return {"window_relative_s": [-attack_s, 0.0], "source_vehicle": "self", "time_offset_ms": 0.25}
+    return json.loads(json.dumps(D.PARAMS[family]))
+
+
+def campaign(cid, family, targets, start, delays, attack_s, coordinated) -> dict:
+    out = {"campaign_id": cid, "attack_type": family, "coordinated": coordinated, "targets": list(targets), "start_s": start}
+    if not coordinated or all(d == 0 for d in delays):
+        out["delay_pattern"] = "simultaneous"
+    else:
+        out["delay_pattern"], out["relative_delays_s"] = "fixed", list(delays)
+    if family != "replay":
+        out["duration_s"] = attack_s
+    out["params"] = attack_params(family, attack_s)
+    return out
+
+
+def members(c: dict, seed: int, fleet) -> dict:
+    if c["member_selection"] == "baseline_first_k":        # G0: identical to fleetcan-sim-1.1 (vehicle_01 .. vehicle_K)
+        coord = [a.vehicle_id for a in fleet][: c["K"]] if c["scenario"].startswith("S3") else []
+        return {"coordinated": coord, "independent": [], "isolated": []}
+    m = D.resolve_session({**c, "mixed_independent_count": c["mixed_attack_count"]}, seed)
+    return {k: m[k] for k in ("coordinated", "independent", "isolated")}
+
+
+def session(c: dict, rep: int) -> dict:
+    seed = c["seeds"][rep - 1]
+    fleet = load_fleet(c["fleet_config"], seed)
+    prof = {a.vehicle_id: a.profile[-1] for a in fleet}
+    m = members(c, seed, fleet)
+    f, sc, atk = c["attack"], c["scenario"], D.ATTACK_S
+    camps, iso = [], []
+    if sc == "S1":
+        v = m["isolated"][0]
+        a = {"attack_id": f"A_S1_{f.upper()}", "type": f, "vehicle": v, "start_s": D.WARMUP_S}
+        if f == "replay":
+            a["params"] = {"source_vehicle": v, "window_s": [D.WARMUP_S - atk, D.WARMUP_S], "can_ids": "all", "time_offset_ms": 0.25}
+        else:
+            a["duration_s"], a["params"] = atk, attack_params(f, atk)
+        iso.append(a)
+    elif sc == "S2":
+        for j, (v, s) in enumerate(zip(m["independent"], c["independent_start_s"])):
+            camps.append(campaign(f"C_S2_{f.upper()}_{j + 1}", f, [v], s, [0.0], atk, False))
+    elif sc in ("S3", "S3-probe", "S3-mixed"):
+        cid = {"S3": f"C_S3_{f.upper()}", "S3-probe": "C_PROBE_REPLAY", "S3-mixed": f"C_MIX_{f.upper()}"}[sc]
+        camps.append(campaign(cid, f, m["coordinated"], D.WARMUP_S, c["member_relative_delays_s"], c["member_attack_duration_s"], True))
+        for j, (v, s) in enumerate(zip(m["independent"], c.get("independent_start_s") or [])):
+            camps.append(campaign(f"C_MIX_{f.upper()}_IND{j + 1}", f, [v], s, [0.0], atk, False))
+    comp = {f"N_{p}": sum(x == p for x in prof.values()) for p in "ABC"}
+    comp.update({f"K_{p}": sum(prof[v] == p for v in m["coordinated"]) for p in "ABC"})
+    return {"session_id": c["session_ids"][rep - 1], "config_id": c["config_id"], "config_index": c["config_index"],
+            "repetition": rep, "seed": seed, "composition": comp,
+            "isolated_target_profile": prof[m["isolated"][0]] if m["isolated"] else None,
+            "isolated_attacks": iso, "campaigns": camps}
+
+
+# ------------------------------------------------------------------ documents
+TEMPORAL_SEMANTICS = {
+    "convention": "all times in seconds of SUMO/bus time; campaign_start = 10.0 s; a member with relative delay d and "
+                  "attack duration T is active on the half-open interval [10 + d, 10 + d + T) (replay: + 0.25 ms offset)",
+    "simultaneous": "d_i = 0 (frozen)",
+    "small": "d_i = 0.5 s * i, i = 0..K-1 in target order (frozen sequential stagger, scripts/m6_build_matrix.py)",
+    "medium": "d_i = 2 s * i (frozen)", "large": "d_i = 10 s * i (frozen)",
+    "partial": "d_i = 5 s * i with T = 10 s: consecutive members overlap exactly 5 s, members two positions apart touch only "
+               "at an interval boundary (overlap 0 under the half-open convention) (frozen)",
+    "probe": "replay, K = 2, d = [0, 0.1] s (frozen)",
+    "bounded_spread_0p5s": "NEW (expanded dataset only): d_i = 0.5 s * i / (K - 1); d_{K-1} - d_0 = 0.5 s",
+    "bounded_spread_2s": "NEW: d_i = 2 s * i / (K - 1); spread 2 s", "bounded_spread_10s": "NEW: d_i = 10 s * i / (K - 1); spread 10 s",
+    "S2 near_simultaneous": "independent attack j starts at 10 + 0.5 s * j / (k - 1) (frozen baseline S2)",
+    "S2 staggered_0.5s": "NEW: independent attack j starts at 10 + 0.5 s * j (timing of coordinated 'small', coordinated=false)",
+    "S2 separated_10s": "NEW: independent attack j starts at 10 + 10 s * j (timing of coordinated 'large', coordinated=false)",
+    "mixed": "coordinated 'small' + m same-family independent attacks at 10.25 + 0.5 s * j (frozen baseline mixed)",
+}
+RNG = {
+    "master_seed": "seed = 920000 + 10 * config_index + repetition (repetition 1..5); config_index is frozen per configuration "
+                   "and never reused or reordered, so changing or adding a configuration in a later matrix version cannot move "
+                   "another configuration's seeds",
+    "SUMO": "--seed = master seed (driver imperfection sigma)",
+    "route_generation": "numpy default_rng(derive_seed(seed, 'route_generation')) - slot draw of grid_loops_v1",
+    "profile_assignment": "derive_seed(seed, 'profile_assignment') - balanced_shuffle",
+    "switch_on": "derive_seed(seed, 'switch_on') - U[0, 1] s at 1 us",
+    "ecu_jitter": "derive_seed(seed, 'ecu_jitter') -> derive_seed(jseed, 'ecu_jitter/<vehicle_id>/<message>') - +-1 %",
+    "attack": "SeedSequence([seed, crc32(attack_id)]); attack_id = <campaign_id>_<vehicle_id> or A_S1_<FAMILY>",
+    "campaign": "SeedSequence([seed, crc32('campaign:' + campaign_id)]) (used only by uniform_random, not used in this matrix)",
+    "campaign_member_selection": "derive_seed(seed, 'campaign_members/C_MAIN') - matrix builder only",
+    "independent_target_selection": "derive_seed(seed, 'independent_targets') - matrix builder only",
+    "isolated_target_selection": "derive_seed(seed, 'isolated_target') - matrix builder only",
+    "derive_seed": "SeedSequence([seed, crc32(tag)]).generate_state(1)[0]",
+    "isolation": "each stream has its own tag; selection streams are consumed offline by this builder and their result is "
+                 "frozen as explicit targets, so the generator never draws from them; no detector-derived randomness",
+}
+
+
+def matrix_document(rows: list[dict], sessions: list[dict]) -> dict:
+    phases = {}
+    for r in rows:
+        p = str(r["phase"])
+        phases.setdefault(p, {"configurations": 0, "sessions": 0})
+        phases[p]["configurations"] += 1
+        phases[p]["sessions"] += r["repetitions"]
+    keep = ("config_index", "config_id", "purpose", "phase", "family", "scenario", "scenario_id", "N", "K", "attack", "temporal_pattern",
+            "independent_timing", "independent_attack_count", "mixed_attack_count", "duration_s", "repetitions", "fleet_config",
+            "route_source", "member_selection", "member_relative_delays_s", "member_attack_duration_s", "independent_start_s",
+            "seeds", "session_ids", "description")
+    return {
+        "matrix_id": MATRIX_ID,
+        "component": COMPONENT,
+        "matrix_status": "frozen",
+        "approved_for_generation": False,
+        "change_policy": "immutable after freeze; any scientific change requires a new matrix version (new matrix_id)",
+        "derived_from": {"proposal": "configs/m9_expanded_matrix_proposed.yaml", "proposal_sha256": sha256(PROPOSAL),
+                         "approved_decisions": ["design B approved", "G0 route-source bridge approved", "G1 rejected",
+                                                "component fleetcan-sim-scale-1.0", "no fleetcan-sim-2.0 umbrella", "R = 5"]},
+        "baseline_dependency": BASELINE,
+        "generator": {"version": GENERATOR_VERSION, "source_commit": GENERATOR_SOURCE_COMMIT, "schema_version": SCHEMA_VERSION,
+                      "descriptor_version": DESCRIPTOR_VERSION},
+        "counts": {"configurations": len(rows), "repetitions": D.REPS, "sessions": len(sessions), "phases": phases},
+        "experiment_template": {"dataset_version": COMPONENT, "simulation": {"route_generation": ROUTE_GENERATED, "step_length_s": 0.01,
+                                                                             "realtime": False},
+                                "can": {"transport": "socketcan", "bus_model": "logical", "frame_format": "classical", "capture_drain_s": 0.5},
+                                "storage": {"format": "parquet"}, "attacks_config": "per session (isolated_attacks)",
+                                "campaigns_config": "per session (campaigns)"},
+        "provenance_tags_required": PROVENANCE_TAGS,
+        "seed_rule": RNG["master_seed"],
+        "session_id_rule": "<config_id>_R<repetition>",
+        "rng_namespaces": RNG,
+        "member_selection_rules": {
+            "seeded_profile_balanced_v1": "quotas floor(k/3) per profile, k mod 3 extras to profiles in seeded order (capped, water "
+                                          "filling); seeded choice within profile from sorted IDs; seeded permutation = delay rank; "
+                                          "independent targets drawn from vehicles outside the coordinated campaign; inputs: seed and "
+                                          "frozen fleet only (scripts/m9_design.py stratified_members)",
+            "baseline_first_k": "G0 only: coordinated members vehicle_01 .. vehicle_K in ID order, exactly as fleetcan-sim-1.1"},
+        "temporal_semantics": TEMPORAL_SEMANTICS,
+        "frozen_attack_parameters": {f: attack_params(f, D.ATTACK_S) for f in D.FAMILIES},
+        "frozen_timing": {"warmup_s": D.WARMUP_S, "attack_duration_s": D.ATTACK_S, "partial_overlap_attack_duration_s": D.PARTIAL_ATTACK_S,
+                          "tail_s": D.TAIL_S, "S0_duration_s": 40.0, "S1_duration_s": 20.0},
+        "configurations": [{k: r[k] for k in keep if k in r} for r in rows],
+        "sessions": sessions,
+    }
+
+
+def sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def render(rows, sessions) -> tuple[bytes, bytes]:
+    head = ("# fleetcan-sim-scale-1.0 FROZEN generation specification (matrix v1, Milestone 9.1).\n"
+            "# Do not edit: built by scripts/m91_freeze.py; identity in results/m9_1_freeze/matrix_freeze_manifest.json.\n"
+            "# approved_for_generation is false until explicit M10 authorisation.\n")
+    ytxt = head + yaml.safe_dump(matrix_document(rows, sessions), sort_keys=False, width=200, default_flow_style=None)
+    buf = io.StringIO()
+    cols = ["session_id", "config_id", "config_index", "repetition", "seed", "phase", "purpose", "scenario", "N", "K", "attack",
+            "temporal_pattern", "independent_timing", "independent_attack_count", "mixed_attack_count", "duration_s", "route_source",
+            "fleet_config", "member_selection", "N_A", "N_B", "N_C", "K_A", "K_B", "K_C", "coordinated_members", "independent_targets",
+            "isolated_target", "isolated_target_profile"]
+    w = csv.DictWriter(buf, fieldnames=cols, lineterminator="\n")
+    w.writeheader()
+    byid = {r["config_id"]: r for r in rows}
+    for s in sessions:
+        r = byid[s["config_id"]]
+        coord = next((c["targets"] for c in s["campaigns"] if c["coordinated"]), [])
+        ind = [c["targets"][0] for c in s["campaigns"] if not c["coordinated"]]
+        w.writerow({**{k: r[k] for k in cols if k in r}, "session_id": s["session_id"], "repetition": s["repetition"], "seed": s["seed"],
+                    **s["composition"], "coordinated_members": " ".join(coord), "independent_targets": " ".join(ind),
+                    "isolated_target": " ".join(a["vehicle"] for a in s["isolated_attacks"]),
+                    "isolated_target_profile": s["isolated_target_profile"] or ""})
+    return ytxt.encode(), buf.getvalue().encode()
+
+
+def build() -> tuple[bytes, bytes]:
+    rows = configurations()
+    sessions = [session(r, rep) for r in rows for rep in range(1, r["repetitions"] + 1)]
+    return render(rows, sessions)
+
+
+def git(*args) -> str:
+    return subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True, check=True).stdout.strip()
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    g = ap.add_mutually_exclusive_group()
+    g.add_argument("--check", action="store_true")
+    g.add_argument("--manifest", action="store_true")
+    a = ap.parse_args()
+    ybytes, cbytes = build()
+    if a.check:
+        ok = MATRIX.read_bytes() == ybytes and SESSIONS_CSV.read_bytes() == cbytes
+        print("rebuild byte-identical:", ok)
+        sys.exit(0 if ok else 1)
+    if a.manifest:
+        if MATRIX.read_bytes() != ybytes or SESSIONS_CSV.read_bytes() != cbytes:
+            sys.exit("committed matrix differs from a rebuild; refusing to write a manifest")
+        if git("status", "--porcelain", "--", str(MATRIX.relative_to(ROOT)), str(SESSIONS_CSV.relative_to(ROOT))):
+            sys.exit("matrix or session manifest not committed; commit first")
+        doc = yaml.safe_load(ybytes)
+        man = {"matrix_id": MATRIX_ID, "component": COMPONENT, "matrix_path": str(MATRIX.relative_to(ROOT)),
+               "matrix_sha256": hashlib.sha256(ybytes).hexdigest(), "matrix_bytes": len(ybytes),
+               "matrix_git_commit": git("log", "-1", "--format=%H", "--", str(MATRIX.relative_to(ROOT))),
+               "expected_sessions_path": str(SESSIONS_CSV.relative_to(ROOT)), "expected_sessions_sha256": hashlib.sha256(cbytes).hexdigest(),
+               "generator_version": GENERATOR_VERSION, "generator_source_commit": GENERATOR_SOURCE_COMMIT,
+               "schema_version": SCHEMA_VERSION, "descriptor_version": DESCRIPTOR_VERSION,
+               "configurations": doc["counts"]["configurations"], "repetitions": doc["counts"]["repetitions"],
+               "expected_sessions": doc["counts"]["sessions"], "phases": doc["counts"]["phases"],
+               "matrix_status": doc["matrix_status"], "approved_for_generation": doc["approved_for_generation"],
+               "baseline_dependency": BASELINE, "freeze_timestamp_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
+        MANIFEST.write_text(json.dumps(man, indent=1) + "\n")
+        print(json.dumps(man, indent=1))
+        return
+    for path, data in ((MATRIX, ybytes), (SESSIONS_CSV, cbytes)):
+        if path.exists() and path.read_bytes() != data:
+            sys.exit(f"{path} exists with different content; the frozen matrix is immutable (new version required)")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if not path.exists():
+            path.write_bytes(data)
+    print(f"{MATRIX} sha256 {hashlib.sha256(ybytes).hexdigest()} ({len(ybytes)} bytes); {SESSIONS_CSV}")
+
+
+if __name__ == "__main__":
+    main()

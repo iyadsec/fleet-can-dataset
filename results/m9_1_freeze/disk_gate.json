@@ -1,0 +1,28 @@
+{
+ "filesystem": {
+  "filesystem_size_GB": 53.155,
+  "filesystem_used_GB": 30.849,
+  "filesystem_free_GB": 19.795,
+  "root_reserved_GB": 2.511,
+  "reserved_fraction": 0.047,
+  "pv_partition_GB": 65.443,
+  "lv_GB": 54.195,
+  "vg_unallocated_GB_approx": 11.248
+ },
+ "requirement": {
+  "predicted_dataset_GB": 23.58,
+  "uncertainty_margin": 0.1,
+  "dataset_with_margin_GB": 25.93,
+  "generated_sumo_GB": 0.13,
+  "temporary_GB": 1.0,
+  "operational_reserve_GB": 3.0,
+  "minimum_free_before_M10_GB": 30.06
+ },
+ "current_free_GB": 19.8,
+ "shortfall_GB": 10.26,
+ "free_after_full_vg_extension_GB_approx": 30.51,
+ "vg_extension_alone_sufficient": true,
+ "margin_after_vg_extension_GB": 0.45,
+ "DISK_CAPACITY_GATE": "FAIL",
+ "note": "not changed by M9.1; LV extension (sudo) is the user's action; coverage is not reduced to fit the disk"
+}

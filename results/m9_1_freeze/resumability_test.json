@@ -1,0 +1,104 @@
+{
+ "session_id": "M91_RESUME_N010",
+ "seed": 83110,
+ "engineering_only": true,
+ "steps": {
+  "1_before": "absent",
+  "2_after_kill": {
+   "killed_while_running": true,
+   "state": "staged_incomplete",
+   "published": {
+    "raw": false,
+    "ground_truth": false,
+    "validation": false,
+    "metadata": false
+   },
+   "stage_exists": true,
+   "orphan_processes": [
+    "540995"
+   ]
+  },
+  "3_resume": {
+   "exit": 0,
+   "validation": "PASS",
+   "state": "analysis_pending",
+   "stage_left": false
+  },
+  "4_analysis": {
+   "exit": 0,
+   "state": "complete",
+   "tags": {
+    "component": "engineering-m91-resume-test",
+    "matrix_id": "fleetcan-sim-scale-1.0-matrix-v1",
+    "matrix_sha256": "9fc005de3f9b712045c7eec5c610043a375ab2dad362fff5b54a092a17a1e735",
+    "config_id": "ENGINEERING",
+    "session_id": "M91_RESUME_N010",
+    "repetition": 1,
+    "N": 10,
+    "K": 5,
+    "scenario": "S3",
+    "attack": "fuzzy",
+    "temporal_pattern": "small",
+    "route_source": "generated:grid_loops_v1",
+    "coordinated_members": [
+     "vehicle_01",
+     "vehicle_02",
+     "vehicle_03",
+     "vehicle_04",
+     "vehicle_05"
+    ]
+   },
+   "versions": {
+    "schema_version": "1.0",
+    "generator_version": "1.3.0",
+    "descriptor_version": "1.0",
+    "dataset_version": "engineering-m91-resume-test"
+   },
+   "git_commit_recorded": true,
+   "seed": 83110
+  },
+  "5_rerun_refused": {
+   "exit": 1,
+   "refused": true,
+   "all_bytes_unchanged": true,
+   "state": "complete"
+  },
+  "6_analysis_resume": {
+   "state_after_interrupt": "analysis_pending",
+   "exit": 0,
+   "state": "complete",
+   "descriptor_tables_identical": true
+  },
+  "7_partial_publication": {
+   "state_after_crash": "partial_published",
+   "orchestrator_refuses_partial": true,
+   "cleared": [
+    "raw/M91_RESUME_N010",
+    "ground_truth/M91_RESUME_N010",
+    "validation/M91_RESUME_N010",
+    "analysis/M91_RESUME_N010",
+    "generated_sumo/M91_RESUME_N010"
+   ],
+   "state_after_clear": "absent",
+   "regen_exit": 0,
+   "analysis_exit": 0,
+   "state": "complete",
+   "file_level_table_hashes_identical": false,
+   "logical_comparison_vs_first_run": {
+    "attack_frames": "IDENTICAL (25000 rows)",
+    "attacks": "IDENTICAL (5 rows)",
+    "campaign_membership": "IDENTICAL (5 rows)",
+    "campaign_overlap": "IDENTICAL (10 rows)",
+    "campaigns": "IDENTICAL (1 rows)",
+    "can_frames": "IDENTICAL (94336 rows)",
+    "dropped_frames": "IDENTICAL (0 rows)",
+    "frame_labels": "IDENTICAL (94336 rows)",
+    "replay_map": "IDENTICAL (0 rows)",
+    "vehicle_states": "IDENTICAL (22000 rows)",
+    "descriptors": "IDENTICAL (1873 descriptors, max |feature diff| = 0)"
+   },
+   "tables_identical_to_first_run": true
+  }
+ },
+ "verdict": "PASS"
+}

@@ -1,0 +1,11 @@
+2026-10-17T07:28:58Z
+93717c7659ac5e00280b51400d32f9d5136a15a0
+SHA256SUMS check: OK 20805 files
+bc523937dc3c8e4d927ac892bd994bbe99b6a3ca51aa2fff56ba72c5761818c8  data/final/fleetcan-sim-1.1/SHA256SUMS
+df58000aeb15229af5587d92d10922a2180d6bfae21a33c5d0c8b823e779a160  data/final/fleetcan-sim-1.1/FREEZE.json
+aebfd8e07d5539ab9fb544c354b7c921b532209cd0dd535421167822d7e8e979  data/final/fleetcan-sim-1.1/manifest.jsonl
+4e6dd99dab4bfcbce4614cd5fe817895b7aff85e09ab48147d83ec0cbcac34fb  config/final/matrix/matrix_spec.json
+manifest sessions: 610
+FC11 metadata dirs: 610
+writable baseline files: 0
+writable FC11 session files: 0

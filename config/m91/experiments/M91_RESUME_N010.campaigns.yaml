@@ -1,0 +1,11 @@
+# M9.1 engineering resumability test (not research data)
+campaigns:
+  - campaign_id: C_S3_FUZZY
+    attack_type: fuzzy
+    coordinated: true
+    targets: [vehicle_01, vehicle_02, vehicle_03, vehicle_04, vehicle_05]
+    start_s: 10.0
+    delay_pattern: fixed
+    relative_delays_s: [0.0, 0.5, 1.0, 1.5, 2.0]
+    duration_s: 5.0
+    params: {mode: both, rate_hz: 1000, id_range: [0x000, 0x7FF], dlc: random}
