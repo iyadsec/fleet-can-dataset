@@ -183,6 +183,9 @@ non-authoritative and never used as ground truth.
 
 ## 8. Verifying a copy of the data against Git
 
+To download and restore fleetcan-sim-scale-1.0 from its GitHub release, see `docs/dataset_download.md`
+(`scripts/download_fleetcan_sim_scale_1_0.sh`).
+
 ```bash
 cd ~/fleet-can-dataset/data
 sha256sum -c --quiet ../results/datasets/fleetcan-sim-1.1/SHA256SUMS          # 20,805 files

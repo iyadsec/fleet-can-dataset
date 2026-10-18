@@ -10,6 +10,7 @@ the FLEET-GUARD detector is not part of it (only the M7 local Isolation Forest b
 > * **fleetcan-sim-scale-1.0** — N = 20/50/100 + an N = 10 route-source bridge, 835 sessions, raw CAN data and
 >   ground truth only.
 >
+> **Download / restore fleetcan-sim-scale-1.0: [docs/dataset_download.md](docs/dataset_download.md).**
 > **Start with [docs/PROCEDURE.md](docs/PROCEDURE.md)** for the end-to-end procedure, the component map, the
 > milestone history, reproduction commands and how to verify a data copy. Freeze records and complete hash lists of
 > both components are in `results/datasets/`. The data itself is on the VM (`data/`, git-ignored).
