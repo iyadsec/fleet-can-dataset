@@ -1,0 +1,26 @@
+{
+ "checkpoint": "pilot",
+ "expected": 9,
+ "complete": 9,
+ "cumulative_complete": 9,
+ "status_counts": {
+  "COMPLETE": 9
+ },
+ "frames": 6187235,
+ "descriptors": 122808,
+ "storage_GB": 0.298,
+ "generation_plus_analysis_h": 0.39,
+ "peak_rss_MB": 1514.8,
+ "peak_analysis_rss_MB": 775.5,
+ "free_disk_GB": 67.54,
+ "baseline": {
+  "status": "PASS",
+  "files": 20805,
+  "sha256sum_c_exit": 0,
+  "hashes_match": true,
+  "sessions": 610,
+  "writable": 0,
+  "time": "2026-10-17T09:26:29Z"
+ },
+ "time": "2026-10-17T09:26:29Z"
+}

@@ -1,0 +1,7 @@
+# N05_S1_replay_s01_isolated: isolated attack (frozen protocol).
+attacks:
+  - attack_id: A_S1_REPLAY
+    type: replay
+    vehicle: vehicle_01
+    start_s: 10.0
+    params: {source_vehicle: vehicle_01, window_s: [5.0, 10.0], can_ids: all, time_offset_ms: 0.25}

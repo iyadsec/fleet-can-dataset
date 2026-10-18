@@ -1,0 +1,19 @@
+# N05_S3-mixed_malfunction_s02_small: campaigns (frozen protocol). coordinated size 2 + 1 independent
+campaigns:
+  - campaign_id: C_MIX_MALFUNCTION
+    attack_type: malfunction
+    coordinated: true
+    targets: [vehicle_01, vehicle_02]
+    start_s: 10.0
+    delay_pattern: fixed
+    relative_delays_s: [0, 0.5]
+    duration_s: 5
+    params: {mode: inject, target: vehicle_speed, manipulation: {strategy: constant, value: 250.0}, rate_hz: 100}
+  - campaign_id: C_MIX_MALFUNCTION_IND1
+    attack_type: malfunction
+    coordinated: false
+    targets: [vehicle_03]
+    start_s: 10.25
+    delay_pattern: simultaneous
+    duration_s: 5
+    params: {mode: inject, target: vehicle_speed, manipulation: {strategy: constant, value: 250.0}, rate_hz: 100}

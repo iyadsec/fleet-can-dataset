@@ -1,0 +1,27 @@
+# N10_S3-mixed_flooding_s05_small: campaigns (frozen protocol). coordinated size 5 + 2 independent
+campaigns:
+  - campaign_id: C_MIX_FLOODING
+    attack_type: flooding
+    coordinated: true
+    targets: [vehicle_01, vehicle_02, vehicle_03, vehicle_04, vehicle_05]
+    start_s: 10.0
+    delay_pattern: fixed
+    relative_delays_s: [0, 0.5, 1, 1.5, 2]
+    duration_s: 5
+    params: {can_id: 0x000, rate_hz: 1600, dlc: 8, payload: zeros}
+  - campaign_id: C_MIX_FLOODING_IND1
+    attack_type: flooding
+    coordinated: false
+    targets: [vehicle_06]
+    start_s: 10.25
+    delay_pattern: simultaneous
+    duration_s: 5
+    params: {can_id: 0x000, rate_hz: 1600, dlc: 8, payload: zeros}
+  - campaign_id: C_MIX_FLOODING_IND2
+    attack_type: flooding
+    coordinated: false
+    targets: [vehicle_07]
+    start_s: 10.75
+    delay_pattern: simultaneous
+    duration_s: 5
+    params: {can_id: 0x000, rate_hz: 1600, dlc: 8, payload: zeros}

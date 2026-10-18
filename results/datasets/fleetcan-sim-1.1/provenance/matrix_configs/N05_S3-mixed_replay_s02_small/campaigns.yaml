@@ -1,0 +1,17 @@
+# N05_S3-mixed_replay_s02_small: campaigns (frozen protocol). coordinated size 2 + 1 independent
+campaigns:
+  - campaign_id: C_MIX_REPLAY
+    attack_type: replay
+    coordinated: true
+    targets: [vehicle_01, vehicle_02]
+    start_s: 10.0
+    delay_pattern: fixed
+    relative_delays_s: [0, 0.5]
+    params: {window_relative_s: [-5.0, 0.0], source_vehicle: self, time_offset_ms: 0.25}
+  - campaign_id: C_MIX_REPLAY_IND1
+    attack_type: replay
+    coordinated: false
+    targets: [vehicle_03]
+    start_s: 10.25
+    delay_pattern: simultaneous
+    params: {window_relative_s: [-5.0, 0.0], source_vehicle: self, time_offset_ms: 0.25}

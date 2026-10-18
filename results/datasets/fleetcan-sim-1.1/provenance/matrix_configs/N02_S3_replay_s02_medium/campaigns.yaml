@@ -1,0 +1,10 @@
+# N02_S3_replay_s02_medium: campaigns (frozen protocol). 
+campaigns:
+  - campaign_id: C_S3_REPLAY
+    attack_type: replay
+    coordinated: true
+    targets: [vehicle_01, vehicle_02]
+    start_s: 10.0
+    delay_pattern: fixed
+    relative_delays_s: [0, 2]
+    params: {window_relative_s: [-5.0, 0.0], source_vehicle: self, time_offset_ms: 0.25}

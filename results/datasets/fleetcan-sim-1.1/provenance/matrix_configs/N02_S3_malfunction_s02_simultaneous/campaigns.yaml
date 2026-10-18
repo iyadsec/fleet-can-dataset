@@ -1,0 +1,10 @@
+# N02_S3_malfunction_s02_simultaneous: campaigns (frozen protocol). 
+campaigns:
+  - campaign_id: C_S3_MALFUNCTION
+    attack_type: malfunction
+    coordinated: true
+    targets: [vehicle_01, vehicle_02]
+    start_s: 10.0
+    delay_pattern: simultaneous
+    duration_s: 5
+    params: {mode: inject, target: vehicle_speed, manipulation: {strategy: constant, value: 250.0}, rate_hz: 100}

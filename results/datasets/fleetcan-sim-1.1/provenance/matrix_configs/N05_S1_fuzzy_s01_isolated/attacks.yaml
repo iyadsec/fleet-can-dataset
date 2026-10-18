@@ -1,0 +1,8 @@
+# N05_S1_fuzzy_s01_isolated: isolated attack (frozen protocol).
+attacks:
+  - attack_id: A_S1_FUZZY
+    type: fuzzy
+    vehicle: vehicle_01
+    start_s: 10.0
+    duration_s: 5.0
+    params: {mode: both, rate_hz: 1000, id_range: [0x000, 0x7FF], dlc: random}

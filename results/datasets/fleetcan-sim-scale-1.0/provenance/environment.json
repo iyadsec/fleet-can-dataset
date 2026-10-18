@@ -1,0 +1,8 @@
+{
+ "python": "3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]",
+ "git_head": "7b659631bbc72a7cfda93607890d9deecacb173f",
+ "sumo_versions_recorded": [
+  "SUMO 1.28.0 (TraCI API 22)"
+ ],
+ "uname": "Linux ubuntu 6.8.0-147-generic #147-Ubuntu SMP PREEMPT_DYNAMIC Thu Sep 24 11:39:52 UTC 2026 aarch64"
+}

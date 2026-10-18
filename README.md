@@ -2,18 +2,24 @@
 
 Research testbed that generates **synchronized, labelled, synthetic CAN traffic from a fleet of
 simulated vehicles**, for PhD research on fleet-level detection of coordinated CAN attacks
-(behavioural + temporal correlation). This repository does **data generation and ground truth
-only**. It contains no detector.
+(behavioural + temporal correlation). This repository does **data generation and ground truth**;
+the FLEET-GUARD detector is not part of it (only the M7 local Isolation Forest baseline is).
 
-> **Status: Milestone 3.** Multi-vehicle campaign generator: coordinated campaigns (simultaneous,
-> staggered, partial overlap, seeded random delay), independent negative controls and mixed scenarios
-> (S0-S3) for all four attack families, through the logical CAN bus model with frame expiry.
-> Milestone 5 finalises the generation environment: heterogeneous profiles A/B/C (semantic attack
-> targets), seeded profile assignment and ECU switch-on offsets, Parquet storage, validated fast mode,
-> versions and a dataset manifest. Final protocol: docs/final_protocol.md (proposed, not generated).
-> Milestone 4 adds a separate analysis layer (analysis/): FLEET-GUARD 24-D behavioural descriptors
-> (100-frame windows, stride 50) with observable timestamps; ground truth joined only afterwards.
-> No detector, Isolation Forest, graph or campaign detection is implemented.
+> **Status: Milestone 10 complete.** Two frozen dataset components exist:
+> * **fleetcan-sim-1.1** — N = 2/5/10, 610 sessions, with 24-D descriptors.
+> * **fleetcan-sim-scale-1.0** — N = 20/50/100 + an N = 10 route-source bridge, 835 sessions, raw CAN data and
+>   ground truth only.
+>
+> **Start with [docs/PROCEDURE.md](docs/PROCEDURE.md)** for the end-to-end procedure, the component map, the
+> milestone history, reproduction commands and how to verify a data copy. Freeze records and complete hash lists of
+> both components are in `results/datasets/`. The data itself is on the VM (`data/`, git-ignored).
+> This repository generates data and ground truth. Apart from the M7 local Isolation Forest baseline
+> (`detection/`), it contains no detector.
+
+| Component | Sessions | Generation report | Freeze records |
+|---|---|---|---|
+| fleetcan-sim-1.1 | 610 | `docs/final_protocol.md` (protocol), `docs/PROCEDURE.md` §5 | `results/datasets/fleetcan-sim-1.1/` |
+| fleetcan-sim-scale-1.0 | 835 | `docs/m10_expanded_dataset_generation.md` | `results/datasets/fleetcan-sim-scale-1.0/` |
 
 ## What is real and what is synthetic
 
@@ -109,12 +115,12 @@ Each session stores the seed, SUMO command and version, Python and package versi
 With `realtime: true`, SUMO-timeline content is deterministic for a given seed. Capture timestamps
 reflect host execution and are not.
 
-## Limitations (Milestone 2)
+## Limitations (model scope; first recorded in Milestone 2)
 
 * Bus effects come from a logical model (exact frame length, ID arbitration, queues, drops), not
   from vCAN. Error frames, retransmission, bus-off and bit-level effects are not modelled; the same
   ID sent by two nodes at once is serialised instead of causing a bit error.
-* One common synthetic profile; no sensor noise or period jitter yet (exact schedule on the SUMO timeline).
+* Synthetic profiles A/B/C (Milestone 5); seeded switch-on offsets and ±1 % ECU release jitter (Milestone 5.1); no sensor noise.
 * Campaign delays are exact on the logical timeline; transmission/capture layers are reported separately.
 * Frame expiry uses one max age per bus (100 ms in Milestone 3 fleets), not per-message deadlines.
 * Capture jitter depends on host/VM load; it is measured (`capture_offset_us`), never used as ground truth.

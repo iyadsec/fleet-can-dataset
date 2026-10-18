@@ -1,0 +1,11 @@
+# N02_S3_fuzzy_s02_partial: campaigns (frozen protocol). 
+campaigns:
+  - campaign_id: C_S3_FUZZY
+    attack_type: fuzzy
+    coordinated: true
+    targets: [vehicle_01, vehicle_02]
+    start_s: 10.0
+    delay_pattern: fixed
+    relative_delays_s: [0, 5]
+    duration_s: 10
+    params: {mode: both, rate_hz: 1000, id_range: [0x000, 0x7FF], dlc: random}

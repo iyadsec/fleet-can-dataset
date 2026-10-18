@@ -1,0 +1,20 @@
+{
+ "dataset_version": "fleetcan-sim-1.1",
+ "generator_version": "1.1.0",
+ "schema_version": "1.0",
+ "descriptor_version": "1.0",
+ "configurations": 122,
+ "sessions": 610,
+ "validation": {
+  "PASS": 610,
+  "WARN": 0,
+  "FAIL": 0,
+  "MISSING": 0
+ },
+ "frozen_utc": "2026-10-16T14:04:02+00:00",
+ "git_head": "1de94473da32bb544eb5fa688fae541542d9a0bc",
+ "matrix_spec_sha256": "4e6dd99dab4bfcbce4614cd5fe817895b7aff85e09ab48147d83ec0cbcac34fb",
+ "manifest_sha256": "aebfd8e07d5539ab9fb544c354b7c921b532209cd0dd535421167822d7e8e979",
+ "sha256sums_sha256": "bc523937dc3c8e4d927ac892bd994bbe99b6a3ca51aa2fff56ba72c5761818c8",
+ "status": "FROZEN (immutable; read-only on disk)"
+}

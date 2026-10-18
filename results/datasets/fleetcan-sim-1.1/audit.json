@@ -1,0 +1,515 @@
+{
+ "problems": [],
+ "validation": {
+  "PASS": 610,
+  "WARN": 0,
+  "FAIL": 0,
+  "MISSING": 0
+ },
+ "warnings": {},
+ "failures": [],
+ "completeness": {
+  "configurations_expected": 122,
+  "configurations_present": 122,
+  "sessions_expected": 610,
+  "sessions_present": 610,
+  "all_configs_have_5_reps": true,
+  "duplicate_config_seed": 0,
+  "unexpected_fc11_sessions": [],
+  "missing_sessions": [],
+  "fleet_sizes": [
+   2,
+   5,
+   10
+  ],
+  "attacks": [
+   "flooding",
+   "fuzzy",
+   "malfunction",
+   "none",
+   "replay"
+  ],
+  "scenarios": [
+   "S0",
+   "S1",
+   "S2",
+   "S3",
+   "S3-mixed",
+   "S3-probe"
+  ],
+  "patterns": [
+   "independent",
+   "isolated",
+   "large",
+   "medium",
+   "none",
+   "partial",
+   "probe",
+   "simultaneous",
+   "small"
+  ],
+  "campaign_sizes_s3": [
+   2,
+   5,
+   10
+  ],
+  "seeds_match_spec": true,
+  "versions": [
+   "{\"dataset_version\": \"fleetcan-sim-1.1\", \"descriptor_version\": \"1.0\", \"generator_version\": \"1.1.0\", \"schema_version\": \"1.0\"}"
+  ],
+  "git_commits": [
+   "d4ef0c21d9abe802a4777ec08fe68d352e9254ab"
+  ],
+  "any_dirty": false
+ },
+ "profile_coverage": {
+  "2": {
+   "A+B": 50,
+   "B+C": 55,
+   "A+C": 45
+  },
+  "5": {
+   "sessions": 210,
+   "profile_count_patterns": {
+    "A2B2C1": 210
+   },
+   "total_vehicles": {
+    "B": 420,
+    "A": 420,
+    "C": 210
+   }
+  },
+  "10": {
+   "sessions": 250,
+   "profile_count_patterns": {
+    "A4B3C3": 250
+   },
+   "total_vehicles": {
+    "C": 750,
+    "A": 1000,
+    "B": 750
+   }
+  }
+ },
+ "temporal": {
+  "simultaneous": {
+   "sessions": 120,
+   "member_delays_ok": 120,
+   "members": 520,
+   "delays_s": [
+    0.0
+   ]
+  },
+  "small": {
+   "sessions": 120,
+   "member_delays_ok": 120,
+   "members": 520,
+   "delays_s": [
+    0.0,
+    0.5,
+    1.0,
+    1.5
+   ]
+  },
+  "medium": {
+   "sessions": 60,
+   "member_delays_ok": 60,
+   "members": 340,
+   "delays_s": [
+    0.0,
+    2.0,
+    4.0,
+    6.0
+   ]
+  },
+  "large": {
+   "sessions": 60,
+   "member_delays_ok": 60,
+   "members": 340,
+   "delays_s": [
+    0.0,
+    10.0,
+    20.0,
+    30.0
+   ]
+  },
+  "partial": {
+   "sessions": 60,
+   "member_delays_ok": 60,
+   "members": 340,
+   "delays_s": [
+    0.0,
+    5.0,
+    10.0,
+    15.0
+   ]
+  },
+  "probe": {
+   "sessions": 15,
+   "member_delays_ok": 15,
+   "members": 30,
+   "delays_s": [
+    0.0,
+    0.1
+   ]
+  },
+  "mixed(small)": {
+   "sessions": 40,
+   "member_delays_ok": 40,
+   "members": 140,
+   "delays_s": [
+    0.0,
+    0.5,
+    1.0,
+    1.5
+   ]
+  }
+ },
+ "attack_coverage": [
+  {
+   "attack": "flooding",
+   "sessions": 145,
+   "attacked_vehicles": 630,
+   "malicious_frames": 5720000,
+   "campaign_size_dist": {
+    "1": 15,
+    "2": 55,
+    "3": 5,
+    "5": 45,
+    "10": 25
+   },
+   "attacked_profiles": {
+    "C": 175,
+    "A": 253,
+    "B": 202
+   },
+   "A06_malfunction": "-",
+   "A07_replay": "-",
+   "replay_same_vehicle": "-"
+  },
+  {
+   "attack": "fuzzy",
+   "sessions": 145,
+   "attacked_vehicles": 630,
+   "malicious_frames": 3575000,
+   "campaign_size_dist": {
+    "1": 15,
+    "2": 55,
+    "3": 5,
+    "5": 45,
+    "10": 25
+   },
+   "attacked_profiles": {
+    "B": 208,
+    "A": 249,
+    "C": 173
+   },
+   "A06_malfunction": "-",
+   "A07_replay": "-",
+   "replay_same_vehicle": "-"
+  },
+  {
+   "attack": "malfunction",
+   "sessions": 145,
+   "attacked_vehicles": 630,
+   "malicious_frames": 357500,
+   "campaign_size_dist": {
+    "1": 15,
+    "2": 55,
+    "3": 5,
+    "5": 45,
+    "10": 25
+   },
+   "attacked_profiles": {
+    "C": 171,
+    "B": 221,
+    "A": 238
+   },
+   "A06_malfunction": {
+    "PASS": 145
+   },
+   "A07_replay": "-",
+   "replay_same_vehicle": "-"
+  },
+  {
+   "attack": "replay",
+   "sessions": 160,
+   "attacked_vehicles": 660,
+   "malicious_frames": 1197957,
+   "campaign_size_dist": {
+    "1": 15,
+    "2": 70,
+    "3": 5,
+    "5": 45,
+    "10": 25
+   },
+   "attacked_profiles": {
+    "C": 178,
+    "B": 230,
+    "A": 252
+   },
+   "A06_malfunction": "-",
+   "A07_replay": {
+    "PASS": 160
+   },
+   "replay_same_vehicle": true
+  }
+ ],
+ "statistics": {
+  "total": {
+   "dataset": "fleetcan-sim-1.1",
+   "sessions": 610,
+   "vehicle_traces": 3850,
+   "vehicle_seconds": 120778,
+   "frames": 49340597,
+   "benign_frames": 38490140,
+   "malicious_frames": 10850457,
+   "queue_drops": 0,
+   "expired_drops": 0,
+   "descriptors": 981088,
+   "benign_only_windows": 665782,
+   "mixed_windows": 315306,
+   "malicious_only_windows": 0,
+   "MB": 2483.8
+  },
+  "by_fleet": [
+   {
+    "fleet_size": 2,
+    "sessions": 150,
+    "vehicle_traces": 300,
+    "vehicle_seconds": 7121,
+    "frames": 3389435,
+    "benign_frames": 2241479,
+    "malicious_frames": 1147956,
+    "queue_drops": 0,
+    "expired_drops": 0,
+    "descriptors": 67344,
+    "benign_only_windows": 33875,
+    "mixed_windows": 33469,
+    "malicious_only_windows": 0,
+    "MB": 218.5
+   },
+   {
+    "fleet_size": 5,
+    "sessions": 210,
+    "vehicle_traces": 1050,
+    "vehicle_seconds": 29152,
+    "frames": 12214412,
+    "benign_frames": 9106544,
+    "malicious_frames": 3107868,
+    "queue_drops": 0,
+    "expired_drops": 0,
+    "descriptors": 242729,
+    "benign_only_windows": 152773,
+    "mixed_windows": 89956,
+    "malicious_only_windows": 0,
+    "MB": 673.7
+   },
+   {
+    "fleet_size": 10,
+    "sessions": 250,
+    "vehicle_traces": 2500,
+    "vehicle_seconds": 84505,
+    "frames": 33736750,
+    "benign_frames": 27142117,
+    "malicious_frames": 6594633,
+    "queue_drops": 0,
+    "expired_drops": 0,
+    "descriptors": 671015,
+    "benign_only_windows": 479134,
+    "mixed_windows": 191881,
+    "malicious_only_windows": 0,
+    "MB": 1591.6
+   }
+  ],
+  "by_scenario": [
+   {
+    "scenario": "S0",
+    "sessions": 15,
+    "vehicle_traces": 85,
+    "vehicle_seconds": 3400,
+    "frames": 1081167,
+    "benign_frames": 1081167,
+    "malicious_frames": 0,
+    "queue_drops": 0,
+    "expired_drops": 0,
+    "descriptors": 21493,
+    "benign_only_windows": 21493,
+    "mixed_windows": 0,
+    "malicious_only_windows": 0,
+    "MB": 55.5
+   },
+   {
+    "scenario": "S1",
+    "sessions": 60,
+    "vehicle_traces": 340,
+    "vehicle_seconds": 6800,
+    "frames": 2370907,
+    "benign_frames": 2144958,
+    "malicious_frames": 225949,
+    "queue_drops": 0,
+    "expired_drops": 0,
+    "descriptors": 46913,
+    "benign_only_windows": 40361,
+    "mixed_windows": 6552,
+    "malicious_only_windows": 0,
+    "MB": 136.8
+   },
+   {
+    "scenario": "S2",
+    "sessions": 60,
+    "vehicle_traces": 340,
+    "vehicle_seconds": 6970,
+    "frames": 2956108,
+    "benign_frames": 2200009,
+    "malicious_frames": 756099,
+    "queue_drops": 0,
+    "expired_drops": 0,
+    "descriptors": 58616,
+    "benign_only_windows": 36659,
+    "mixed_windows": 21957,
+    "malicious_only_windows": 0,
+    "MB": 165.9
+   },
+   {
+    "scenario": "S3",
+    "sessions": 420,
+    "vehicle_traces": 2700,
+    "vehicle_seconds": 95450,
+    "frames": 39552090,
+    "benign_frames": 30487881,
+    "malicious_frames": 9064209,
+    "queue_drops": 0,
+    "expired_drops": 0,
+    "descriptors": 787032,
+    "benign_only_windows": 524229,
+    "mixed_windows": 262803,
+    "malicious_only_windows": 0,
+    "MB": 1938.1
+   },
+   {
+    "scenario": "S3-mixed",
+    "sessions": 40,
+    "vehicle_traces": 300,
+    "vehicle_seconds": 6450,
+    "frames": 2792494,
+    "benign_frames": 2037994,
+    "malicious_frames": 754500,
+    "queue_drops": 0,
+    "expired_drops": 0,
+    "descriptors": 55403,
+    "benign_only_windows": 33457,
+    "mixed_windows": 21946,
+    "malicious_only_windows": 0,
+    "MB": 150.8
+   },
+   {
+    "scenario": "S3-probe",
+    "sessions": 15,
+    "vehicle_traces": 85,
+    "vehicle_seconds": 1708,
+    "frames": 587831,
+    "benign_frames": 538131,
+    "malicious_frames": 49700,
+    "queue_drops": 0,
+    "expired_drops": 0,
+    "descriptors": 11631,
+    "benign_only_windows": 9583,
+    "mixed_windows": 2048,
+    "malicious_only_windows": 0,
+    "MB": 36.6
+   }
+  ],
+  "by_attack": [
+   {
+    "attack": "flooding",
+    "sessions": 145,
+    "vehicle_traces": 920,
+    "vehicle_seconds": 28918,
+    "frames": 14934798,
+    "benign_frames": 9214798,
+    "malicious_frames": 5720000,
+    "queue_drops": 0,
+    "expired_drops": 0,
+    "descriptors": 297339,
+    "benign_only_windows": 158527,
+    "mixed_windows": 138812,
+    "malicious_only_windows": 0,
+    "MB": 640.7
+   },
+   {
+    "attack": "fuzzy",
+    "sessions": 145,
+    "vehicle_traces": 920,
+    "vehicle_seconds": 28918,
+    "frames": 12795006,
+    "benign_frames": 9220006,
+    "malicious_frames": 3575000,
+    "queue_drops": 0,
+    "expired_drops": 0,
+    "descriptors": 254532,
+    "benign_only_windows": 158632,
+    "mixed_windows": 95900,
+    "malicious_only_windows": 0,
+    "MB": 677.3
+   },
+   {
+    "attack": "malfunction",
+    "sessions": 145,
+    "vehicle_traces": 920,
+    "vehicle_seconds": 28918,
+    "frames": 9573888,
+    "benign_frames": 9216388,
+    "malicious_frames": 357500,
+    "queue_drops": 0,
+    "expired_drops": 0,
+    "descriptors": 190096,
+    "benign_only_windows": 158709,
+    "mixed_windows": 31387,
+    "malicious_only_windows": 0,
+    "MB": 490.1
+   },
+   {
+    "attack": "none",
+    "sessions": 15,
+    "vehicle_traces": 85,
+    "vehicle_seconds": 3400,
+    "frames": 1081167,
+    "benign_frames": 1081167,
+    "malicious_frames": 0,
+    "queue_drops": 0,
+    "expired_drops": 0,
+    "descriptors": 21493,
+    "benign_only_windows": 21493,
+    "mixed_windows": 0,
+    "malicious_only_windows": 0,
+    "MB": 55.5
+   },
+   {
+    "attack": "replay",
+    "sessions": 160,
+    "vehicle_traces": 1005,
+    "vehicle_seconds": 30626,
+    "frames": 10955738,
+    "benign_frames": 9757781,
+    "malicious_frames": 1197957,
+    "queue_drops": 0,
+    "expired_drops": 0,
+    "descriptors": 217628,
+    "benign_only_windows": 168421,
+    "mixed_windows": 49207,
+    "malicious_only_windows": 0,
+    "MB": 620.1
+   }
+  ]
+ },
+ "storage": {
+  "raw": 1939.3,
+  "ground_truth": 240.1,
+  "metadata": 123.0,
+  "validation": 19.1,
+  "analysis": 162.4,
+  "final_dir_MB": 1.68,
+  "total_MB": 2485.5
+ }
+}

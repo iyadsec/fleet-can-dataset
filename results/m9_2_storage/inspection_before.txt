@@ -1,0 +1,84 @@
+== date
+2026-10-17T08:26:03Z
+== sudo pvs
+  PV         VG        Fmt  Attr PSize   PFree 
+  /dev/vda3  ubuntu-vg lvm2 a--  <60.95g 10.47g
+== sudo pvs -o +pv_pe_count,pv_pe_alloc_count,pe_start --units b
+  PV         VG        Fmt  Attr PSize        PFree        PE    Alloc 1st PE  
+  /dev/vda3  ubuntu-vg lvm2 a--  65439531008B 11244929024B 15602 12921 1048576B
+== sudo vgs
+  VG        #PV #LV #SN Attr   VSize   VFree 
+  ubuntu-vg   1   1   0 wz--n- <60.95g 10.47g
+== sudo vgs -o +vg_extent_size,vg_extent_count,vg_free_count --units b
+  VG        #PV #LV #SN Attr   VSize        VFree        Ext      #Ext  Free
+  ubuntu-vg   1   1   0 wz--n- 65439531008B 11244929024B 4194304B 15602 2681
+== sudo lvs -a -o +devices
+  LV        VG        Attr       LSize  Pool Origin Data%  Meta%  Move Log Cpy%Sync Convert Devices     
+  ubuntu-lv ubuntu-vg -wi-ao---- 50.47g                                                     /dev/vda3(0)
+== sudo lvs -o +lv_size --units b
+  LV        VG        Attr       LSize        Pool Origin Data%  Meta%  Move Log Cpy%Sync Convert LSize       
+  ubuntu-lv ubuntu-vg -wi-ao---- 54194601984B                                                     54194601984B
+== sudo fdisk -l /dev/vda
+Disk /dev/vda: 64 GiB, 68719476736 bytes, 134217728 sectors
+Units: sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+Disklabel type: gpt
+Disk identifier: 792C541D-65B3-40AC-A104-7792E5B84522
+
+Device       Start       End   Sectors  Size Type
+/dev/vda1     2048   2203647   2201600    1G EFI System
+/dev/vda2  2203648   6397951   4194304    2G Linux filesystem
+/dev/vda3  6397952 134215679 127817728 60.9G Linux filesystem
+== sudo tune2fs -l /dev/mapper/ubuntu--vg-ubuntu--lv
+tune2fs 1.47.0 (5-Feb-2023)
+Filesystem volume name:   <none>
+Last mounted on:          /
+Filesystem UUID:          825d901b-6aa7-480a-9009-38877148ce26
+Filesystem magic number:  0xEF53
+Filesystem revision #:    1 (dynamic)
+Filesystem features:      has_journal ext_attr resize_inode dir_index filetype needs_recovery extent 64bit flex_bg sparse_super large_file huge_file dir_nlink extra_isize metadata_csum
+Filesystem flags:         unsigned_directory_hash 
+Default mount options:    user_xattr acl
+Filesystem state:         clean
+Errors behavior:          Continue
+Filesystem OS type:       Linux
+Inode count:              3309568
+Block count:              13231104
+Reserved block count:     608834
+Overhead clusters:        253801
+Free blocks:              5447435
+Free inodes:              2821837
+First block:              0
+Block size:               4096
+Fragment size:            4096
+Group descriptor size:    64
+Reserved GDT blocks:      1021
+Blocks per group:         32768
+Fragments per group:      32768
+Inodes per group:         8192
+Inode blocks per group:   512
+Flex block group size:    16
+Filesystem created:       Sat Oct 21 00:02:01 2023
+Last mount time:          Thu Oct 15 16:46:03 2026
+Last write time:          Sat Oct 17 07:35:55 2026
+Mount count:              82
+Maximum mount count:      -1
+Last checked:             Sat Oct 21 00:02:01 2023
+Check interval:           0 (<none>)
+Lifetime writes:          301 GB
+Reserved blocks uid:      0 (user root)
+Reserved blocks gid:      0 (group root)
+First inode:              11
+Inode size:	          256
+Required extra isize:     32
+Desired extra isize:      32
+Journal inode:            8
+First orphan inode:       393531
+Default directory hash:   half_md4
+Directory Hash Seed:      a90b1702-0560-43c0-a403-2b50af428472
+Journal backup:           inode blocks
+Checksum type:            crc32c
+Checksum:                 0xdd1d7cee
+== kernel log errors (ext4/I/O/LVM)
+(end)

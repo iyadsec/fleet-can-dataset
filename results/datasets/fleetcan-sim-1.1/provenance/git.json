@@ -1,0 +1,25 @@
+{
+ "head": "1de94473da32bb544eb5fa688fae541542d9a0bc",
+ "dirty": false,
+ "generator_commits_in_sessions": [
+  "d4ef0c21d9abe802a4777ec08fe68d352e9254ab"
+ ],
+ "log": [
+  "1de9447 Milestone 6: dataset audit and finalisation (reproducibility, provenance, hashes, freeze) scripts",
+  "d4ef0c2 Milestone 6: frozen fleetcan-sim-1.1 matrix (122 configurations x 5 seeds = 610 runs) and runner",
+  "3e732aa Milestone 5.1: freeze final protocol (generator 1.1.0, +-1 % ECU jitter, seed derivation, storage decision); saturation report fix",
+  "b163d47 Milestone 5.1: jitter sensitivity script, frozen final fleets (+-1 % jitter), attack/delay/saturation re-check configs",
+  "b0a75b1 Milestone 5.1: N<3 profile subset, optional seeded ECU release jitter (generator 1.1.0), jitter-aware validator, saturation equivalence test",
+  "b07be97 Milestone 5: final protocol document and README",
+  "99e50af Milestone 5: pilot matrix configs (10 runs) and final-matrix estimator",
+  "8f20e5f Milestone 5: profile audit script; delay re-run repetitions 6-10",
+  "3a9bdb5 Milestone 5: benchmark configs/runner/report, full logical session comparison, delay error statistics, --realtime flag",
+  "093526c Milestone 5: phase-sensitivity script, final-protocol fleets (switch-on 0-1.0 s), delay re-run configs",
+  "3cdc1f6 Milestone 5 infrastructure: Parquet storage, A/B/C profiles with roles, seeded assignment and switch-on, fast mode, versions, manifest",
+  "58b4d00 Milestone 4: delay-resolution summary, heterogeneity example profiles, descriptor docs",
+  "d8f880e Milestone 4: analysis layer (FLEET-GUARD 24-D descriptors) and delay-resolution configs",
+  "512bfa4 Add Mac-side GitHub sync script and document repository layout",
+  "e01cfa5 Add live frame-expiry check: M2 over-saturation flood on the deadline fleet"
+ ],
+ "generator_code_diff_since_freeze_3e732aa": ""
+}
