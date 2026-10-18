@@ -1,0 +1,25 @@
+{
+ "dataset": "fleetcan-sim-scale-1.0",
+ "mechanism": "GitHub Release (assets < 2 GiB each, <= 1000 assets, no total-size limit: docs.github.com, checked 2026-10-18)",
+ "repository": "iyadsec/fleet-can-dataset (private; gh authentication required for download)",
+ "release_tag": "dataset-fleetcan-sim-scale-1.0",
+ "release_title": "fleetcan-sim-scale-1.0",
+ "release_url": "https://github.com/iyadsec/fleet-can-dataset/releases/tag/dataset-fleetcan-sim-scale-1.0",
+ "tag_target_commit": "7194b3bf9feba456e03d70942be1eb2555c283b8",
+ "assets": 14,
+ "archive_parts": 9,
+ "archive_bytes": 13874086436,
+ "asset_names": ["fleetcan-sim-scale-1.0.tar.zst.part001..part009", "fleetcan-sim-scale-1.0-archive-SHA256SUMS",
+                 "fleetcan-sim-scale-1.0-release.json", "fleetcan-sim-scale-1.0-dataset-SHA256SUMS",
+                 "fleetcan-sim-scale-1.0-FREEZE.json", "fleetcan-sim-scale-1.0-README.md"],
+ "verification": {
+  "pre_export": "sha256sum -c PASS (26,740 files, 21,727,934,640 bytes), 835 sessions, 167 configurations, 0 writable, matrix SHA OK, fleetcan-sim-1.1 PASS",
+  "archive_stream_check_vm": "PASS: 9 part SHA-256 OK; 26,742 archived files content-hashed against SHA256SUMS; 0 missing/extra; 835 sessions",
+  "local_reconstruction_mac": "PASS: scripts/download_fleetcan_sim_scale_1_0.sh --from-dir; 26,740 files vs SHA256SUMS; 835 sessions; layout and matrix SHA in provenance checked; copy removed",
+  "fail_closed_test": "PASS: one corrupted byte in part009 -> FAIL SHA-256 mismatch, nothing restored",
+  "upload": "14/14 assets state uploaded; all 11 archive/manifest asset sizes equal local sizes",
+  "full_redownload": "PASS: scripts/download_fleetcan_sim_scale_1_0.sh from the GitHub release, 13 min; archive integrity 9/9; 26,740 files vs SHA256SUMS 5d5418b1...; 835 sessions; copy removed",
+  "post_publication_source": "sha256sum -c PASS, 0 writable, 835 sessions; fleetcan-sim-1.1 PASS; matrix SHA unchanged"
+ },
+ "baseline_included": false
+}
