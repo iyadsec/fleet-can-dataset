@@ -1,0 +1,28 @@
+{
+ "dataset_version": "fleetcan-sim-scale-1.0",
+ "matrix_id": "fleetcan-sim-scale-1.0-matrix-v1",
+ "matrix_sha256": "9fc005de3f9b712045c7eec5c610043a375ab2dad362fff5b54a092a17a1e735",
+ "generator_version": "1.3.0",
+ "schema_version": "1.0",
+ "descriptor_version": "1.0",
+ "configurations": 167,
+ "sessions": 835,
+ "files_hashed": 26740,
+ "total_bytes": 21727934640,
+ "validation": "PASS",
+ "generator_commits": {
+  "f2128775a664fe6f85fa35e926fb105c67af52fb": 116,
+  "7b659631bbc72a7cfda93607890d9deecacb173f": 719
+ },
+ "frozen_utc": "2026-10-18T11:09:33+00:00",
+ "git_head": "7b659631bbc72a7cfda93607890d9deecacb173f",
+ "manifest_sha256": "e5138551005b82b4370780e47efbec5792b770d34bcc61db47955a068de012c6",
+ "sha256sums_sha256": "5d5418b1ca9a4107818a83e03a5dea4a4ea83d1c36354fa668fcc5cb0242de70",
+ "baseline_dependency": {
+  "dataset_version": "fleetcan-sim-1.1",
+  "SHA256SUMS": "bc523937dc3c8e4d927ac892bd994bbe99b6a3ca51aa2fff56ba72c5761818c8",
+  "FREEZE.json": "df58000aeb15229af5587d92d10922a2180d6bfae21a33c5d0c8b823e779a160",
+  "manifest.jsonl": "aebfd8e07d5539ab9fb544c354b7c921b532209cd0dd535421167822d7e8e979"
+ },
+ "status": "FROZEN (immutable; read-only on disk)"
+}

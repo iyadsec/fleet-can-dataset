@@ -1,0 +1,3 @@
+5d5418b1ca9a4107818a83e03a5dea4a4ea83d1c36354fa668fcc5cb0242de70  final/fleetcan-sim-scale-1.0/SHA256SUMS
+c714b4790121a469e28b81e2a25879f1fa61d059fb9222e9a34b5d009a58f740  final/fleetcan-sim-scale-1.0/FREEZE.json
+e5138551005b82b4370780e47efbec5792b770d34bcc61db47955a068de012c6  final/fleetcan-sim-scale-1.0/manifest.jsonl

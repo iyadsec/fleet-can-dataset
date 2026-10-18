@@ -1,0 +1,24 @@
+{
+ "checkpoint": "all",
+ "expected": 835,
+ "complete": 835,
+ "cumulative_complete": 835,
+ "status_counts": {
+  "COMPLETE": 835
+ },
+ "frames": 444333222,
+ "storage_GB": 21.844,
+ "generation_h": 25.838,
+ "peak_rss_MB": 1773.7,
+ "free_disk_GB": 45.92,
+ "baseline": {
+  "status": "PASS",
+  "files": 20805,
+  "sha256sum_c_exit": 0,
+  "hashes_match": true,
+  "sessions": 610,
+  "writable": 0,
+  "time": "2026-10-18T11:04:25Z"
+ },
+ "time": "2026-10-18T11:04:25Z"
+}

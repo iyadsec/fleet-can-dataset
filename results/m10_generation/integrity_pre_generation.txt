@@ -1,0 +1,15 @@
+2026-10-17T08:53:52Z
+3165337a15203d00f7c66adbd73761c6d80ee052
+SHA256SUMS check: OK 20805 files
+bc523937dc3c8e4d927ac892bd994bbe99b6a3ca51aa2fff56ba72c5761818c8  data/final/fleetcan-sim-1.1/SHA256SUMS
+df58000aeb15229af5587d92d10922a2180d6bfae21a33c5d0c8b823e779a160  data/final/fleetcan-sim-1.1/FREEZE.json
+aebfd8e07d5539ab9fb544c354b7c921b532209cd0dd535421167822d7e8e979  data/final/fleetcan-sim-1.1/manifest.jsonl
+4e6dd99dab4bfcbce4614cd5fe817895b7aff85e09ab48147d83ec0cbcac34fb  config/final/matrix/matrix_spec.json
+9fc005de3f9b712045c7eec5c610043a375ab2dad362fff5b54a092a17a1e735  configs/fleetcan_sim_scale_1_0.yaml
+manifest sessions: 610
+FC11 metadata dirs: 610
+writable baseline files: 0
+writable FC11 session files: 0
+matrix: 167 835 frozen False fleetcan-sim-scale-1.0-matrix-v1
+FCS10 sessions present: 0
+/dev/mapper/ubuntu--vg-ubuntu--lv 102263050240 29900242944 67857485824  31% /

@@ -1,0 +1,24 @@
+{
+ "expected_sessions": 835,
+ "published_complete": 835,
+ "verified_ok": 835,
+ "configurations": 167,
+ "repetitions_per_config": [
+  5
+ ],
+ "unexpected_FCS10": [],
+ "missing": {},
+ "unexpected_derived_analysis_dirs": [],
+ "problems": [],
+ "generator_commits": {
+  "f2128775a664fe6f85fa35e926fb105c67af52fb": 116,
+  "7b659631bbc72a7cfda93607890d9deecacb173f": 719
+ },
+ "validator_warnings": {},
+ "ledger_status": {
+  "COMPLETE": 835
+ },
+ "current_head": "7b659631bbc72a7cfda93607890d9deecacb173f",
+ "verdict": "PASS",
+ "time": "2026-10-18T11:08:23Z"
+}
