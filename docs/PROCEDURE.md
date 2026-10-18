@@ -1,6 +1,7 @@
 # End-to-end procedure and component map
 
-This document describes how the two frozen dataset components were produced, which code and configuration
+This document describes how the two frozen components of the FleetCAN-Sim dataset family (small fleets N ≤ 10 and
+large fleets N ≥ 20) were produced, which code and configuration
 produced them, where every record is kept, and how to verify or regenerate any session. It describes the
 generation side only. Detection (FLEET-GUARD) lives outside this repository; the M7 baseline is the one exception.
 
@@ -14,7 +15,7 @@ generation side only. Detection (FLEET-GUARD) lives outside this repository; the
 | Generation spec | `config/final/matrix/matrix_spec.json` (sha256 `4e6dd99d…`) | `configs/fleetcan_sim_scale_1_0.yaml` (sha256 `9fc005de…e735`, matrix ID `fleetcan-sim-scale-1.0-matrix-v1`) |
 | Protocol / design | `docs/final_protocol.md` | `docs/m9_expanded_dataset_design.md`, `docs/m9_1_matrix_freeze.md` |
 | Generator | 1.1.0 (frozen SUMO routes `sumo/routes/fleet_{2,5,10}.rou.xml`) | 1.3.0 (generated routes `grid_loops_v1`, bounded memory) |
-| Contents per session | raw, ground truth, metadata, validation, **24-D descriptors** (`analysis/`) | raw, ground truth, metadata, validation, routes, session config — **no descriptors** (FLEET-GUARD derives them) |
+| Contents per session | raw, ground truth, metadata, validation (+ legacy 24-D descriptors in `analysis/`, M6/M7 artifact, **not FLEET-GUARD input**) | raw, ground truth, metadata, validation, routes, session config (no descriptors) |
 | Freeze (on the VM) | `data/final/fleetcan-sim-1.1/` | `data/final/fleetcan-sim-scale-1.0/` |
 | Freeze records (in Git) | `results/datasets/fleetcan-sim-1.1/` | `results/datasets/fleetcan-sim-scale-1.0/` |
 | SHA256SUMS / FREEZE.json | `bc523937…18c8` (20,805 files) / `df58000a…a160` | `5d5418b1…de70` (26,740 files, 21.73 GB) / `c714b479…f740` |
@@ -209,7 +210,8 @@ The paths in both lists are relative to `data/`.
 * `raw/<sid>/can_frames` (schema 1.0, both components) contains `session_id` and `scenario_id`. `scenario_id` is a
   scenario label and must be excluded from detector inputs.
 * All labels, attack and campaign identities, configured times and coordinated flags are in `ground_truth/` only.
-* Descriptors exist for fleetcan-sim-1.1 (`analysis/`, descriptor version 1.0). For fleetcan-sim-scale-1.0, the
-  FLEET-GUARD pipeline computes descriptors itself from `raw/`.
+* FLEET-GUARD computes descriptors itself from `raw/` for **both** components. The 24-D descriptor files in
+  fleetcan-sim-1.1 (`analysis/`) are a legacy M6/M7 artifact, kept only because the component is frozen. They are
+  not FLEET-GUARD input.
 * N ≤ 10 (baseline) and N ≥ 20 (expanded) differ in route source and generator version. The G0 bridge sessions
   (N = 10, generated routes) exist to measure that difference.

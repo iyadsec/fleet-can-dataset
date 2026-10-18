@@ -1,26 +1,56 @@
 # fleet-can-dataset
 
-Research testbed that generates **synchronized, labelled, synthetic CAN traffic from a fleet of
-simulated vehicles**, for PhD research on fleet-level detection of coordinated CAN attacks
-(behavioural + temporal correlation). This repository does **data generation and ground truth**;
-the FLEET-GUARD detector is not part of it (only the M7 local Isolation Forest baseline is).
+Testbed and dataset for PhD research on **fleet-level detection of coordinated CAN attacks** (FLEET-GUARD). It
+generates a **synthetic CAN dataset with the SUMO + synthetic CAN testbed**: synchronized CAN traffic from a fleet of
+simulated vehicles, with attacks and coordinated campaigns, and with the ground truth stored separately. It is not
+real vehicle CAN data.
 
-> **Status: Milestone 10 complete.** Two frozen dataset components exist:
-> * **fleetcan-sim-1.1** — N = 2/5/10, 610 sessions, with 24-D descriptors.
-> * **fleetcan-sim-scale-1.0** — N = 20/50/100 + an N = 10 route-source bridge, 835 sessions, raw CAN data and
->   ground truth only.
->
-> **Download / restore fleetcan-sim-scale-1.0: [docs/dataset_download.md](docs/dataset_download.md).**
-> **Start with [docs/PROCEDURE.md](docs/PROCEDURE.md)** for the end-to-end procedure, the component map, the
-> milestone history, reproduction commands and how to verify a data copy. Freeze records and complete hash lists of
-> both components are in `results/datasets/`. The data itself is on the VM (`data/`, git-ignored).
-> This repository generates data and ground truth. Apart from the M7 local Isolation Forest baseline
-> (`detection/`), it contains no detector.
+This repository covers data generation and ground truth. The FLEET-GUARD detector is not part of it. The only
+detection code here is the earlier M7 local Isolation Forest baseline in `detection/`.
 
-| Component | Sessions | Generation report | Freeze records |
-|---|---|---|---|
-| fleetcan-sim-1.1 | 610 | `docs/final_protocol.md` (protocol), `docs/PROCEDURE.md` §5 | `results/datasets/fleetcan-sim-1.1/` |
-| fleetcan-sim-scale-1.0 | 835 | `docs/m10_expanded_dataset_generation.md` | `results/datasets/fleetcan-sim-scale-1.0/` |
+## The dataset: one family, two frozen components
+
+The FleetCAN-Sim dataset is a single dataset family, generated in two stages. Each stage was frozen as a separate,
+immutable component:
+
+| Component | Fleet sizes | Sessions | Generated | Generator |
+|---|---|---|---|---|
+| **fleetcan-sim-1.1** (small fleets) | N = 2, 5, 10 | 610 (122 configurations × 5) | Milestone 6 | 1.1.0, fixed SUMO routes |
+| **fleetcan-sim-scale-1.0** (large fleets) | N = 20, 50, 100, plus an N = 10 route-source bridge | 835 (167 configurations × 5) | Milestone 10 | 1.3.0, generated SUMO routes |
+
+Together they cover N = 2 … 100 with the same four attack families, scenario types (S0–S3, mixed), frozen timing
+anchors and ground-truth schema. The large-fleet component adds bounded-spread timing for large campaigns and
+timing-matched independent hard negatives. The N = 10 bridge sessions in the large-fleet component measure the effect of switching from
+fixed to generated routes.
+
+**Content of every session, in both components:**
+* raw observable CAN data (`raw/`);
+* separate ground truth (`ground_truth/`);
+* metadata and provenance (`metadata/`);
+* the generator validation report (`validation/`).
+
+**Descriptors are computed by the FLEET-GUARD pipeline from `raw/`, for both components.** The dataset itself is the
+raw CAN data plus ground truth.
+
+**Legacy note.** fleetcan-sim-1.1 also contains 24-D descriptor files (`analysis/<session>/`). They are a legacy
+artifact of the Milestone 6 protocol, which still included this repository's own descriptor layer, and they were the
+input of the M7 Isolation Forest baseline. They stay only because the component is frozen and immutable. **They are
+not FLEET-GUARD input:** FLEET-GUARD computes its descriptors from `raw/` so that every fleet size is processed the
+same way. fleetcan-sim-scale-1.0 contains no descriptors.
+
+**Detector-safe use.** Build detector inputs only from observable CAN fields, using an explicit allow-list.
+`raw/*/can_frames` contains `scenario_id` for compatibility and provenance; it must not be used as a feature. All of
+`ground_truth/` and the provenance metadata are for evaluation only.
+
+| | fleetcan-sim-1.1 | fleetcan-sim-scale-1.0 |
+|---|---|---|
+| Generation report | `docs/final_protocol.md`, `docs/PROCEDURE.md` §5 | `docs/m10_expanded_dataset_generation.md` |
+| Freeze records (in Git) | `results/datasets/fleetcan-sim-1.1/` | `results/datasets/fleetcan-sim-scale-1.0/` |
+| Download | not published yet (on the VM, verifiable against the committed `SHA256SUMS`) | GitHub release `dataset-fleetcan-sim-scale-1.0`, see [docs/dataset_download.md](docs/dataset_download.md) |
+
+[docs/PROCEDURE.md](docs/PROCEDURE.md) describes the full procedure: environment, component map, milestone history,
+reproduction commands and how to verify a copy of the data. The dataset files are not in Git (`data/` is
+git-ignored); Git holds the code, the generation specifications, the freeze records and the complete hash lists.
 
 ## What is real and what is synthetic
 
