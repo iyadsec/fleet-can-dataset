@@ -23,25 +23,100 @@ This repository covers data generation and ground truth. The FLEET-GUARD detecto
 | Integrity | `SHA256SUMS` SHA-256 `5d5418b1ca9a4107818a83e03a5dea4a4ea83d1c36354fa668fcc5cb0242de70`; matrix SHA-256 `9fc005de3f9b712045c7eec5c610043a375ab2dad362fff5b54a092a17a1e735` |
 | Generator / schema | 1.3.0 / 1.0 |
 
-**Download and restore** from the GitHub release `dataset-fleetcan-sim-scale-1.0` (the repository is private, so `gh`
-must be logged in):
+## How to download and restore the dataset (step by step)
+
+The dataset is published as the GitHub release `dataset-fleetcan-sim-scale-1.0`: 9 compressed archive parts (13.87 GB)
+plus checksums. The restore script downloads the parts, verifies them, uncompresses them and verifies every file. It
+works on Linux and macOS.
+
+**Step 1: check free disk space.** You need about **35 GB** free (14 GB download + 22 GB dataset). The download is
+deleted automatically after a successful restore.
 
 ```bash
-scripts/download_fleetcan_sim_scale_1_0.sh /path/to/destination
+df -h ~
 ```
 
-The script downloads the archive, verifies every part, extracts it and verifies all 26,740 files against
-`SHA256SUMS`. The dataset ends up in `/path/to/destination/fleetcan-sim-scale-1.0/data/`. Details:
-[docs/dataset_download.md](docs/dataset_download.md).
+**Step 2: install the tools.**
 
-**Detector-safe use.**
+```bash
+# Ubuntu / Debian
+sudo apt-get install -y git zstd tar gh
+# macOS (Homebrew, https://brew.sh); tar and shasum are built in
+brew install git zstd gh
+```
+
+**Step 3: log in to GitHub.** The repository is private.
+
+```bash
+gh auth login        # choose: GitHub.com -> HTTPS -> Login with a web browser
+```
+
+**Step 4: clone this repository.** The clone contains the restore script and the reference checksums; it does not
+contain the data. Use a folder outside OneDrive or iCloud.
+
+```bash
+mkdir -p ~/research && cd ~/research
+git clone https://github.com/iyadsec/fleet-can-dataset.git
+cd fleet-can-dataset
+```
+
+**Step 5: download, uncompress and verify (one command).**
+
+```bash
+scripts/download_fleetcan_sim_scale_1_0.sh ~/fleetcan_data
+```
+
+The script:
+1. downloads all release assets;
+2. checks that the archive checksum file is identical to the committed copy in `results/dataset_release/`;
+3. checks the SHA-256 of all 9 parts;
+4. joins, decompresses (zstd) and extracts (tar) them;
+5. checks all 26,740 files against the dataset `SHA256SUMS` and confirms 835 sessions.
+
+**Step 6: confirm success.** The last line must read:
+
+```
+SUCCESS: fleetcan-sim-scale-1.0 restored to .../fleetcan_data/fleetcan-sim-scale-1.0 (26740 files verified ..., 835 sessions)
+```
+
+If any check fails, the script prints `FAIL: ...`, restores nothing and exits non-zero. Re-run it in that case.
+
+**Step 7: use the data.** The dataset is in:
+
+```
+~/fleetcan_data/fleetcan-sim-scale-1.0/data/
+  raw/FCS10_<config>_R<rep>/can_frames.parquet   <- FLEET-GUARD input (observable CAN)
+  ground_truth/FCS10_*/                          <- evaluation only
+  metadata/FCS10_*/metadata.json                 <- session info (N, K, scenario, ...), evaluation only
+  validation/  generated_sumo/  m10_configs/  final/fleetcan-sim-scale-1.0/
+```
+
+Treat it as read-only and write FLEET-GUARD outputs to a separate folder.
+
+**Optional:**
+
+```bash
+# re-check a restored copy at any time (no output = all files match; macOS: shasum -a 256 -c --quiet ...)
+cd ~/fleetcan_data/fleetcan-sim-scale-1.0/data && sha256sum -c --quiet final/fleetcan-sim-scale-1.0/SHA256SUMS
+
+# restore from parts you already have (no download)
+scripts/download_fleetcan_sim_scale_1_0.sh ~/fleetcan_data --from-dir /path/to/parts
+
+# keep the downloaded parts after restoring
+scripts/download_fleetcan_sim_scale_1_0.sh ~/fleetcan_data --keep-archive
+```
+
+More detail on the two integrity levels and on provenance: [docs/dataset_download.md](docs/dataset_download.md).
+
+## Detector-safe use (FLEET-GUARD)
+
 * Build FLEET-GUARD inputs from `raw/*/can_frames` using an explicit allow-list of observable fields (timestamps,
   `vehicle_id`/`channel`, `can_id`, `dlc`, `payload`).
 * `scenario_id` is present in `can_frames` for provenance and must not be used as a feature.
 * `ground_truth/` and the metadata (labels, campaign IDs, coordinated flags, configured times, K, scenario) are for
   evaluation only.
 
-**Documentation:**
+## Documentation
 
 | Topic | Location |
 |---|---|
