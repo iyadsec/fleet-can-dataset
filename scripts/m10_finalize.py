@@ -177,12 +177,17 @@ def hash_all():
     for src in (R.MATRIX, ROOT / "results" / "m9_1_freeze" / "matrix_freeze_manifest.json", ROOT / "results" / "m9_1_freeze" / "expected_sessions.csv",
                 ROOT / "config" / "profiles" / "profiles_abc.yaml", ROOT / "config" / "m8" / "fleets" / "fleet_20.yaml",
                 ROOT / "config" / "m8" / "fleets" / "fleet_50.yaml", ROOT / "config" / "m8" / "fleets" / "fleet_100.yaml",
-                ROOT / "config" / "final" / "fleets" / "fleet_10.yaml", ROOT / "src" / "version.py", R.LEDGER, R.EXECLOG):
+                ROOT / "config" / "final" / "fleets" / "fleet_10.yaml", ROOT / "src" / "version.py", R.LEDGER, R.EXECLOG,
+                *sorted(R.RUN.glob("checkpoint_*.json"))):
+        (prov / src.name).unlink(missing_ok=True)          # replace a stale copy from an earlier attempt (pre-freeze)
         shutil.copy2(src, prov / src.name)
-    for cp in sorted(R.RUN.glob("checkpoint_*.json")):
-        shutil.copy2(cp, prov / cp.name)
+        if sha256(prov / src.name) != sha256(src):
+            sys.exit(f"provenance copy of {src} differs")
+    if sha256(prov / R.MATRIX.name) != R.EXPECTED_SHA:
+        sys.exit("provenance matrix copy does not have the frozen SHA-256")
     env = {"python": sys.version, "git_head": R.git_head_clean()[0],
-           "sumo": subprocess.run(["sumo", "--version"], capture_output=True, text=True).stdout.splitlines()[0],
+           "sumo_versions_recorded": sorted({json.loads((DATA / "metadata" / s["session_id"] / "metadata.json").read_text())["simulation"]["sumo_version"]
+                                             for s in ss}),
            "uname": " ".join(os.uname())}
     (prov / "environment.json").write_text(json.dumps(env, indent=1))
     files = component_files(ss)
