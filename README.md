@@ -123,6 +123,7 @@ More detail on the two integrity levels and on provenance: [docs/dataset_downloa
 | Design | `docs/m9_expanded_dataset_design.md`, `docs/m9_1_matrix_freeze.md` |
 | Generation report | `docs/m10_expanded_dataset_generation.md` |
 | Download | `docs/dataset_download.md` |
+| CSV export (scenario / attack / N folders) | `docs/csv_export.md` |
 | Full procedure and code map | `docs/PROCEDURE.md` |
 | Freeze records and hash list (in Git) | `results/datasets/fleetcan-sim-scale-1.0/` |
 | Release manifests | `results/dataset_release/fleetcan-sim-scale-1.0/` |
