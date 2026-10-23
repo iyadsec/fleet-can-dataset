@@ -18,7 +18,7 @@ physical bus. Real-world generalisation has not been established.
 | Attack instances | 12,180 (flooding 3,270, fuzzy 3,090, malfunction 2,755, replay 3,065) |
 | Campaigns | 1,895 (575 coordinated, 1,320 independent) |
 | Descriptor windows (24-D, 100/50) | 8,814,858 |
-| Release size / files | {{TOTAL_SIZE}} / {{FILES}} files |
+| Release size / files | ≈ 18.9 GB (exact bytes per file in MANIFEST.csv) / 34,342 files |
 | Readiness | **RESEARCH DATASET CONDITIONALLY READY** — see `reports/SCIENTIFIC_READINESS_DECISION.md` |
 
 ## Layout

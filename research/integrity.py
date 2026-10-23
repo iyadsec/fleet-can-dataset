@@ -22,7 +22,7 @@ import pyarrow.parquet as pq
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from research.common import EXPECTED_FRAMES, EXPECTED_SESSIONS, RELEASE, atomic_csv, atomic_text, load_manifest, sha256_file  # noqa: E402
 
-SKIP = {"SHA256SUMS", "MANIFEST.csv"}
+SKIP = {"SHA256SUMS", "MANIFEST.csv", "output_integrity.csv"}   # written by build/verify themselves
 SOURCE_MAP = {
     ("raw_parquet", "can_frames.parquet"): "raw/{sid}/can_frames.parquet (frame_index,tx_end_ns,vehicle_id,can_id,dlc,payload)",
     ("raw_csv", "can_frames.csv.gz"): "raw/{sid}/can_frames.parquet (same columns as raw_parquet)",
