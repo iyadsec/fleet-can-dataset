@@ -1,0 +1,22 @@
+{
+ "dataset": "fleetcan-sim-research-1.0",
+ "mechanism": "GitHub Release (assets < 2 GiB each)",
+ "repository": "iyadsec/fleet-can-dataset (public)",
+ "release_tag": "dataset-fleetcan-sim-research-1.0",
+ "release_url": "https://github.com/iyadsec/fleet-can-dataset/releases/tag/dataset-fleetcan-sim-research-1.0",
+ "tag_target_commit": "db45cee91e3e1ed9586e819403f5b75be3eda236",
+ "assets": 15,
+ "archive_parts": 11,
+ "archive_bytes": 17437221910,
+ "dataset_files": 34342,
+ "dataset_bytes": 18940896748,
+ "release_SHA256SUMS_sha256": "c52baa6a9d3c9d0bb808fd7194b440a08d98dd394ccb9609e878bc3ef6bae35b",
+ "source_of_archive": "verified local copy (shasum -c SHA256SUMS: 34,339/34,339 OK), identical to the VM release",
+ "verification": {
+  "pre_upload_stream_check_vm": "PASS: tar stream of the VM release, 34,342 files content-hashed, 835 sessions",
+  "build_stream_check": "PASS: compressed stream decompressed in parallel while parts were built; 34,342 files vs SHA256SUMS + reference.json; 835 sessions",
+  "upload": "15/15 assets uploaded; every part size checked remotely after upload",
+  "full_redownload": "PASS: all 11 parts downloaded from the release, SHA-256 equal to the committed archive SHA256SUMS, streamed through zstd -dc into the verifier: 34,342 files, 0 mismatches/missing/extra, 835 sessions"
+ },
+ "published_utc": "2026-10-24"
+}
