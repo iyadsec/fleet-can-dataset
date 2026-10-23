@@ -1,0 +1,16 @@
+{
+ "dataset": "fleetcan-sim-research-1.0",
+ "SHA256SUMS_sha256": "c52baa6a9d3c9d0bb808fd7194b440a08d98dd394ccb9609e878bc3ef6bae35b",
+ "unlisted_files_sha256": {
+  "MANIFEST.csv": "2ecf75a0797355c3bc81a0aeebb815c7d9034991b32d63fe1f667d3c6372e946",
+  "validation/output_integrity.csv": "cab40145610ad35a1dc4195df40fe70dc4d27223b8f8dc6a4536416f87669ee2"
+ },
+ "files": 34342,
+ "bytes": 18940896748,
+ "listed_files": 34339,
+ "sessions": 835,
+ "frames": 444333222,
+ "code_commit": "75f7c2625888e463c198c6c4115ee838fd84f181",
+ "source_dataset": "fleetcan-sim-scale-1.0",
+ "source_SHA256SUMS_sha256": "5d5418b1ca9a4107818a83e03a5dea4a4ea83d1c36354fa668fcc5cb0242de70"
+}
