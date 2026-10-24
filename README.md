@@ -36,7 +36,7 @@ frame, timestamp, label or configuration; it only reorganises, separates, docume
 | Size | 34,342 files, ≈ 18.9 GB |
 | Release SHA256SUMS digest | see `results/datasets/fleetcan-sim-research-1.0/reference.json` |
 | Readiness | **RESEARCH DATASET CONDITIONALLY READY** (all checks pass, no data defect; four methodological decisions need approval; see `reports/SCIENTIFIC_READINESS_DECISION.md`) |
-| Built by | `research/` at commit `75f7c26` (see `documentation/BUILD_INFO.json`) |
+| Built by | `research/` at commit `9241ea7` (recorded in the release as `75f7c26`; see `docs/commit_id_map.csv`) |
 
 ### Folder structure
 
@@ -369,3 +369,11 @@ reflect host execution and are not.
 * Frame expiry uses one max age per bus (100 ms in Milestone 3 fleets), not per-message deadlines.
 * Capture jitter depends on host/VM load; it is measured (`capture_offset_us`), never used as ground truth.
 * vCAN interfaces must be recreated after reboot.
+
+## Commit IDs
+
+The history of this repository was rewritten on 2026-10-24 (commit messages only; every file, author and date is
+unchanged). Frozen datasets and release files record the earlier commit IDs: the generator commits `f212877` and
+`7b65963`, and the research-release build commit `75f7c26`. [docs/commit_id_map.csv](docs/commit_id_map.csv) maps
+every earlier ID to its current one. For example, `f212877` → `c9b72c5`, `7b65963` → `6ff1879` and `75f7c26` →
+`9241ea7`.
