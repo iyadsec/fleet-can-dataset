@@ -1,0 +1,115 @@
+VERSION "fleet-can-dataset fcs2_profile_g v2.0 (SYNTHETIC, not OEM)"
+
+
+NS_ : 
+	NS_DESC_
+	CM_
+	BA_DEF_
+	BA_
+	VAL_
+	CAT_DEF_
+	CAT_
+	FILTER
+	BA_DEF_DEF_
+	EV_DATA_
+	ENVVAR_DATA_
+	SGTYPE_
+	SGTYPE_VAL_
+	BA_DEF_SGTYPE_
+	BA_SGTYPE_
+	SIG_TYPE_REF_
+	VAL_TABLE_
+	SIG_GROUP_
+	SIG_VALTYPE_
+	SIGTYPE_VALTYPE_
+	BO_TX_BU_
+	BA_DEF_REL_
+	BA_REL_
+	BA_DEF_DEF_REL_
+	BU_SG_REL_
+	BU_EV_REL_
+	BU_BO_REL_
+	SG_MUL_VAL_
+
+BS_:
+
+BU_: ABS BCM CLU ECM EPS TCM
+
+
+BO_ 672 G_ENGINE: 6 ECM
+ SG_ Counter : 40|4@1+ (1,0) [0|15] "" Vector__XXX
+ SG_ GThrottle : 32|8@1+ (0.4,0) [0|102] "%" Vector__XXX
+ SG_ GTorque : 16|12@1+ (0.5,0) [0|2047.5] "Nm" Vector__XXX
+ SG_ GRpm : 0|16@1+ (0.25,0) [0|16383.75] "rpm" Vector__XXX
+
+BO_ 696 G_BRAKE: 4 ABS
+ SG_ Counter : 24|4@1+ (1,0) [0|15] "" Vector__XXX
+ SG_ GDecel : 8|16@1+ (0.001,0) [0|65.535] "m/s^2" Vector__XXX
+ SG_ GBrake_on : 0|1@1+ (1,0) [0|1] "" Vector__XXX
+
+BO_ 852 G_PEDALS: 3 ECM
+ SG_ Counter : 16|4@1+ (1,0) [0|15] "" Vector__XXX
+ SG_ GBrake_on : 8|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ GPedal : 0|8@1+ (0.4,0) [0|102] "%" Vector__XXX
+
+BO_ 892 G_STEERING: 5 EPS
+ SG_ Counter : 32|4@1+ (1,0) [0|15] "" Vector__XXX
+ SG_ GYaw : 16|16@1- (0.01,0) [-327.68|327.67] "deg/s" Vector__XXX
+ SG_ GAngle : 0|16@1- (0.1,0) [-3276.8|3276.7] "deg" Vector__XXX
+
+BO_ 896 G_VEH_SPEED: 5 ABS
+ SG_ Counter : 32|4@1+ (1,0) [0|15] "" Vector__XXX
+ SG_ GAccel : 16|16@1- (0.001,0) [-32.768|32.767] "m/s^2" Vector__XXX
+ SG_ GSpeed : 0|16@1+ (0.01,0) [0|655.35] "km/h" Vector__XXX
+
+BO_ 960 G_CHASSIS: 5 ABS
+ SG_ Counter : 32|4@1+ (1,0) [0|15] "" Vector__XXX
+ SG_ GYaw : 16|16@1- (0.01,0) [-327.68|327.67] "deg/s" Vector__XXX
+ SG_ GLat : 0|16@1- (0.001,0) [-32.768|32.767] "m/s^2" Vector__XXX
+
+BO_ 1016 G_HEARTBEAT_ECM: 1 ECM
+ SG_ Counter : 0|4@1+ (1,0) [0|15] "" Vector__XXX
+
+BO_ 1120 G_CLUSTER: 4 CLU
+ SG_ Counter : 24|4@1+ (1,0) [0|15] "" Vector__XXX
+ SG_ GFuel : 16|8@1+ (0.4,0) [0|102] "%" Vector__XXX
+ SG_ GDisp_rpm : 8|8@1+ (32,0) [0|8160] "rpm" Vector__XXX
+ SG_ GDisp_speed : 0|8@1+ (1,0) [0|255] "km/h" Vector__XXX
+
+BO_ 1180 G_HEARTBEAT_BCM: 1 BCM
+ SG_ Counter : 0|4@1+ (1,0) [0|15] "" Vector__XXX
+
+BO_ 1212 G_BODY: 2 BCM
+ SG_ Counter : 8|4@1+ (1,0) [0|15] "" Vector__XXX
+ SG_ GLock : 3|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ GHead : 2|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ GTurn : 0|2@1+ (1,0) [0|3] "" Vector__XXX
+
+BO_ 1240 G_TEMPS: 3 ECM
+ SG_ GAmbient : 16|8@1+ (0.5,-40) [-40|87.5] "C" Vector__XXX
+ SG_ GOil : 8|8@1+ (1,-40) [-40|215] "C" Vector__XXX
+ SG_ GCoolant : 0|8@1+ (1,-40) [-40|215] "C" Vector__XXX
+
+BO_ 1268 G_TURN_LAMP: 2 BCM
+ SG_ Counter : 8|4@1+ (1,0) [0|15] "" Vector__XXX
+ SG_ GTurn : 0|2@1+ (1,0) [0|3] "" Vector__XXX
+
+BO_ 1328 G_FUEL_ODO: 4 CLU
+ SG_ GOdo : 8|24@1+ (0.1,0) [0|1677721.5] "km" Vector__XXX
+ SG_ GFuel : 0|8@1+ (0.4,0) [0|102] "%" Vector__XXX
+
+BO_ 1364 G_TRANSMISSION: 2 TCM
+ SG_ Counter : 8|4@1+ (1,0) [0|15] "" Vector__XXX
+ SG_ GGear : 0|4@1+ (1,0) [0|15] "" Vector__XXX
+
+
+
+
+
+
+
+
+
+
+
+

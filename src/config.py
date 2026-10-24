@@ -25,6 +25,10 @@ class MessageSpec:
     period_ms: float
     offset_ms: float
     signals: dict[str, str]          # DBC signal name -> model quantity name
+    mode: str = "periodic"           # periodic | event | mixed (generator 2.0.0)
+    watch: tuple[str, ...] = ()      # event/mixed: quantities whose change triggers a frame
+    min_interval_ms: float = 0.0     # event/mixed: minimum spacing between frames of this message
+    change_threshold: float = 0.0    # event/mixed: |change| that counts as an event
 
 
 @dataclass(frozen=True)
@@ -38,6 +42,8 @@ class VehicleProfile:
     bus: BusConfig = BusConfig()
     description: str = ""
     roles: dict = field(default_factory=dict)   # semantic role -> (message, signal), e.g. vehicle_speed
+    noise: dict = field(default_factory=dict)   # generator 2.0.0: quantity -> Gaussian sensor-noise sigma
+    jitter_fraction: float | None = None        # generator 2.0.0: per-profile ECU release jitter (None = fleet value)
 
 
 @dataclass(frozen=True)
@@ -188,7 +194,12 @@ def _load_profiles(raw: dict, root: Path) -> dict[str, VehicleProfile]:
             period, offset = float(m["period_ms"]), float(m.get("offset_ms", 0.0))
             if period <= 0 or not (0 <= offset < period):
                 raise ConfigError(f"profile {name} message {m['name']}: need period>0 and 0<=offset<period")
-            msgs.append(MessageSpec(m["name"], period, offset, dict(m.get("signals", {}))))
+            mode = m.get("mode", "periodic")
+            watch = tuple(m.get("watch") or ())
+            if mode not in ("periodic", "event", "mixed") or (mode != "periodic" and not watch):
+                raise ConfigError(f"profile {name} message {m['name']}: mode periodic|event|mixed; event/mixed need watch")
+            msgs.append(MessageSpec(m["name"], period, offset, dict(m.get("signals", {})), mode, watch,
+                                    float(m.get("min_interval_ms", 0.0)), float(m.get("change_threshold", 0.0))))
         if not msgs:
             raise ConfigError(f"profile {name} defines no messages")
         profiles[name] = VehicleProfile(
@@ -201,7 +212,11 @@ def _load_profiles(raw: dict, root: Path) -> dict[str, VehicleProfile]:
             bus=BusConfig(**{"bitrate": int(p.get("nominal_bitrate", 500000)), **(p.get("bus") or {})}),
             description=p.get("description", ""),
             roles={r: tuple(v) for r, v in (p.get("roles") or {}).items()},
+            noise=dict(p.get("noise") or {}),
+            jitter_fraction=float(p["jitter_fraction"]) if p.get("jitter_fraction") is not None else None,
         )
+        if profiles[name].jitter_fraction is not None and not 0.0 <= profiles[name].jitter_fraction < 0.25:
+            raise ConfigError(f"profile {name}: jitter_fraction must be in [0, 0.25)")
         for r, (m, sig) in profiles[name].roles.items():
             spec = next((x for x in msgs if x.name == m), None)
             if r not in ROLES or spec is None or sig not in spec.signals:
@@ -233,11 +248,21 @@ def load_experiment(path: str | Path, root: Path = PROJECT_ROOT) -> ExperimentCo
     attacks_path = _resolve(raw.get("attacks_config", "config/attacks.yaml"), root)
     campaigns_path = _resolve(raw.get("campaigns_config", "config/campaigns.yaml"), root)
     fleet_raw = _read_yaml(fleet_path)
+    extra_profile_files: list[Path] = []
 
     prof_raw = dict(fleet_raw.get("profiles") or {})
     profiles_path = None
-    if fleet_raw.get("profiles_file"):
-        profiles_path = _resolve(fleet_raw["profiles_file"], root)
+    profile_files = fleet_raw.get("profiles_file")
+    if isinstance(profile_files, list):          # generator 2.0.0: several profile files (e.g. A-C + D-H)
+        for i, pf in enumerate(profile_files):
+            pp = _resolve(pf, root)
+            prof_raw = {**_read_yaml(pp).get("profiles", {}), **prof_raw}
+            if i == 0:
+                profiles_path = pp
+            else:
+                extra_profile_files.append(pp)
+    elif profile_files:
+        profiles_path = _resolve(profile_files, root)
         prof_raw = {**_read_yaml(profiles_path).get("profiles", {}), **prof_raw}
     profiles = _load_profiles(prof_raw, root)
     fleet, fleet_info = build_fleet(fleet_raw.get("fleet", {}), profiles, int(exp["seed"]))
@@ -275,6 +300,8 @@ def load_experiment(path: str | Path, root: Path = PROJECT_ROOT) -> ExperimentCo
     )
     if profiles_path is not None:
         cfg.source_files["profiles.yaml"] = profiles_path
+    for i, pp in enumerate(extra_profile_files, 2):
+        cfg.source_files[f"profiles_{i}.yaml"] = pp
     if cfg.step_length_s <= 0 or cfg.duration_s <= 0:
         raise ConfigError("step_length_s and duration_s must be > 0")
     if cfg.bus_model not in ("logical", "ideal"):

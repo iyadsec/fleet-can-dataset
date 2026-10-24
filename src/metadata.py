@@ -123,7 +123,8 @@ def build_metadata(cfg: ExperimentConfig, session_id: str, run: dict, config_has
                              "bus": vars(p.bus),
                              "messages": [vars(m) for m in p.messages],
                              "powertrain": p.powertrain, "chassis": p.chassis,
-                             "roles": {r: list(v) for r, v in p.roles.items()}}
+                             "roles": {r: list(v) for r, v in p.roles.items()},
+                             "jitter_fraction": p.jitter_fraction, "noise": dict(p.noise)}
                          for n, p in cfg.profiles.items()},
         },
         "can": {

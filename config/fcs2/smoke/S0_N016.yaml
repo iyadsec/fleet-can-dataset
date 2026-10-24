@@ -1,0 +1,18 @@
+experiment:
+  experiment_id: FCS2_SMOKE_S0_N016
+  dataset_version: fcs2-smoke
+  scenario_id: S0
+  description: "fleetcan-sim-2.0 smoke test, benign, 16 vehicles (A-H)"
+  seed: 120016
+  tags: {milestone: M12, fleet_size: 16}
+simulation:
+  route_generation: {method: grid_loops_v1, network: sumo/network/grid4x4.net.xml}
+  step_length_s: 0.01
+  duration_s: 30.0
+  realtime: false
+can: {transport: socketcan, bus_model: logical, frame_format: classical, capture_drain_s: 0.5}
+output: {root: /home/ubuntu/fcs2_work/smoke}
+storage: {format: parquet}
+fleet_config: config/fcs2/smoke/fleet_16.yaml
+attacks_config: config/attacks.yaml
+campaigns_config: config/campaigns.yaml

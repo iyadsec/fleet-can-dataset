@@ -148,8 +148,9 @@ def run(cfg: ExperimentConfig, session_id: str | None = None, validate: bool = T
     check_channels(channels)
 
     jit = cfg.fleet_info.get("ecu_jitter") or {}
+    model_seed = derive_seed(cfg.seed, "vehicle_model")           # generator 2.0.0 (unused by profiles A-C)
     gens = {a.vehicle_id: VehicleCanGenerator(a.vehicle_id, a.channel, cfg.profiles[a.profile], a.switch_on_ns,
-                                              float(jit.get("fraction", 0.0)), int(jit.get("seed") or 0))
+                                              float(jit.get("fraction", 0.0)), int(jit.get("seed") or 0), model_seed)
             for a in cfg.fleet}
     buses = {a.channel: CanBusModel(replace(cfg.profiles[a.profile].bus, enabled=cfg.bus_model == "logical"), a.channel)
              for a in cfg.fleet}

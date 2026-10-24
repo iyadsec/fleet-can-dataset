@@ -1,0 +1,85 @@
+VERSION "fleet-can-dataset fcs2_profile_d v2.0 (SYNTHETIC, not OEM)"
+
+
+NS_ : 
+	NS_DESC_
+	CM_
+	BA_DEF_
+	BA_
+	VAL_
+	CAT_DEF_
+	CAT_
+	FILTER
+	BA_DEF_DEF_
+	EV_DATA_
+	ENVVAR_DATA_
+	SGTYPE_
+	SGTYPE_VAL_
+	BA_DEF_SGTYPE_
+	BA_SGTYPE_
+	SIG_TYPE_REF_
+	VAL_TABLE_
+	SIG_GROUP_
+	SIG_VALTYPE_
+	SIGTYPE_VALTYPE_
+	BO_TX_BU_
+	BA_DEF_REL_
+	BA_REL_
+	BA_DEF_DEF_REL_
+	BU_SG_REL_
+	BU_EV_REL_
+	BU_BO_REL_
+	SG_MUL_VAL_
+
+BS_:
+
+BU_: ABS BCM BMS CLU ECM EPS
+
+
+BO_ 552 D_ENGINE: 6 ECM
+ SG_ Counter : 40|4@1+ (1,0) [0|15] "" Vector__XXX
+ SG_ DThrottle : 32|8@1+ (0.4,0) [0|102] "%" Vector__XXX
+ SG_ DTorque : 16|12@1+ (0.5,0) [0|2047.5] "Nm" Vector__XXX
+ SG_ DRpm : 0|16@1+ (0.25,0) [0|16383.75] "rpm" Vector__XXX
+
+BO_ 744 D_STEERING: 5 EPS
+ SG_ Counter : 32|4@1+ (1,0) [0|15] "" Vector__XXX
+ SG_ DYaw : 16|16@1- (0.01,0) [-327.68|327.67] "deg/s" Vector__XXX
+ SG_ DAngle : 0|16@1- (0.1,0) [-3276.8|3276.7] "deg" Vector__XXX
+
+BO_ 872 D_VEH_SPEED: 5 ABS
+ SG_ Counter : 32|4@1+ (1,0) [0|15] "" Vector__XXX
+ SG_ DAccel : 16|16@1- (0.001,0) [-32.768|32.767] "m/s^2" Vector__XXX
+ SG_ DSpeed : 0|16@1+ (0.01,0) [0|655.35] "km/h" Vector__XXX
+
+BO_ 980 D_BRAKE: 4 ABS
+ SG_ Counter : 24|4@1+ (1,0) [0|15] "" Vector__XXX
+ SG_ DDecel : 8|16@1+ (0.001,0) [0|65.535] "m/s^2" Vector__XXX
+ SG_ DBrake_on : 0|1@1+ (1,0) [0|1] "" Vector__XXX
+
+BO_ 1080 D_BATTERY: 3 BMS
+ SG_ Counter : 16|4@1+ (1,0) [0|15] "" Vector__XXX
+ SG_ DBatt : 0|16@1+ (0.001,0) [0|65.535] "V" Vector__XXX
+
+BO_ 1088 D_HEARTBEAT_ECM: 1 ECM
+ SG_ Counter : 0|4@1+ (1,0) [0|15] "" Vector__XXX
+
+BO_ 1172 D_TURN_LAMP: 2 BCM
+ SG_ Counter : 8|4@1+ (1,0) [0|15] "" Vector__XXX
+ SG_ DTurn : 0|2@1+ (1,0) [0|3] "" Vector__XXX
+
+BO_ 1248 D_FUEL_ODO: 4 CLU
+ SG_ DOdo : 8|24@1+ (0.1,0) [0|1677721.5] "km" Vector__XXX
+ SG_ DFuel : 0|8@1+ (0.4,0) [0|102] "%" Vector__XXX
+
+
+
+
+
+
+
+
+
+
+
+

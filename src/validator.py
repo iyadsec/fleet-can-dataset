@@ -203,14 +203,27 @@ def validate(sid: str, data: Path, group_size: int = GROUP_VEHICLES) -> Report:
         for (v, cid), g in gen_all.groupby(["vehicle_id", "can_id"]):
             spec = msg_spec(v, cid)
             P = round(spec["period_ms"] * 1e6)
-            tol = round(jf * P)
+            pj = profiles[fleet[v]["profile"]].get("jitter_fraction")
+            tol = round((jf if pj is None else float(pj)) * P)
             t = g.sim_time_ns.sort_values().to_numpy()
             expected = first_state[v] + int(fleet[v].get("switch_on_ns", 0)) + round(spec["offset_ms"] * 1e6)
             if not (max(first_state[v], expected - tol) <= t[0] <= expected + tol):
                 align_err.append(f"{v}/{cid}")
             d = np.diff(t)
-            period_viol += int(((d < P - 2 * tol) | (d > P + 2 * tol)).sum())
-            drift_viol += int(abs(t[-1] - expected - (len(t) - 1) * P) > tol)
+            mode = spec.get("mode", "periodic")
+            if mode == "periodic":
+                period_viol += int(((d < P - 2 * tol) | (d > P + 2 * tol)).sum())
+                drift_viol += int(abs(t[-1] - expected - (len(t) - 1) * P) > tol)
+            elif mode == "event":
+                # heartbeat: no gap longer than one period (+ jitter); events never closer than min_interval
+                mi = round(float(spec.get("min_interval_ms", 0.0)) * 1e6)
+                period_viol += int(((d > P + 2 * tol) | (d < min(mi, P - 2 * tol))).sum())
+            else:
+                # mixed: every slot of the nominal periodic grid is present (+- jitter); extra frames are events
+                slots = expected + P * np.arange(int((t[-1] - expected + tol) // P) + 1)
+                idx = np.clip(np.searchsorted(t, slots), 1, len(t) - 1) if len(t) > 1 else np.zeros(len(slots), int)
+                near = np.minimum(np.abs(t[idx] - slots), np.abs(t[idx - 1] - slots)) if len(t) > 1 else np.abs(t[0] - slots)
+                period_viol += int((near > tol).sum())
         mono_tx &= all(g.tx_start_ns.is_monotonic_increasing and g.capture_time_ns.is_monotonic_increasing for _, g in f.groupby("vehicle_id"))
         mono_gen &= all(g.sim_time_ns.is_monotonic_increasing for _, g in ecu.groupby(["vehicle_id", "can_id"]))
         dup_key += int(f.duplicated(["vehicle_id", "sim_time_ns", "can_id", "frame_source", "payload"]).sum())
@@ -352,7 +365,8 @@ def validate(sid: str, data: Path, group_size: int = GROUP_VEHICLES) -> Report:
          not align_err, "all vehicle/message streams aligned", f"misaligned: {align_err}")
     r.ok("V11", "timestamps monotonic: per vehicle in transmission+capture order; per ECU stream in generation",
          mono_tx and mono_gen, "monotonic", f"tx/capture monotonic={mono_tx}, per-stream generation={mono_gen}")
-    r.ok("V12", "every ECU message stream (transmitted + dropped) follows its configured period"
+    r.ok("V12", "every ECU message stream (transmitted + dropped) follows its configured period (event: heartbeat and"
+         " minimum interval; mixed: periodic grid complete)"
                 + (f" within +-{2 * jf:.1%} per interval and with no drift from the nominal grid" if jf else " exactly"),
          period_viol == 0 and drift_viol == 0, "0 gaps, extra frames or drift",
          f"{period_viol} deviating intervals, {drift_viol} drifting streams")

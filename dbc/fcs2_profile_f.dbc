@@ -1,0 +1,106 @@
+VERSION "fleet-can-dataset fcs2_profile_f v2.0 (SYNTHETIC, not OEM)"
+
+
+NS_ : 
+	NS_DESC_
+	CM_
+	BA_DEF_
+	BA_
+	VAL_
+	CAT_DEF_
+	CAT_
+	FILTER
+	BA_DEF_DEF_
+	EV_DATA_
+	ENVVAR_DATA_
+	SGTYPE_
+	SGTYPE_VAL_
+	BA_DEF_SGTYPE_
+	BA_SGTYPE_
+	SIG_TYPE_REF_
+	VAL_TABLE_
+	SIG_GROUP_
+	SIG_VALTYPE_
+	SIGTYPE_VALTYPE_
+	BO_TX_BU_
+	BA_DEF_REL_
+	BA_REL_
+	BA_DEF_DEF_REL_
+	BU_SG_REL_
+	BU_EV_REL_
+	BU_BO_REL_
+	SG_MUL_VAL_
+
+BS_:
+
+BU_: ABS BCM CLU ECM EPS TCM
+
+
+BO_ 588 F_STEERING: 5 EPS
+ SG_ Counter : 32|4@1+ (1,0) [0|15] "" Vector__XXX
+ SG_ FYaw : 16|16@1- (0.01,0) [-327.68|327.67] "deg/s" Vector__XXX
+ SG_ FAngle : 0|16@1- (0.1,0) [-3276.8|3276.7] "deg" Vector__XXX
+
+BO_ 624 F_VEH_SPEED: 5 ABS
+ SG_ Counter : 32|4@1+ (1,0) [0|15] "" Vector__XXX
+ SG_ FAccel : 16|16@1- (0.001,0) [-32.768|32.767] "m/s^2" Vector__XXX
+ SG_ FSpeed : 0|16@1+ (0.01,0) [0|655.35] "km/h" Vector__XXX
+
+BO_ 628 F_CHASSIS: 5 ABS
+ SG_ Counter : 32|4@1+ (1,0) [0|15] "" Vector__XXX
+ SG_ FYaw : 16|16@1- (0.01,0) [-327.68|327.67] "deg/s" Vector__XXX
+ SG_ FLat : 0|16@1- (0.001,0) [-32.768|32.767] "m/s^2" Vector__XXX
+
+BO_ 684 F_ENGINE: 6 ECM
+ SG_ Counter : 40|4@1+ (1,0) [0|15] "" Vector__XXX
+ SG_ FThrottle : 32|8@1+ (0.4,0) [0|102] "%" Vector__XXX
+ SG_ FTorque : 16|12@1+ (0.5,0) [0|2047.5] "Nm" Vector__XXX
+ SG_ FRpm : 0|16@1+ (0.25,0) [0|16383.75] "rpm" Vector__XXX
+
+BO_ 780 F_PEDALS: 3 ECM
+ SG_ Counter : 16|4@1+ (1,0) [0|15] "" Vector__XXX
+ SG_ FBrake_on : 8|1@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ FPedal : 0|8@1+ (0.4,0) [0|102] "%" Vector__XXX
+
+BO_ 1012 F_BRAKE: 4 ABS
+ SG_ Counter : 24|4@1+ (1,0) [0|15] "" Vector__XXX
+ SG_ FDecel : 8|16@1+ (0.001,0) [0|65.535] "m/s^2" Vector__XXX
+ SG_ FBrake_on : 0|1@1+ (1,0) [0|1] "" Vector__XXX
+
+BO_ 1024 F_WHEEL_SPEEDS: 8 ABS
+ SG_ FWrr : 48|16@1+ (0.01,0) [0|655.35] "km/h" Vector__XXX
+ SG_ FWrl : 32|16@1+ (0.01,0) [0|655.35] "km/h" Vector__XXX
+ SG_ FWfr : 16|16@1+ (0.01,0) [0|655.35] "km/h" Vector__XXX
+ SG_ FWfl : 0|16@1+ (0.01,0) [0|655.35] "km/h" Vector__XXX
+
+BO_ 1120 F_CLUSTER: 4 CLU
+ SG_ Counter : 24|4@1+ (1,0) [0|15] "" Vector__XXX
+ SG_ FFuel : 16|8@1+ (0.4,0) [0|102] "%" Vector__XXX
+ SG_ FDisp_rpm : 8|8@1+ (32,0) [0|8160] "rpm" Vector__XXX
+ SG_ FDisp_speed : 0|8@1+ (1,0) [0|255] "km/h" Vector__XXX
+
+BO_ 1136 F_HEARTBEAT_ECM: 1 ECM
+ SG_ Counter : 0|4@1+ (1,0) [0|15] "" Vector__XXX
+
+BO_ 1180 F_HEARTBEAT_BCM: 1 BCM
+ SG_ Counter : 0|4@1+ (1,0) [0|15] "" Vector__XXX
+
+BO_ 1252 F_FUEL_ODO: 4 CLU
+ SG_ FOdo : 8|24@1+ (0.1,0) [0|1677721.5] "km" Vector__XXX
+ SG_ FFuel : 0|8@1+ (0.4,0) [0|102] "%" Vector__XXX
+
+BO_ 1264 F_TRANSMISSION: 2 TCM
+ SG_ Counter : 8|4@1+ (1,0) [0|15] "" Vector__XXX
+ SG_ FGear : 0|4@1+ (1,0) [0|15] "" Vector__XXX
+
+
+
+
+
+
+
+
+
+
+
+
