@@ -49,6 +49,16 @@ MALF = {
     "steering": {"constant": (90, 400), "offset": (30, 120), "scale": (2.0, 4.0), "ramp": (0, (200, 500))},
 }
 
+# |limit| of a manipulation parameter after per-member variation, so the resulting signal value is encodable in every
+# profile (narrowest DBC ranges: accelerator 0-100, brake decel 0-65.5, rpm 0-8191.9, steering +-1638.4)
+MALF_LIMIT = {
+    "vehicle_speed": {"value": 600.0, "offset": 120.0, "factor": 4.0, "to": 600.0},
+    "engine_rpm": {"value": 8000.0, "offset": 3500.0, "factor": 1.95, "to": 8000.0},
+    "accelerator": {"value": 99.0, "to": 99.0},
+    "brake": {"value": 60.0, "offset": 8.0, "to": 60.0},
+    "steering": {"value": 1500.0, "offset": 400.0, "factor": 4.5, "to": 1500.0},
+}
+
 
 # ----------------------------------------------------------------------------- fleet / profiles
 def profiles():
@@ -176,7 +186,8 @@ def member_params(proc: dict, vehicle: str, profile: str, strength: str, rng) ->
         man = p["manipulation"]
         for key in ("value", "offset", "factor", "to"):
             if key in man:
-                man[key] = round(f(man[key]), 3)
+                lim = MALF_LIMIT[p["target"]][key]   # per-member variation never leaves the encodable range
+                man[key] = round(min(lim, max(-lim, f(man[key]))), 3)
         if p["mode"] == "inject":
             _, period = role_msg(profile, p["target"])
             p["rate_hz"] = round(f(p.pop("rate_multiplier") * 1000.0 / period), 3)
