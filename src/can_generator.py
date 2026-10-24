@@ -306,6 +306,8 @@ class VehicleCanGenerator:
                     out.append(self._encode(task, q, tp))
                     task.next_due_ns += task.period_ns       # nominal grid never drifts
                     task.next_emit_ns = self._jittered(task)
+                    if task.pending_event_ns is not None:    # an event never follows any frame closer than min_interval
+                        task.pending_event_ns = max(task.pending_event_ns, tp + round(spec.min_interval_ms * 1e6))
                 if spec.mode != "periodic":
                     task.last_watch = tuple(clean[w] for w in spec.watch)
         out.sort(key=lambda f: (f.sim_time_ns, f.can_id))
