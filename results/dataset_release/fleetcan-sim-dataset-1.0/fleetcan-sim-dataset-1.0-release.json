@@ -1,0 +1,68 @@
+{
+ "dataset": "fleetcan-sim-dataset-1.0",
+ "release_tag": "dataset-fleetcan-sim-dataset-1.0",
+ "repository": "iyadsec/fleet-can-dataset",
+ "description": "FLEETCAN-SIM multi-vehicle CAN intrusion dataset: one labelled CAN log per session (Timestamp, Vehicle_ID, Arbitration_ID, DLC, Data, Class, SubClass, Attack_ID, Campaign_ID) as gzip CSV and Parquet, plus session, vehicle, attack, campaign and replay-link tables",
+ "sessions": 835,
+ "frames": 444333222,
+ "files": 1678,
+ "bytes": 9948791063,
+ "dataset_SHA256SUMS_sha256": "b9dfc68bb9e0114ac0c60969ad78a74ea0e2466cfe82c28c5a1223fdba2f7f7f",
+ "source_dataset": "fleetcan-sim-scale-1.0",
+ "archive": {
+  "format": "tar (pax, byte-sorted file list, numeric owner/group 0)",
+  "compression": "zstd -3 (lossless)",
+  "split_bytes": 1610612736,
+  "root": "fleetcan-sim-dataset-1.0/",
+  "part_count": 7,
+  "total_bytes": 9895550312,
+  "parts": [
+   {
+    "file": "fleetcan-sim-dataset-1.0.tar.zst.part001",
+    "bytes": 1610612736,
+    "sha256": "44182d9812ac781d733abc609f97c163bcf116c7668951273753a9d9c4218341"
+   },
+   {
+    "file": "fleetcan-sim-dataset-1.0.tar.zst.part002",
+    "bytes": 1610612736,
+    "sha256": "6d237efb25b953d0ce2b937a258f6af36fc74dfb56c332884c0adfba41594133"
+   },
+   {
+    "file": "fleetcan-sim-dataset-1.0.tar.zst.part003",
+    "bytes": 1610612736,
+    "sha256": "afeacd9e7530188f4efef4de7742902df030b3ef5e01787608caf3e8ca14ef3d"
+   },
+   {
+    "file": "fleetcan-sim-dataset-1.0.tar.zst.part004",
+    "bytes": 1610612736,
+    "sha256": "0e711db4668fb3f62adbe2d97416e3a9800c0ffdb297f15964d031a5c649d5db"
+   },
+   {
+    "file": "fleetcan-sim-dataset-1.0.tar.zst.part005",
+    "bytes": 1610612736,
+    "sha256": "b37078cda20d59df80f5f9433b38e6b4671ec3047e278285ddabbba3d4a311da"
+   },
+   {
+    "file": "fleetcan-sim-dataset-1.0.tar.zst.part006",
+    "bytes": 1610612736,
+    "sha256": "4126da98c645af8f85ee0998f9d0a8e2b62b11ab47760c41f3d70dd95d947fe4"
+   },
+   {
+    "file": "fleetcan-sim-dataset-1.0.tar.zst.part007",
+    "bytes": 231873896,
+    "sha256": "f61b6ebf21cab80efe9e31454c45746d2f1a215ed1fb9dd2d5459a297785fc2f"
+   }
+  ]
+ },
+ "build_stream_verification": {
+  "members_verified": 1678,
+  "expected": 1678,
+  "content_bytes": 9948791063,
+  "hash_mismatches": [],
+  "missing": [],
+  "extra": [],
+  "non_file_members": [],
+  "sessions": 835,
+  "verdict": "PASS"
+ }
+}
