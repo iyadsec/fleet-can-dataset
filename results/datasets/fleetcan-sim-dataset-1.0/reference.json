@@ -1,0 +1,12 @@
+{
+ "dataset": "fleetcan-sim-dataset-1.0",
+ "SHA256SUMS_sha256": "b9dfc68bb9e0114ac0c60969ad78a74ea0e2466cfe82c28c5a1223fdba2f7f7f",
+ "files": 1678,
+ "bytes": 9948791063,
+ "sessions": 835,
+ "messages": 444333222,
+ "attack_messages": 48555342,
+ "source_dataset": "fleetcan-sim-scale-1.0",
+ "source_SHA256SUMS_sha256": "5d5418b1ca9a4107818a83e03a5dea4a4ea83d1c36354fa668fcc5cb0242de70",
+ "export_script": "scripts/export_fleetcan_sim_dataset.py"
+}

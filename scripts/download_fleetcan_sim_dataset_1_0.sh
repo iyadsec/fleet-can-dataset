@@ -1,24 +1,24 @@
 #!/usr/bin/env bash
-# Download (or restore from local parts) and VERIFY the fleetcan-sim-research-1.0 dataset.
+# Download (or restore from local parts) and VERIFY the fleetcan-sim-dataset-1.0 dataset.
 #
-#   scripts/download_fleetcan_sim_research_1_0.sh DESTINATION                     # from the GitHub release
-#   scripts/download_fleetcan_sim_research_1_0.sh DESTINATION --from-dir PARTS    # from already downloaded parts
+#   scripts/download_fleetcan_sim_dataset_1_0.sh DESTINATION                     # from the GitHub release
+#   scripts/download_fleetcan_sim_dataset_1_0.sh DESTINATION --from-dir PARTS    # from already downloaded parts
 #   options: --keep-archive (keep the downloaded parts in DESTINATION/.fleetcan-download)
 #
-# Result: DESTINATION/fleetcan-sim-research-1.0/{README.md,MANIFEST.csv,SHA256SUMS,data,results,validation,reports,
-#         documentation,scripts}
+# Result: DESTINATION/fleetcan-sim-dataset-1.0/{README.md,SHA256SUMS,sessions.csv,vehicles.csv,attacks.csv,
+#         campaigns.csv,campaign_members.csv,replay_links.csv.gz,CSV/,Parquet/}
 #
 # Two integrity levels, both mandatory, fail closed:
 #   1 archive integrity: the downloaded <name>-archive-SHA256SUMS must be identical to the copy committed in this
 #     repository, and every part must match it
-#   2 dataset integrity: every extracted file must match the release SHA256SUMS (identical to the committed copy
-#     results/datasets/fleetcan-sim-research-1.0/SHA256SUMS); 835 sessions in each data area
-# Requirements: bash, tar, zstd, sha256sum or shasum, python3; gh unless --from-dir. About 40 GB free disk
-# (19 GB download + 19 GB dataset); the download is deleted after a successful restore.
+#   2 dataset integrity: every extracted file must match the dataset SHA256SUMS (identical to the committed copy
+#     results/datasets/fleetcan-sim-dataset-1.0/SHA256SUMS); 835 session logs in CSV/ and in Parquet/
+# Requirements: bash, tar, zstd, sha256sum or shasum, python3; gh unless --from-dir. About 22 GB free disk
+# (about 10 GB download + 10 GB dataset); the download is deleted after a successful restore.
 set -euo pipefail
 
-NAME=fleetcan-sim-research-1.0
-TAG=dataset-fleetcan-sim-research-1.0
+NAME=fleetcan-sim-dataset-1.0
+TAG=dataset-fleetcan-sim-dataset-1.0
 REPO_SLUG=iyadsec/fleet-can-dataset
 SESSIONS=835
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -86,13 +86,13 @@ cmp -s "$ROOT/SHA256SUMS" "$REF_DATASET_SUMS" || die "extracted SHA256SUMS diffe
 (cd "$ROOT" && $SHA256 -c --quiet SHA256SUMS) || die "dataset files do not match SHA256SUMS"
 N=$(wc -l < "$ROOT/SHA256SUMS" | tr -d ' ')
 EXTRACTED=$(cd "$ROOT" && find . -type f | wc -l | tr -d ' ')
-[ "$EXTRACTED" -eq $((N + 3)) ] || die "extracted $EXTRACTED files, expected $((N + 3)) (listed + SHA256SUMS, MANIFEST.csv, output_integrity.csv)"
-for a in raw_parquet raw_csv ground_truth metadata descriptors; do
-  S=$(find "$ROOT/data/$a" -mindepth 1 -maxdepth 1 -type d -name 'FCS10_*' | wc -l | tr -d ' ')
-  [ "$S" -eq "$SESSIONS" ] || die "data/$a has $S sessions, expected $SESSIONS"
-done
+[ "$EXTRACTED" -eq $((N + 1)) ] || die "extracted $EXTRACTED files, expected $((N + 1)) (listed files + SHA256SUMS)"
+S=$(find "$ROOT/CSV" -type f -name 'FCS10_*.csv.gz' | wc -l | tr -d ' ')
+[ "$S" -eq "$SESSIONS" ] || die "CSV/ has $S session logs, expected $SESSIONS"
+S=$(find "$ROOT/Parquet" -type f -name 'FCS10_*.parquet' | wc -l | tr -d ' ')
+[ "$S" -eq "$SESSIONS" ] || die "Parquet/ has $S session logs, expected $SESSIONS"
 
 mv "$ROOT" "$DEST/$NAME"
 rmdir "$STAGE"
 [ "$KEEP" -eq 1 ] || rm -rf "$DL"
-echo "SUCCESS: $NAME restored to $DEST/$NAME ($N files verified against SHA256SUMS, $SESSIONS sessions in each data area)"
+echo "SUCCESS: $NAME restored to $DEST/$NAME ($N files verified against SHA256SUMS, $SESSIONS sessions)"

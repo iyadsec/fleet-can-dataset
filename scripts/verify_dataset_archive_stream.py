@@ -1,12 +1,11 @@
-"""Verify a tar stream (stdin) of fleetcan-sim-research-1.0 without extracting it to disk.
+"""Verify a tar stream (stdin) of fleetcan-sim-dataset-1.0 without extracting it to disk.
 
-Every regular member under fleetcan-sim-research-1.0/ is content-hashed and compared with the release SHA256SUMS
-(the committed copy results/datasets/fleetcan-sim-research-1.0/SHA256SUMS, whose digest must equal --sums-sha) and
-with the three self-describing files that SHA256SUMS cannot list (SHA256SUMS, MANIFEST.csv,
-validation/output_integrity.csv; digests from the committed release.json). Fails on any mismatch, missing, extra or
-non-file member, or if the 835 sessions are not all present.
+Every regular member under fleetcan-sim-dataset-1.0/ is content-hashed and compared with the dataset SHA256SUMS
+(the committed copy results/datasets/fleetcan-sim-dataset-1.0/SHA256SUMS, whose digest is in reference.json) and
+SHA256SUMS itself. Fails on any mismatch, missing, extra or non-file member, or unless there are 835 session logs in
+CSV/ and 835 in Parquet/.
 
-Usage: zstd -dc PARTS... | python3 scripts/verify_research_archive_stream.py [--report FILE]
+Usage: zstd -dc PARTS... | python3 scripts/verify_dataset_archive_stream.py [--report FILE]
 """
 
 from __future__ import annotations
@@ -18,7 +17,7 @@ import sys
 import tarfile
 from pathlib import Path
 
-NAME = "fleetcan-sim-research-1.0"
+NAME = "fleetcan-sim-dataset-1.0"
 REPO = Path(__file__).resolve().parent.parent
 REF = REPO / "results" / "datasets" / NAME
 SESSIONS = 835
@@ -37,7 +36,6 @@ def main():
         h, p = line.split("  ", 1)
         expected[p] = h
     expected["SHA256SUMS"] = info["SHA256SUMS_sha256"]
-    expected.update(info["unlisted_files_sha256"])
     prefix = f"{NAME}/"
     seen, bad, extra, nonfile, nbytes = set(), [], [], [], 0
     with tarfile.open(fileobj=sys.stdin.buffer, mode="r|") as tf:
@@ -64,7 +62,9 @@ def main():
             if len(seen) % 5000 == 0:
                 print(f"  {len(seen)} files verified", file=sys.stderr, flush=True)
     missing = sorted(set(expected) - seen)
-    sessions = len({p.split("/")[2] for p in seen if p.startswith("data/metadata/") and p.endswith("/session.json")})
+    csv_logs = sum(1 for p in seen if p.startswith("CSV/") and p.endswith(".csv.gz"))
+    pq_logs = sum(1 for p in seen if p.startswith("Parquet/") and p.endswith(".parquet"))
+    sessions = csv_logs if csv_logs == pq_logs else -1
     res = {"members_verified": len(seen), "expected": len(expected), "content_bytes": nbytes,
            "hash_mismatches": bad[:10], "missing": missing[:10], "extra": extra[:10], "non_file_members": nonfile[:10],
            "sessions": sessions}
