@@ -116,6 +116,7 @@ def validate(sid: str, data: Path, group_size: int = GROUP_VEHICLES) -> Report:
     profiles = meta["fleet"]["profiles"]
     step_ns = meta["simulation"]["step_length_ns"]
     attack_cfg = {a["attack_id"]: a for a in meta.get("attack_configuration") or []}
+    triggers = _trigger_checks(r, meta, p, attack_cfg)     # generator 2.0.0; empty dict for fixed-start attacks
     if len(drops):
         drops["sim_time_ns"] = drops.sim_time_ns.astype("int64")
     ecu_drops_all = drops[drops.frame_source.isin(ECU_SOURCES)] if len(drops) else drops
@@ -365,8 +366,9 @@ def validate(sid: str, data: Path, group_size: int = GROUP_VEHICLES) -> Report:
          not align_err, "all vehicle/message streams aligned", f"misaligned: {align_err}")
     r.ok("V11", "timestamps monotonic: per vehicle in transmission+capture order; per ECU stream in generation",
          mono_tx and mono_gen, "monotonic", f"tx/capture monotonic={mono_tx}, per-stream generation={mono_gen}")
-    r.ok("V12", "every ECU message stream (transmitted + dropped) follows its configured period (event: heartbeat and"
-         " minimum interval; mixed: periodic grid complete)"
+    has_event = any(m.get("mode", "periodic") != "periodic" for pp in profiles.values() for m in pp["messages"])
+    r.ok("V12", "every ECU message stream (transmitted + dropped) follows its configured period"
+         + (" (event: heartbeat and minimum interval; mixed: periodic grid complete)" if has_event else "")
                 + (f" within +-{2 * jf:.1%} per interval and with no drift from the nominal grid" if jf else " exactly"),
          period_viol == 0 and drift_viol == 0, "0 gaps, extra frames or drift",
          f"{period_viol} deviating intervals, {drift_viol} drifting streams")
@@ -435,7 +437,7 @@ def validate(sid: str, data: Path, group_size: int = GROUP_VEHICLES) -> Report:
             r.na(cid, name, "no attacks configured")
     else:
         _attack_checks(r, tagged, drops, att, afr, rep, attack_cfg, fleet, profiles)
-    _campaign_checks(r, meta, tagged, drops, att, camp, memb, ovl, attack_cfg)
+    _campaign_checks(r, meta, tagged, drops, att, camp, memb, ovl, attack_cfg, triggers)
 
     # ======================= reproducibility ======================================================
     absent = [k for k in REQUIRED_METADATA if _get(meta, k) in (None, "", {}, [])]
@@ -657,6 +659,47 @@ def _attack_checks(r, f, drops, att, afr, rep, attack_cfg, fleet, profiles):
         r.na("A07", "replay", "no replay attack")
 
 
+TRIGGER_STATE = {"speed_kmh": lambda st: st.speed_mps.astype(float) * 3.6, "accel_mps2": lambda st: st.accel_mps2.astype(float)}
+
+
+def _trigger_checks(r, meta, p, attack_cfg) -> dict:
+    """V29 (generator 2.0.0): every condition-triggered attack started at a SUMO step >= its arm time, either at the
+    first step whose state satisfied the condition or at arm + timeout. Returns {attack_id: trigger_ns} and rewrites
+    attack_cfg so the remaining checks compare against the realised start (duration unchanged)."""
+    runtime = {a["attack_id"]: a for a in meta.get("attacks_runtime") or [] if a.get("arm_ns") is not None}
+    if not runtime:
+        return {}
+    step = meta["simulation"]["step_length_ns"]
+    st = session_groups.read_filtered(p["states"], "vehicle_id", {a["vehicle_id"] for a in runtime.values()})
+    st["sim_time_ns"] = st.sim_time_ns.astype("int64")
+    bad, out = [], {}
+    for aid, a in runtime.items():
+        trig = attack_cfg[aid]["params"]["trigger"]
+        arm, t = int(a["arm_ns"]), a.get("trigger_ns")
+        if t is None:
+            bad.append(f"{aid} never triggered")
+            continue
+        t = int(t)
+        g = st[st.vehicle_id == a["vehicle_id"]].sort_values("sim_time_ns")
+        x = TRIGGER_STATE[trig["quantity"]](g)
+        met = x >= float(trig["value"]) if trig["op"] == ">=" else x <= float(trig["value"])
+        cand = g.sim_time_ns[(g.sim_time_ns >= arm) & met.values]
+        timeout_at = g.sim_time_ns[g.sim_time_ns >= arm + round(float(trig.get("timeout_s", 30.0)) * 1e9)]
+        eligible = ([int(cand.iloc[0])] if len(cand) else []) + ([int(timeout_at.iloc[0])] if len(timeout_at) else [])
+        first = min(eligible) if eligible else None
+        if t != first or t < arm or t % step:
+            bad.append(f"{aid} trigger {t} != first eligible step {first}")
+        if bool(a.get("trigger_timeout")) != (not len(cand) or int(cand.iloc[0]) > t):
+            bad.append(f"{aid} timeout flag")
+        out[aid] = t
+        c = attack_cfg[aid]
+        dur = int(c["duration_ns"]) if "duration_ns" in c else round(float(c["duration_s"]) * 1e9)
+        c["start_ns"], c["duration_ns"] = t, dur
+    r.ok("V29", "condition-triggered attacks start at the first SUMO step >= arm time whose own vehicle state meets the "
+         "condition (or at arm + timeout)", not bad, f"{len(out)} triggered attacks", bad)
+    return out
+
+
 def _start_ns(c: dict) -> int:
     return int(c["start_ns"]) if "start_ns" in c else round(float(c["start_s"]) * 1e9)
 
@@ -689,9 +732,15 @@ def _expiry_checks(r, frame_violations, drops, fleet, profiles, bus_totals):
          f"policy {policies}; expired drops={n_exp}, queue drops={len(drops) - n_exp}", f"{bad} violations, totals_ok={totals_ok}")
 
 
-def _campaign_checks(r, meta, f, drops, att, camp, memb, ovl, attack_cfg):
+def _campaign_checks(r, meta, f, drops, att, camp, memb, ovl, attack_cfg, triggers=None):
     raw = meta.get("campaign_configuration") or []
     sched = build_schedule(raw, meta["random_seed"], list({v["vehicle_id"] for v in meta["fleet"]["vehicles"]}))
+    for c in sched:                           # generator 2.0.0: triggered members start when their trigger fired
+        for m in c.members:
+            if triggers and m.attack_id in triggers:
+                dur = m.end_ns - m.start_ns
+                m.start_ns, m.end_ns = triggers[m.attack_id], triggers[m.attack_id] + dur
+                m.relative_delay_ns = m.start_ns - c.start_ns
     iso = [a for a in attack_cfg.values() if not a.get("campaign_id")]
     probs = check_scenario(meta["scenario_id"], iso, sched)
     r.ok("C00", f"scenario {meta['scenario_id']} consistent with its definition", not probs,

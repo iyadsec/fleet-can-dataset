@@ -223,7 +223,7 @@ def run(cfg: ExperimentConfig, session_id: str | None = None, validate: bool = T
                 if s.vehicle_id not in gens:
                     raise RuntimeError(f"SUMO vehicle {s.vehicle_id} has no fleet configuration")
                 frames.extend(gens[s.vehicle_id].frames_for_step(s, cfg.step_ns))
-            frames = engine.process(frames, t0, t1, {s.vehicle_id for s in states})
+            frames = engine.process(frames, t0, t1, {s.vehicle_id for s in states}, {s.vehicle_id: s for s in states})
             for fr in frames:
                 buses[fr.channel].submit(fr, fr.node)
             held.extend(advance(t1))
@@ -264,7 +264,19 @@ def run(cfg: ExperimentConfig, session_id: str | None = None, validate: bool = T
     storage.write_table(gt / "dropped_frames", ground_truth.DROP_COLUMNS, ground_truth.dropped_rows(drops, session_id), fmt)
     storage.write_table(gt / "attacks", ground_truth.ATTACK_COLUMNS,
                         ground_truth.attack_rows_from_tally(engine, stream.tally, drops, cfg.scenario_id, session_id), fmt)
+    by_attack = {a.attack_id: a for a in engine.attacks}
+    unfired = [a.attack_id for a in engine.attacks if a.arm_ns is not None and a.trigger_ns is None]
+    if unfired:
+        raise SystemExit(f"condition-triggered attacks never started (session too short for their timeout): {unfired}")
+    for c in campaigns:                      # generator 2.0.0: triggered members start when their trigger fired
+        for m in c.members:
+            a = by_attack[m.attack_id]
+            if a.arm_ns is not None:
+                m.start_ns, m.end_ns = a.start_ns, a.end_ns
+                m.relative_delay_ns = a.start_ns - c.start_ns
     c_rows, m_rows, o_rows = ground_truth.campaign_rows(campaigns, cfg.scenario_id, session_id)
+    storage.write_table(gt / "campaign_controller", ground_truth.CONTROLLER_COLUMNS,
+                        ground_truth.controller_rows(campaigns, engine, session_id), fmt)
     storage.write_table(gt / "campaigns", ground_truth.CAMPAIGN_COLUMNS, c_rows, fmt)
     storage.write_table(gt / "campaign_membership", ground_truth.MEMBERSHIP_COLUMNS, m_rows, fmt)
     storage.write_table(gt / "campaign_overlap", ground_truth.OVERLAP_COLUMNS, o_rows, fmt)

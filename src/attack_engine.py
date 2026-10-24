@@ -24,6 +24,8 @@ import numpy as np
 from .can_generator import TxFrame, load_dbc
 
 ATTACKER_NODE = "ATTACKER"
+NOT_STARTED = 2 ** 62                  # start/end of an armed, not yet triggered attack (never inside a step)
+TRIGGER_QUANTITIES = {"speed_kmh": lambda s: s.speed_mps * 3.6, "accel_mps2": lambda s: s.accel_mps2}
 TYPES = ("flooding", "fuzzy", "malfunction", "replay")
 
 
@@ -72,6 +74,10 @@ class Attack:
     generated: int = 0
     skipped_inactive: int = 0
     requested_rate_hz: float | None = None
+    arm_ns: int | None = None              # generator 2.0.0: condition-triggered attacks (None = fixed start)
+    trigger_ns: int | None = None
+    trigger_timeout: bool = False
+    duration_ns: int | None = None
 
     def _tag(self, sim_time_ns: int, can_id: int, data: bytes, message: str, ref: dict | None = None) -> TxFrame:
         self.generated += 1
@@ -355,15 +361,44 @@ class AttackEngine:
             seen.add(aid)
             start = int(c["start_ns"]) if "start_ns" in c else round(float(c["start_s"]) * 1e9)
             end = start + (int(c["duration_ns"]) if "duration_ns" in c else round(float(c.get("duration_s", 0)) * 1e9))
-            seed = attack_seed(experiment_seed, aid)
-            a = CLASSES[typ](aid, typ, vid, chan[vid], start, end, dict(c.get("params") or {}), seed,
+            params = dict(c.get("params") or {})
+            # generator 2.0.0: rng_scope=campaign gives every member of a campaign the same random stream
+            seed = attack_seed(experiment_seed, cid if params.get("rng_scope") == "campaign" and cid else aid)
+            a = CLASSES[typ](aid, typ, vid, chan[vid], start, end, params, seed,
                              np.random.default_rng(seed), campaign_id=cid)
             a.setup(self.ctx)
             if a.end_ns <= a.start_ns:
                 raise AttackConfigError(f"{aid}: duration must be > 0")
+            trig = params.get("trigger")
+            if trig:
+                if typ == "replay":
+                    raise AttackConfigError(f"{aid}: condition triggers are not supported for replay")
+                if trig.get("quantity") not in TRIGGER_QUANTITIES or trig.get("op") not in (">=", "<="):
+                    raise AttackConfigError(f"{aid}: trigger needs quantity in {sorted(TRIGGER_QUANTITIES)} and op >= | <=")
+                a.arm_ns, a.duration_ns = a.start_ns, a.end_ns - a.start_ns
+                a.start_ns = a.end_ns = NOT_STARTED
             self.attacks.append(a)
 
-    def process(self, frames: list[TxFrame], t0: int, t1: int, active: set[str]) -> list[TxFrame]:
+    def _resolve_triggers(self, t0: int, states: dict) -> None:
+        """Start armed condition-triggered attacks at the first SUMO step (>= arm time) at which the target
+        vehicle's own state satisfies the condition, or at arm + timeout_s if it never does."""
+        for a in self.attacks:
+            if a.arm_ns is None or a.trigger_ns is not None or t0 < a.arm_ns:
+                continue
+            trig = a.params["trigger"]
+            st = states.get(a.vehicle_id)
+            met = False
+            if st is not None:
+                x = TRIGGER_QUANTITIES[trig["quantity"]](st)
+                met = x >= float(trig["value"]) if trig["op"] == ">=" else x <= float(trig["value"])
+            timeout = t0 >= a.arm_ns + round(float(trig.get("timeout_s", 30.0)) * 1e9)
+            if met or timeout:
+                a.trigger_ns, a.trigger_timeout = t0, bool(timeout and not met)
+                a.start_ns, a.end_ns = t0, t0 + a.duration_ns
+
+    def process(self, frames: list[TxFrame], t0: int, t1: int, active: set[str], states: dict | None = None) -> list[TxFrame]:
+        if states is not None:
+            self._resolve_triggers(t0, states)
         self.ctx.record_generated(frames)
         if not self.attacks:
             return frames
@@ -390,7 +425,8 @@ class AttackEngine:
 
     def describe(self) -> list[dict]:
         return [{"attack_id": a.attack_id, "attack_type": a.attack_type, "vehicle_id": a.vehicle_id,
-                 "campaign_id": a.campaign_id,
+                 "campaign_id": a.campaign_id, "arm_ns": a.arm_ns, "trigger_ns": a.trigger_ns,
+                 "trigger_timeout": a.trigger_timeout,
                  "channel": a.channel, "start_ns": a.start_ns, "end_ns": a.end_ns, "seed": a.seed,
                  "requested_rate_hz": a.requested_rate_hz, "generated": a.generated,
                  "skipped_inactive": a.skipped_inactive, "params": a.params_json}

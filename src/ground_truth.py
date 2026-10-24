@@ -52,6 +52,35 @@ MEMBERSHIP_COLUMNS = ["campaign_id", "scenario_id", "session_id", "vehicle_id", 
                       "vehicle_attack_end_ns", "relative_delay_s", "relative_delay_ns", "attack_duration_s"]
 OVERLAP_COLUMNS = ["campaign_id", "session_id", "vehicle_a", "vehicle_b", "start_delay_s", "start_delay_ns",
                    "overlap_s", "overlap_ratio_min", "jaccard"]
+# generator 2.0.0: one row per attack (campaign members and independent attacks): behavioural procedure and
+# controller timing. Written for every session (empty when no campaign uses these features).
+CONTROLLER_COLUMNS = ["campaign_id", "session_id", "vehicle_id", "attack_id", "attack_type", "coordinated",
+                      "procedure_id", "strength", "hard_negative", "controller_pattern", "command_ns",
+                      "pattern_offset_ns", "delivery_latency_ns", "arm_ns", "trigger", "trigger_ns", "trigger_timeout",
+                      "start_ns", "end_ns"]
+
+
+def controller_rows(campaigns, engine, session_id: str) -> list[dict]:
+    import json
+    by_id = {a.attack_id: a for a in engine.attacks}
+    rows = []
+    for c in campaigns:
+        raw = c.raw or {}
+        if not any(k in raw for k in ("procedure_id", "strength", "hard_negative", "offsets_s", "trigger")):
+            continue
+        for m in c.members:
+            a = by_id[m.attack_id]
+            rows.append({"campaign_id": c.campaign_id, "session_id": session_id, "vehicle_id": m.vehicle_id,
+                         "attack_id": m.attack_id, "attack_type": c.attack_type, "coordinated": str(c.coordinated).lower(),
+                         "procedure_id": raw.get("procedure_id", ""), "strength": raw.get("strength", ""),
+                         "hard_negative": raw.get("hard_negative", "none"), "controller_pattern": raw.get("controller_pattern", c.delay_pattern),
+                         "command_ns": c.start_ns, "pattern_offset_ns": m.pattern_offset_ns,
+                         "delivery_latency_ns": m.latency_ns, "arm_ns": "" if a.arm_ns is None else a.arm_ns,
+                         "trigger": json.dumps(raw["trigger"], sort_keys=True) if raw.get("trigger") else "",
+                         "trigger_ns": "" if a.trigger_ns is None else a.trigger_ns,
+                         "trigger_timeout": str(a.trigger_timeout).lower() if a.arm_ns is not None else "",
+                         "start_ns": a.start_ns, "end_ns": a.end_ns})
+    return rows
 
 SOURCE_LABEL = {"benign_generator": "benign", "attack_injection": "malicious", "attack_modification": "malicious"}
 

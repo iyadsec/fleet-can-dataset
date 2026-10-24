@@ -37,7 +37,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 NS = 1_000_000_000
-PATTERNS = ("simultaneous", "fixed", "uniform_random")
+PATTERNS = ("simultaneous", "fixed", "uniform_random", "controller")
 
 
 class CampaignConfigError(ValueError):
@@ -61,6 +61,8 @@ class Member:
     end_ns: int
     relative_delay_ns: int
     params: dict = field(default_factory=dict)
+    pattern_offset_ns: int = 0          # generator 2.0.0 (controller pattern): offset of the member's slot
+    latency_ns: int = 0                 # generator 2.0.0 (controller pattern): command delivery latency
 
 
 @dataclass
@@ -153,6 +155,18 @@ def build_schedule(campaign_configs: list[dict], seed: int, fleet_vehicles: list
             if not d or len(d) != len(targets):
                 raise CampaignConfigError(f"{cid}: fixed pattern needs one relative_delays_s entry per target")
             delays = [_ns(x) for x in d]
+        elif pattern == "controller":
+            # generator 2.0.0: a command issued at start_s reaches member i after offsets_s[i] (its slot in the
+            # pattern: broadcast / waves / sequential / bounded / partial) plus a seeded log-normal delivery latency
+            offs = c.get("offsets_s")
+            if not offs or len(offs) != len(targets):
+                raise CampaignConfigError(f"{cid}: controller pattern needs one offsets_s entry per target")
+            lat = dict(c.get("latency") or {})
+            med, sig, cap = float(lat.get("median_ms", 0.0)), float(lat.get("sigma_log", 0.0)), float(lat.get("cap_ms", 1000.0))
+            lats = [min(cap, med * float(np.exp(rng.normal(0.0, sig)))) if med > 0 else 0.0 for _ in targets]
+            offsets_ns = [_ns(x) for x in offs]
+            latency_ns = [round(x * 1e6) for x in lats]
+            delays = [o + l for o, l in zip(offsets_ns, latency_ns)]
         else:
             lo, hi = c.get("delay_range_s", [0, 0])
             res = _ns(c.get("delay_resolution_s", 0.001))
@@ -165,8 +179,12 @@ def build_schedule(campaign_configs: list[dict], seed: int, fleet_vehicles: list
         if len(durations) != len(targets):
             raise CampaignConfigError(f"{cid}: durations_s needs one entry per target")
         camp = Campaign(cid, coordinated, typ, pattern, start, cseed, dict(c.get("params") or {}), c)
-        for vid, rel, dur in zip(targets, delays, durations):
+        for i, (vid, rel, dur) in enumerate(zip(targets, delays, durations)):
             params = _deep_merge(camp.params, (c.get("vehicle_params") or {}).get(vid, {}))
+            if c.get("trigger"):                      # generator 2.0.0: start = when the member's own state meets it
+                if typ == "replay":
+                    raise CampaignConfigError(f"{cid}: condition triggers are not supported for replay")
+                params["trigger"] = dict(c["trigger"])
             vstart = start + rel
             if typ == "replay":
                 w = params.pop("window_relative_s", None)
@@ -181,7 +199,10 @@ def build_schedule(campaign_configs: list[dict], seed: int, fleet_vehicles: list
                 if dur is None or float(dur) <= 0:
                     raise CampaignConfigError(f"{cid}: duration_s must be > 0")
                 vend = vstart + _ns(dur)
-            camp.members.append(Member(cid, vid, f"{cid}_{vid}", vstart, vend, rel, params))
+            m = Member(cid, vid, f"{cid}_{vid}", vstart, vend, rel, params)
+            if pattern == "controller":
+                m.pattern_offset_ns, m.latency_ns = offsets_ns[i], latency_ns[i]
+            camp.members.append(m)
         campaigns.append(camp)
     return campaigns
 

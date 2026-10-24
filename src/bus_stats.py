@@ -70,7 +70,11 @@ class BusStatsAccumulator:
         self.qd = {ch: (_Spill(spill_dir / f"{safe[ch]}.benign.i64"), _Spill(spill_dir / f"{safe[ch]}.attack.i64")) for ch in buses}
         self.windows: dict[str, list[_Window]] = {ch: [] for ch in buses}
         self.attack_windows = []                       # (attack, baseline window | None, during window)
+        self.pending = []                              # generator 2.0.0: condition-triggered attacks not yet started
         for a in attacks:
+            if getattr(a, "arm_ns", None) is not None:
+                self.pending.append(a)
+                continue
             s, e = a.start_ns, a.end_ns
             base_lo = max(0, s - (e - s))
             base = _Window(base_lo, s) if s > base_lo else None
@@ -78,7 +82,19 @@ class BusStatsAccumulator:
             self.attack_windows.append((a, base, during))
             self.windows[a.channel] += [w for w in (base, during) if w is not None]
 
+    def _start_pending(self) -> None:
+        """A triggered attack gets its 'during' window once its trigger fired (frames of the triggering step are
+        transmitted after the trigger is resolved, so none is missed). No baseline window: its position was not
+        known in advance."""
+        for a in [x for x in self.pending if x.trigger_ns is not None]:
+            during = _Window(a.start_ns, a.end_ns)
+            self.attack_windows.append((a, None, during))
+            self.windows[a.channel].append(during)
+            self.pending.remove(a)
+
     def add(self, ch: str, txs) -> None:
+        if self.pending:
+            self._start_pending()
         bins, B = self.bins[ch], self.bin_ns
         ben, att = self.qd[ch]
         wins = self.windows[ch]
@@ -102,6 +118,8 @@ class BusStatsAccumulator:
                     w.ben_qd.append(qd)
 
     def finalize(self, sim_end_ns: int, all_drops: dict) -> dict:
+        if self.pending:
+            self._start_pending()
         out = {"bin_ns": self.bin_ns, "channels": {}, "attack_windows": []}
         for ch, bus in self.buses.items():
             last = max([sim_end_ns] + ([self.max_end[ch]] if self.max_end[ch] is not None else []))

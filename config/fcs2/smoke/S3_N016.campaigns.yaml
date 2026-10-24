@@ -1,0 +1,40 @@
+campaigns:
+  - campaign_id: C_FLOOD_A
+    coordinated: true
+    attack_type: flooding
+    start_s: 9.0
+    delay_pattern: controller
+    controller_pattern: broadcast
+    procedure_id: PFL_05A_3000
+    strength: mild
+    offsets_s: [0.0, 0.0, 0.0, 0.0]
+    latency: {median_ms: 80, sigma_log: 0.6, cap_ms: 1000}
+    targets: [vehicle_001, vehicle_005, vehicle_010, vehicle_015]
+    duration_s: 4.0
+    params: {can_id: 90, rate_hz: 3000, dlc: 8, payload: "A5A5000000FF0001"}
+    vehicle_params:
+      vehicle_005: {rate_hz: 3090}
+      vehicle_010: {rate_hz: 2925}
+  - campaign_id: C_MALF_B
+    coordinated: true
+    attack_type: malfunction
+    start_s: 12.0
+    delay_pattern: controller
+    controller_pattern: condition
+    procedure_id: PMF_SPEED_OFF40
+    strength: identical
+    offsets_s: [0.0, 0.0, 0.0]
+    latency: {median_ms: 80, sigma_log: 0.6, cap_ms: 1000}
+    targets: [vehicle_002, vehicle_007, vehicle_011]
+    duration_s: 3.0
+    trigger: {quantity: speed_kmh, op: ">=", value: 25.0, timeout_s: 10.0}
+    params: {mode: replace, target: vehicle_speed, manipulation: {strategy: offset, offset: 40.0}}
+  - campaign_id: C_IND_FUZZ_1
+    coordinated: false
+    attack_type: fuzzy
+    start_s: 14.3
+    delay_pattern: simultaneous
+    procedure_id: PFZ_PAYLOAD_BRAKE
+    targets: [vehicle_003]
+    duration_s: 5.0
+    params: {mode: payload, target: brake, rate_hz: 600, dlc: 8}
