@@ -54,6 +54,8 @@ NS = 1_000_000_000
 
 def secs(ns) -> np.ndarray:
     q, r = np.divmod(np.asarray(ns, dtype=np.int64), NS)
+    if q.size == 0:
+        return np.array([], dtype=str)
     return np.char.add(np.char.add(q.astype(str), "."), np.char.zfill(r.astype(str), 9))
 
 
