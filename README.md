@@ -7,10 +7,107 @@ coordinated campaigns. It is not real vehicle CAN data.
 
 | Dataset | Content | GitHub release |
 |---|---|---|
-| **fleetcan-sim-dataset-1.0** | One labelled CAN log per session (CSV and Parquet), plus session, vehicle, attack and campaign tables | `dataset-fleetcan-sim-dataset-1.0` |
-| fleetcan-sim-scale-1.0 | The frozen raw generator output that the dataset above was exported from, including simulator-internal timing fields | `dataset-fleetcan-sim-scale-1.0` |
+| **fleetcan-sim-2.0** (recommended) | 645 sessions, 8 vehicle profiles; campaign members share one attack procedure and start from one command with per-vehicle delivery latency; labelled hard negatives | `dataset-fleetcan-sim-2.0` |
+| fleetcan-sim-dataset-1.0 | 835 sessions, 3 vehicle profiles; coordination is in timing only | `dataset-fleetcan-sim-dataset-1.0` |
+| fleetcan-sim-scale-1.0 | The frozen raw generator output that fleetcan-sim-dataset-1.0 was exported from, including simulator-internal timing fields | `dataset-fleetcan-sim-scale-1.0` |
 
-Both contain the same 835 sessions and 444,333,222 CAN messages.
+All three use the same log format. fleetcan-sim-dataset-1.0 and fleetcan-sim-scale-1.0 contain the same 835 sessions
+and 444,333,222 CAN messages.
+
+## Dataset: fleetcan-sim-2.0
+
+### Description
+
+In fleetcan-sim-2.0 coordination is visible in the traffic, not only in the labels:
+
+* **Behaviour.** All members of a campaign execute the same attack procedure: target CAN ID or signal, rate, payload
+  pattern and manipulation. The coordination strength is `identical`, `mild` (±5 % per member) or `strong` (±15 %).
+  Each independent attack samples its own procedure.
+* **Timing.** A campaign is commanded at one time. The command reaches each member after a log-normal delivery
+  latency (median 80 ms, at most 1 s). Members then start by pattern: `broadcast`, `waves`, `sequential`, `bounded`,
+  `partial`, `condition` (when the member's own vehicle reaches a speed or brakes) or `probe`.
+* **Hard negatives.** Independent attacks that share a procedure (`S2_HardNegative_Behaviour`), that share
+  coordinated-looking timing (`S2_HardNegative_Timing`), or both (`S2_HardNegative_Both`).
+* **Benign variety.** Eight synthetic profiles (A–H) with 4–16 message types, event-driven messages with
+  heartbeats, sensor noise and 0.5–5 % release jitter.
+* **Floods.** Flood rates go up to 4,500 messages/s, which saturates the 500 kbit/s bus and causes frame drops.
+
+| Property | Value |
+|---|---|
+| Sessions (capture files) | 645 = 129 configurations × 5 repetitions |
+| CAN messages | 461,017,690 (Normal 420,615,395; Attack 40,402,295) |
+| Vehicles per session | 20, 50 or 100 (37,750 vehicle traces) |
+| Vehicle profiles | A–H (synthetic) |
+| Attack types | Flooding, Fuzzy, Malfunction, Replay |
+| Attack instances / campaigns | 8,480 / 1,665 (420 coordinated, 1,245 independent) |
+| Scenarios | S0 normal (15 sessions), S1 isolated attack (60), S2 independent attacks (60), S2 hard negatives (3 × 30), S3 coordinated campaign (375), S3-mixed (30), S3-probe (15) |
+| Session length | 16–69 s of simulated time |
+| Format | gzip-compressed CSV and Parquet, same content; 1,298 files, 11.6 GB |
+| Validation | every session passed all validator checks (frame, bus, attack, campaign and condition-trigger checks); every configured attack produced attack messages |
+
+### Data format
+
+The session logs have the same columns as fleetcan-sim-dataset-1.0:
+
+```
+Timestamp,Vehicle_ID,Arbitration_ID,DLC,Data,Class,SubClass,Attack_ID,Campaign_ID
+```
+
+`Class`, `SubClass`, `Attack_ID` and `Campaign_ID` are labels; remove them from any detector input. The summary tables
+add the procedure and controller fields:
+
+| File | One row per | Main columns |
+|---|---|---|
+| `sessions.csv` | session | scenario, attack type, fleet size, campaign size, timing pattern, coordination strength, hard-negative type, command time, duration, seed, counts, file paths, generator version and commit |
+| `vehicles.csv` | vehicle | profile, ECU switch-on time, attacked, message counts |
+| `attacks.csv` | attack | vehicle, type, campaign, start/end, rate, first/last attack message, `Procedure_ID`, strength, hard-negative type, arm/trigger time, `Saturated_Values`, parameters (JSON) |
+| `campaigns.csv` | campaign | coordinated, type, controller pattern, `Procedure_ID`, strength, hard-negative type, trigger, vehicles, command time |
+| `campaign_members.csv` | member | start/end, relative delay, pattern offset, delivery latency, arm/trigger time |
+| `replay_links.csv.gz` | replayed message | original and replay timestamps |
+
+### File structure
+
+```
+fleetcan-sim-2.0/
+├── README.md                full description (scenarios, procedures, timing patterns, columns, tables)
+├── sessions.csv  vehicles.csv  attacks.csv  campaigns.csv  campaign_members.csv  replay_links.csv.gz
+├── SHA256SUMS
+├── CSV/<Scenario>/<Attack type>/N<fleet size>/<Session_ID>.csv.gz
+└── Parquet/<Scenario>/<Attack type>/N<fleet size>/<Session_ID>.parquet
+```
+
+Scenario folders are `S0_Normal`, `S1_Isolated_Attack`, `S2_Independent_Attacks`, `S2_HardNegative_Behaviour`,
+`S2_HardNegative_Timing`, `S2_HardNegative_Both`, `S3_Coordinated_Campaign`, `S3_Mixed` and `S3_Probe`. A Session_ID
+such as `FCS2_N050_S3_replay_K010_waves_mild_R3` gives the fleet size, scenario, attack type, campaign size, timing
+pattern, strength and repetition.
+
+### How to download
+
+You need about 25 GB free (the download is deleted after a successful restore) and the tools from step 2 of the
+fleetcan-sim-dataset-1.0 instructions below. Then:
+
+```bash
+git clone https://github.com/iyadsec/fleet-can-dataset.git
+cd fleet-can-dataset
+scripts/download_fleetcan_sim_2_0.sh ~/fleetcan_data
+```
+
+The script downloads the 8 release parts and checks them against the committed checksums
+(`results/dataset_release/fleetcan-sim-2.0/`). It then extracts them and verifies every file against `SHA256SUMS`.
+The last line reads `SUCCESS: fleetcan-sim-2.0 restored to ...`.
+
+```python
+import pandas as pd
+df = pd.read_parquet("fleetcan_data/fleetcan-sim-2.0/Parquet/S3_Coordinated_Campaign/Replay/N050/"
+                     "FCS2_N050_S3_replay_K005_sequential_mild_R1.parquet")
+```
+
+### Rebuild
+
+The experimental matrix is `configs/fleetcan_sim_2_0.yaml` (SHA-256
+`0bb2be29dfce6046600d0161c2d1e58508930e731a10f186e5d6eacf82fcc6e4`), generated by `scripts/fcs2_design.py`.
+`scripts/run_fcs2_generation.py --all` regenerates the sessions, and `scripts/export_fleetcan_sim_2_0.py` exports
+them. The design is described in [docs/m12_fleetcan_sim_2_0_design.md](docs/m12_fleetcan_sim_2_0_design.md).
 
 ## Dataset: fleetcan-sim-dataset-1.0
 
