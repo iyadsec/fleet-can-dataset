@@ -150,4 +150,4 @@ def test_saturation_fast_vs_realtime_logically_identical(tmp_path):
     assert (d.drop_kind == "queue_drop").sum() > 0 and (d.drop_kind == "expired_drop").sum() > 0
     for s in sids.values():
         m = json.loads((tmp_path / "metadata" / s / "metadata.json").read_text())
-        assert m["versions"]["generator_version"] in ("1.1.0", "1.2.0", "1.3.0") and m["fleet"]["assignment"]["ecu_jitter"]["fraction"] == 0.02
+        assert m["versions"]["generator_version"] in ("1.1.0", "1.2.0", "1.3.0", "2.0.0") and m["fleet"]["assignment"]["ecu_jitter"]["fraction"] == 0.02
