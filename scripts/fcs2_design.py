@@ -319,9 +319,10 @@ def resolve(cfg: dict, seed: int) -> dict:
         proc = sample_procedure(fam, rng("procedure/iso"))
         p, d = member_params(proc, v, prof[v], "identical", rng("strength/iso"))
         p.pop("rng_scope", None)
-        if fam == "replay":                    # isolated attacks need the absolute window (no campaign scheduler)
-            w = p.pop("window_relative_s")
+        if fam == "replay":                    # isolated attacks need the absolute window and an explicit source
+            w = p.pop("window_relative_s")      # vehicle (only the campaign scheduler resolves "self")
             p["window_s"] = [round(T + w[0], 9), round(T + w[1], 9)]
+            p["source_vehicle"] = v
         out["attacks"].append({"attack_id": f"ISO_{fam.upper()}_{v}", "type": fam, "vehicle": v, "start_s": T,
                                "duration_s": d, "params": p})
         end = T + d

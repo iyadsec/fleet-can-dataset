@@ -2348,7 +2348,7 @@ sessions:
     duration_s: 2.0
     params:
       time_offset_ms: 4.6
-      source_vehicle: self
+      source_vehicle: vehicle_019
       procedure_id: P7eedf0d3df
       window_s:
       - 6.9
@@ -2388,7 +2388,7 @@ sessions:
     duration_s: 4.5
     params:
       time_offset_ms: 3.55
-      source_vehicle: self
+      source_vehicle: vehicle_002
       procedure_id: P64adf71489
       window_s:
       - 10.0
@@ -2428,7 +2428,7 @@ sessions:
     duration_s: 5.5
     params:
       time_offset_ms: 4.2
-      source_vehicle: self
+      source_vehicle: vehicle_007
       can_ids:
       - 588
       - 684
@@ -2471,7 +2471,7 @@ sessions:
     duration_s: 7.0
     params:
       time_offset_ms: 1.4
-      source_vehicle: self
+      source_vehicle: vehicle_012
       can_ids:
       - 672
       - 712
@@ -2515,7 +2515,7 @@ sessions:
     duration_s: 5.0
     params:
       time_offset_ms: 4.35
-      source_vehicle: self
+      source_vehicle: vehicle_008
       can_ids:
       - 672
       - 712
@@ -3155,7 +3155,7 @@ sessions:
     duration_s: 2.0
     params:
       time_offset_ms: 2.85
-      source_vehicle: self
+      source_vehicle: vehicle_005
       can_ids:
       - 288
       - 336
@@ -3199,7 +3199,7 @@ sessions:
     duration_s: 5.5
     params:
       time_offset_ms: 0.1
-      source_vehicle: self
+      source_vehicle: vehicle_024
       procedure_id: P82539d2b60
       window_s:
       - 13.4
@@ -3239,7 +3239,7 @@ sessions:
     duration_s: 6.0
     params:
       time_offset_ms: 2.05
-      source_vehicle: self
+      source_vehicle: vehicle_034
       procedure_id: Pf7d2dc1570
       window_s:
       - 4.7
@@ -3279,7 +3279,7 @@ sessions:
     duration_s: 1.5
     params:
       time_offset_ms: 2.1
-      source_vehicle: self
+      source_vehicle: vehicle_011
       procedure_id: P4d21a1d8ba
       window_s:
       - 10.4
@@ -3319,7 +3319,7 @@ sessions:
     duration_s: 3.0
     params:
       time_offset_ms: 2.0
-      source_vehicle: self
+      source_vehicle: vehicle_028
       procedure_id: P8d195524f6
       window_s:
       - 13.3
@@ -3960,7 +3960,7 @@ sessions:
     duration_s: 2.0
     params:
       time_offset_ms: 1.15
-      source_vehicle: self
+      source_vehicle: vehicle_099
       can_ids:
       - 336
       - 384
@@ -4003,7 +4003,7 @@ sessions:
     duration_s: 1.5
     params:
       time_offset_ms: 2.2
-      source_vehicle: self
+      source_vehicle: vehicle_089
       procedure_id: P4ad6d1e298
       window_s:
       - 8.7
@@ -4043,7 +4043,7 @@ sessions:
     duration_s: 4.0
     params:
       time_offset_ms: 3.05
-      source_vehicle: self
+      source_vehicle: vehicle_090
       can_ids:
       - 552
       - 872
@@ -4086,7 +4086,7 @@ sessions:
     duration_s: 7.0
     params:
       time_offset_ms: 3.5
-      source_vehicle: self
+      source_vehicle: vehicle_090
       can_ids:
       - 193
       - 416
@@ -4130,7 +4130,7 @@ sessions:
     duration_s: 8.0
     params:
       time_offset_ms: 4.45
-      source_vehicle: self
+      source_vehicle: vehicle_064
       procedure_id: P0bb121baaa
       window_s:
       - 3.3

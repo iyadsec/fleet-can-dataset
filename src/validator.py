@@ -551,6 +551,9 @@ def _attack_checks(r, f, drops, att, afr, rep, attack_cfg, fleet, profiles):
                 and int(a.dropped) == n_drop and int(a.transmitted) == n_cap
                 and int(a.queue_dropped) + int(a.expired_dropped) == int(a.dropped)):
             cnt_err.append(f"{a.attack_id}: gen={a.generated} tx={a.transmitted} drop={a.dropped}/{n_drop} cap={a.captured}/{n_cap}")
+    silent = [a.attack_id for a in att.itertuples() if int(a.generated) == 0]
+    r.ok("A08", "every configured attack generated at least one frame", not silent,
+         f"{len(att)} attacks", f"no frames: {silent}")
     r.ok("A03", "per attack: generated = transmitted + dropped; transmitted = captured; matches frame files",
          not cnt_err, "; ".join(f"{a.attack_id}: gen={a.generated} tx={a.transmitted} drop={a.dropped}" for a in att.itertuples()),
          cnt_err)
