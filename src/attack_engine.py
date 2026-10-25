@@ -78,6 +78,7 @@ class Attack:
     trigger_ns: int | None = None
     trigger_timeout: bool = False
     duration_ns: int | None = None
+    saturated: int = 0                     # generator 2.0.0: malfunction values saturated at the DBC limit
 
     def _tag(self, sim_time_ns: int, can_id: int, data: bytes, message: str, ref: dict | None = None) -> TxFrame:
         self.generated += 1
@@ -206,8 +207,15 @@ class Malfunction(Attack):
             v = float(m["from"]) + (float(m["to"]) - float(m["from"])) * frac
         lo, hi = self.sig.minimum, self.sig.maximum
         if (lo is not None and v < lo - 1e-9) or (hi is not None and v > hi + 1e-9):
-            # Never clamp silently: an unencodable value is a configuration error.
-            raise AttackConfigError(f"{self.attack_id}: value {v} outside DBC range [{lo}, {hi}] of {self.sig.name}")
+            if s not in ("offset", "scale"):
+                # Never clamp silently: a fixed (constant / ramp) value outside the range is a configuration error.
+                raise AttackConfigError(f"{self.attack_id}: value {v} outside DBC range [{lo}, {hi}] of {self.sig.name}")
+            # generator 2.0.0: a state-dependent forged value (offset / scale of a large live value) beyond the range
+            # saturates at the encodable limit, as an ECU encoder would. Never silent: counted per attack
+            # (saturated_values in metadata attacks_runtime). Generator <= 1.3.0 raised instead; no run that
+            # completed under 1.3.0 contains such a value, so earlier outputs are unchanged.
+            v = min(max(v, lo if lo is not None else v), hi if hi is not None else v)
+            self.saturated += 1
         return v
 
     def _forge(self, base_data: bytes, t: int, counter: int | None):
@@ -426,7 +434,7 @@ class AttackEngine:
     def describe(self) -> list[dict]:
         return [{"attack_id": a.attack_id, "attack_type": a.attack_type, "vehicle_id": a.vehicle_id,
                  "campaign_id": a.campaign_id, "arm_ns": a.arm_ns, "trigger_ns": a.trigger_ns,
-                 "trigger_timeout": a.trigger_timeout,
+                 "trigger_timeout": a.trigger_timeout, "saturated_values": a.saturated,
                  "channel": a.channel, "start_ns": a.start_ns, "end_ns": a.end_ns, "seed": a.seed,
                  "requested_rate_hz": a.requested_rate_hz, "generated": a.generated,
                  "skipped_inactive": a.skipped_inactive, "params": a.params_json}

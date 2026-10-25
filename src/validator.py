@@ -624,6 +624,8 @@ def _attack_checks(r, f, drops, att, afr, rep, attack_cfg, fleet, profiles):
                     want = exp * float(m["factor"])
                 else:
                     want = float(m["from"]) + (float(m["to"]) - float(m["from"])) * (row.sim_time_ns - s0) / dur
+                if m["strategy"] in ("offset", "scale"):         # generator 2.0.0: saturation at the signal range
+                    want = min(max(want, sig.minimum), sig.maximum)
                 bad += int(abs(got - want) > sig.scale / 2 + 1e-9 or abs(got - float(row.malicious_value)) > 1e-9)
                 bad += int(int(row.can_id, 16) != msg.frame_id)
                 if p.get("mode", "inject") == "replace":
