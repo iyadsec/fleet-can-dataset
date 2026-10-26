@@ -231,9 +231,12 @@ More detail: [docs/dataset_download.md](docs/dataset_download.md).
 
 | Topic | Location |
 |---|---|
-| Design | `docs/m9_expanded_dataset_design.md`, `docs/m9_1_matrix_freeze.md` |
-| Generation report | `docs/m10_expanded_dataset_generation.md` |
-| Download (source dataset) | `docs/dataset_download.md` |
+| fleetcan-sim-2.0 design | `docs/m12_fleetcan_sim_2_0_design.md` |
+| fleetcan-sim-2.0 generation and release report | `docs/m13_fleetcan_sim_2_0_generation.md` |
+| fleetcan-sim-2.0 full dataset description | `results/datasets/fleetcan-sim-2.0/README.md` (also inside the dataset) |
+| v1 design | `docs/m9_expanded_dataset_design.md`, `docs/m9_1_matrix_freeze.md` |
+| v1 generation report | `docs/m10_expanded_dataset_generation.md` |
+| Download and integrity (all datasets) | `docs/dataset_download.md` |
 | Full procedure and code map | `docs/PROCEDURE.md` |
 | Freeze records and hash lists | `results/datasets/` |
 | Release manifests | `results/dataset_release/` |
@@ -246,11 +249,11 @@ The dataset files are distributed as release assets, not in Git.
 |---|---|---|
 | Mobility (speed, acceleration, position, lane, route) | SUMO 1.28 via TraCI | Simulated (synthetic road network and routes) |
 | CAN signals (RPM, gear, pedal, brake, steering) | `src/can_generator.py` | **Synthetic model** derived from SUMO state |
-| CAN IDs, layouts, scaling | `dbc/generic_vehicle.dbc` | **Defined by this project.** Not OEM CAN IDs |
+| CAN IDs, layouts, scaling | `dbc/generic_vehicle.dbc`, `dbc/fcs2_profile_{d..h}.dbc` | **Defined by this project.** Not OEM CAN IDs |
 | Bus timing (duration, arbitration, queueing, drops) | `src/bus_model.py` | **Logical model** of Classical CAN at 500 kbit/s, not a physical-layer simulation |
 | CAN transport + capture | Linux SocketCAN **vCAN** | Real kernel frame delivery; **no** bus behaviour of its own |
-| Attacks | `src/attack_engine.py` + `config/m2/` | **Injected** from configuration, single vehicle |
-| Campaigns | `src/campaign_scheduler.py` + `config/m3/campaigns_*.yaml` | **Experimentally constructed** from configuration |
+| Attacks | `src/attack_engine.py` | **Injected** from configuration (2.0: procedures sampled by `scripts/fcs2_design.py`) |
+| Campaigns | `src/campaign_scheduler.py` | **Experimentally constructed** from configuration (2.0: command with per-vehicle delivery latency) |
 
 The generated traffic is **not real vehicle CAN traffic**. SUMO does not simulate CAN.
 
@@ -290,6 +293,16 @@ sudo scripts/cleanup_vcan.sh all  # remove vcan<N> interfaces
 ```
 
 ## Run an experiment
+
+fleetcan-sim-2.0 (needs `sudo scripts/setup_vcan.sh 100`):
+
+```bash
+.venv/bin/python scripts/fcs2_design.py --write               # write configs/fleetcan_sim_2_0.yaml (matrix)
+.venv/bin/python scripts/run_fcs2_generation.py --out ~/fcs2_data --all     --expect-sha 0bb2be29dfce6046600d0161c2d1e58508930e731a10f186e5d6eacf82fcc6e4
+FLEETCAN_SRC=~/fcs2_data .venv/bin/python scripts/export_fleetcan_sim_2_0.py OUTPUT_DIR   # CSV/Parquet export
+```
+
+Earlier milestones:
 
 ```bash
 scripts/run_experiment.sh                       # verify env, then run config/experiment.yaml (60 s, real time)
@@ -339,7 +352,10 @@ reflect host execution and are not.
 * Bus effects come from a logical model (exact frame length, ID arbitration, queues, drops), not
   from vCAN. Error frames, retransmission, bus-off and bit-level effects are not modelled; the same
   ID sent by two nodes at once is serialised instead of causing a bit error.
-* Synthetic profiles A/B/C (Milestone 5); seeded switch-on offsets and ±1 % ECU release jitter (Milestone 5.1); no sensor noise.
+* v1: synthetic profiles A/B/C (Milestone 5), seeded switch-on offsets and ±1 % ECU release jitter (Milestone 5.1), no
+  sensor noise. 2.0 adds profiles D–H, event-driven messages, sensor noise and per-profile jitter, but behavioural
+  variety is still limited to eight synthetic profiles.
+* Road network: 4×4 grid. Frame drops occur only under saturating floods.
 * Campaign delays are exact on the logical timeline; transmission/capture layers are reported separately.
 * Frame expiry uses one max age per bus (100 ms in Milestone 3 fleets), not per-message deadlines.
 * Capture jitter depends on host/VM load; it is measured (`capture_offset_us`), never used as ground truth.

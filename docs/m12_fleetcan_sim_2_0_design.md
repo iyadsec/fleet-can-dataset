@@ -1,6 +1,9 @@
 # M12 — fleetcan-sim-2.0 design (behavioural and temporal coordination, benign variety)
 
-Status: design, approved option B (2026-10-24). fleetcan-sim-scale-1.0 and fleetcan-sim-dataset-1.0 stay frozen.
+Status: implemented and released (2026-10-25). The final matrix has 129 configurations × 5 repetitions = 645 sessions
+(SHA-256 `0bb2be29dfce6046600d0161c2d1e58508930e731a10f186e5d6eacf82fcc6e4`); results are in
+[m13_fleetcan_sim_2_0_generation.md](m13_fleetcan_sim_2_0_generation.md). Sections below are the design as approved
+(option B, 2026-10-24); the final validator adds A08. fleetcan-sim-scale-1.0 and fleetcan-sim-dataset-1.0 stay frozen.
 
 ## 1. Goals
 
@@ -81,7 +84,7 @@ ground truth records arm time, trigger time and whether the timeout fired.
 | S3-mixed | coordinated campaign plus independent attacks (own procedures, independent times) in the same fleet |
 | S3-multi | two concurrent coordinated campaigns with different procedures (reserved; not in the first matrix) |
 
-## 6. Matrix (target ≈ 160–170 configurations × 5 repetitions)
+## 6. Matrix (target ≈ 160–170 configurations × 5 repetitions; final: 129 × 5)
 
 * **Fleet sizes:** N ∈ {20, 50, 100}, 8 profiles balanced; K ∈ {2, 5, 10, 20, 50, 100} with K ≤ N.
 * **Coverage:**
