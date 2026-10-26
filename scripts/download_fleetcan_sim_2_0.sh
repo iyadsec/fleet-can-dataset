@@ -76,8 +76,9 @@ echo "archive integrity: ${#PARTS[@]} parts OK"
 
 # ---- 3 reconstruct and extract (stream; no concatenated copy on disk) ------------------------------------------
 STAGE="$DEST/.$NAME.extracting"
-rm -rf "$STAGE"; mkdir -p "$STAGE"
-trap 'rm -rf "$STAGE"' EXIT   # a failed restore leaves nothing behind
+clean_stage() { [ -d "$STAGE" ] && chmod -R u+w "$STAGE" && rm -rf "$STAGE"; return 0; }   # dataset files are read-only
+clean_stage; mkdir -p "$STAGE"
+trap clean_stage EXIT   # a failed restore leaves nothing behind
 cat "${PARTS[@]}" | zstd -dc -q | tar -xf - -C "$STAGE"
 ROOT="$STAGE/$NAME"
 [ -f "$ROOT/SHA256SUMS" ] || die "unexpected archive layout"
