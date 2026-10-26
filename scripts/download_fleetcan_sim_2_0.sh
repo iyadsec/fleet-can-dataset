@@ -77,6 +77,7 @@ echo "archive integrity: ${#PARTS[@]} parts OK"
 # ---- 3 reconstruct and extract (stream; no concatenated copy on disk) ------------------------------------------
 STAGE="$DEST/.$NAME.extracting"
 rm -rf "$STAGE"; mkdir -p "$STAGE"
+trap 'rm -rf "$STAGE"' EXIT   # a failed restore leaves nothing behind
 cat "${PARTS[@]}" | zstd -dc -q | tar -xf - -C "$STAGE"
 ROOT="$STAGE/$NAME"
 [ -f "$ROOT/SHA256SUMS" ] || die "unexpected archive layout"
@@ -87,9 +88,9 @@ cmp -s "$ROOT/SHA256SUMS" "$REF_DATASET_SUMS" || die "extracted SHA256SUMS diffe
 N=$(wc -l < "$ROOT/SHA256SUMS" | tr -d ' ')
 EXTRACTED=$(cd "$ROOT" && find . -type f | wc -l | tr -d ' ')
 [ "$EXTRACTED" -eq $((N + 1)) ] || die "extracted $EXTRACTED files, expected $((N + 1)) (listed files + SHA256SUMS)"
-S=$(find "$ROOT/CSV" -type f -name 'FCS10_*.csv.gz' | wc -l | tr -d ' ')
+S=$(find "$ROOT/CSV" -type f -name 'FCS2_*.csv.gz' | wc -l | tr -d ' ')
 [ "$S" -eq "$SESSIONS" ] || die "CSV/ has $S session logs, expected $SESSIONS"
-S=$(find "$ROOT/Parquet" -type f -name 'FCS10_*.parquet' | wc -l | tr -d ' ')
+S=$(find "$ROOT/Parquet" -type f -name 'FCS2_*.parquet' | wc -l | tr -d ' ')
 [ "$S" -eq "$SESSIONS" ] || die "Parquet/ has $S session logs, expected $SESSIONS"
 
 mv "$ROOT" "$DEST/$NAME"
