@@ -94,7 +94,9 @@ S=$(find "$ROOT/CSV" -type f -name 'FCS2_*.csv.gz' | wc -l | tr -d ' ')
 S=$(find "$ROOT/Parquet" -type f -name 'FCS2_*.parquet' | wc -l | tr -d ' ')
 [ "$S" -eq "$SESSIONS" ] || die "Parquet/ has $S session logs, expected $SESSIONS"
 
+chmod u+w "$ROOT"   # moving a directory to a new parent needs write permission on it (macOS)
 mv "$ROOT" "$DEST/$NAME"
+chmod u-w "$DEST/$NAME"
 rmdir "$STAGE"
 [ "$KEEP" -eq 1 ] || rm -rf "$DL"
 echo "SUCCESS: $NAME restored to $DEST/$NAME ($N files verified against SHA256SUMS, $SESSIONS sessions)"
