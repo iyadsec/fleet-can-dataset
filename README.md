@@ -5,14 +5,106 @@ that generated it. The dataset contains CAN traffic from fleets of simulated veh
 Flooding, Fuzzy, Malfunction and Replay attacks on single vehicles, on several vehicles independently, or as
 coordinated campaigns. It is not real vehicle CAN data.
 
-| Dataset | Content | GitHub release |
-|---|---|---|
-| **fleetcan-sim-2.0** (recommended) | 645 sessions, 8 vehicle profiles; campaign members share one attack procedure and start from one command with per-vehicle delivery latency; labelled hard negatives | `dataset-fleetcan-sim-2.0` |
-| fleetcan-sim-dataset-1.0 | 835 sessions, 3 vehicle profiles; coordination is in timing only | `dataset-fleetcan-sim-dataset-1.0` |
-| fleetcan-sim-scale-1.0 | The frozen raw generator output that fleetcan-sim-dataset-1.0 was exported from, including simulator-internal timing fields | `dataset-fleetcan-sim-scale-1.0` |
+| Dataset | Content | License | GitHub release |
+|---|---|---|---|
+| **fleetcan-sim-3.0** (latest — coordinated-campaign correlation benchmark) | 660 sessions, ~2.86B frames, 320 coordinated multi-vehicle campaigns with membership ground truth, leakage-safe network-disjoint split, E-R external validation | **CC BY 4.0** (data + docs) | `dataset-fleetcan-sim-dataset-3.0` |
+| **fleetcan-sim-2.0** | 645 sessions, 8 vehicle profiles; campaign members share one attack procedure and start from one command with per-vehicle delivery latency; labelled hard negatives | Apache 2.0 | `dataset-fleetcan-sim-2.0` |
+| fleetcan-sim-dataset-1.0 | 835 sessions, 3 vehicle profiles; coordination is in timing only | Apache 2.0 | `dataset-fleetcan-sim-dataset-1.0` |
+| fleetcan-sim-scale-1.0 | The frozen raw generator output that fleetcan-sim-dataset-1.0 was exported from, including simulator-internal timing fields | Apache 2.0 | `dataset-fleetcan-sim-scale-1.0` |
 
-All three use the same log format. fleetcan-sim-dataset-1.0 and fleetcan-sim-scale-1.0 contain the same 835 sessions
-and 444,333,222 CAN messages.
+**Earlier versions are preserved unchanged.** 1.0/2.0 use the same log format; fleetcan-sim-dataset-1.0 and
+fleetcan-sim-scale-1.0 contain the same 835 sessions and 444,333,222 CAN messages. Dataset 3.0 is a new,
+re-designed correlation benchmark with its own format (see below), published under CC BY 4.0.
+
+**Licensing (dual).** The generator/testbed **source code** in this repository is **Apache 2.0** (`LICENSE`).
+The **Dataset 3.0 data + documentation** are **CC BY 4.0** (`LICENSE-DATASET`). Dataset 1.0/2.0 were released
+under Apache 2.0 and remain so. Dataset 3.0 is published as a **separate** Kaggle dataset, so the 1.0/2.0
+Kaggle listing and its Apache-2.0 licensing are unchanged.
+
+## Dataset: fleetcan-sim-3.0
+
+> **The complete Dataset 3.0 documentation ships inside the release** as `README.md` (16 sections) plus
+> `docs/DATA_DICTIONARY.md` and `docs/VALIDATION_SUMMARY.md`. This section is the public summary.
+
+**Description.** A synthetic, multi-vehicle CAN-bus intrusion dataset for **cross-vehicle attack-correlation
+research**. Fleets of simulated vehicles carry *coordinated multi-vehicle attack campaigns* alongside
+independent attacks and benign traffic, with complete campaign-membership ground truth — built to study
+whether a fleet-level defender can correlate evidence of the *same* campaign across vehicles, and how an
+adversary can **fragment** or **false-merge** that evidence. It is **100% synthetic** (SUMO mobility + a CAN
+generator); it is **not** captured vehicle traffic and redistributes **no** third-party recordings.
+
+**Generation methodology.** Each session is generated deterministically from a seed: (1) SUMO simulates N
+vehicles on a grid network for T_obs seconds; (2) each vehicle's ECUs emit periodic/event CAN frames through a
+logical 500 kbit/s bus model parameterised by the vehicle *profile*; (3) coordinated-campaign and independent
+attacks inject/edit frames per the attack spec; (4) export writes observable frames, row-aligned per-frame
+labels, and ground-truth tables. Every input — seed, config SHA-256s, generator git commit — is recorded in
+`generator_metadata.json` (machine-specific absolute paths replaced with placeholders; no provenance removed).
+
+**Fleet and attack scenarios.**
+
+| Property | Value |
+|---|---|
+| Sessions | 660 |
+| Observable frames (kept) | 2,863,103,144 across 44,900 per-vehicle streams |
+| Vehicle profiles | 8 (A–H), balanced CAN-ID namespaces |
+| Fleet sizes N | 20 / 50 / 100 / 200 (200 / 234 / 160 / 66 sessions) |
+| Observation length T_obs | 120–300 s (median 203 s) |
+| Attack families | flooding, fuzzy, malfunction, replay |
+| Homogeneity regimes | identical / shared / heterogeneous CAN-ID namespaces |
+| Scenario groups | S0-plain, S0-sync, S1, S2-cc, S2-ovl, S2-sep, S3, S4, S5, S6 |
+| Networks (SUMO) | N1, N2, N4, N6 (grid road networks) |
+
+**Coordinated campaign ground truth.** 320 coordinated campaigns (K ∈ {2,3,5,10,20,50}; all genuinely
+multi-vehicle), 4,174 attack instances (3,259 coordinated + 915 independent). Dissemination patterns
+simultaneous (158) / chain (76) / tree (46) / waves (40), so **51% of campaigns are non-simultaneous**.
+Membership is recoverable two ways — the `campaign` id on each attack row, and the set of vehicles sharing a
+`procedure_id` — and **878 lookalike-tagged rows (150 sessions)** mark independent-but-similar attacks as
+explicit false-merge controls. `observable/` and `labels/` are a separate, row-aligned modality: attack
+labels are **never** embedded in observable frames. Full column dictionary: `docs/DATA_DICTIONARY.md`.
+
+**Train / validation / test split.** A leakage-safe, **network-disjoint** split (`splits/SPLITS_v3.csv`,
+reproducible via `splits/make_split.py`): **train = {N4, N6} (372) · validation = {N1} (144) · test = {N2}
+(142)**; 2 sessions whose campaign `procedure_id` would straddle partitions are held out
+(`excluded_procedure_overlap`). Each SUMO network belongs to exactly one partition (no shared mobility source
+crosses partitions) and no `procedure_id` crosses partitions. All families, all scenario groups, and both
+coordinated and independent attacks appear in every partition.
+
+**Scientific validation and limitations.** Generator-internal validation (per-session bus/arbitration/effect
+checks; dataset-wide integrity audit) all pass. External validity was probed with a semi-synthetic **E-R**
+evaluation re-targeting the campaign specs onto **real** benign CAN backgrounds (HCRL 2020, DTU
+can-train-and-test) and simulated backgrounds (1,056 sessions, 25,921 incident pairs, 1,000-resample
+cluster-bootstrap 95% CIs): incident-level correlation AUC **0.79–0.94** by fleet composition; traffic
+**density (real vs sim) not material**; **CAN-ID namespace sharing is the dominant factor** (homogeneous−mixed
++0.145 [0.059, 0.228]; malfunction +0.319); **no same-drive leakage** (probe AUC 0.555). **Transfer caveat:**
+on mixed-make fleets the simulator is *optimistic* — real fleets correlate ~0.09 AUC harder (SIM-MIX−MIX +0.092
+[0.003, 0.185]); anchor absolute heterogeneous-fleet numbers to real data. The real recordings are used
+**only** in this evaluation and are **not** redistributed. Known limits: synthetic CAN + SUMO mobility (not
+captured traffic); directional external validation (6 real vehicles / 11 drives); replay is a deliberately
+hard/weak family; do not claim real-world generalisability beyond the E-R evidence. Full report:
+`docs/VALIDATION_SUMMARY.md`.
+
+### Download, extraction and verification (fleetcan-sim-3.0)
+
+Download all **18 assets** from the `dataset-fleetcan-sim-dataset-3.0` release (or the Kaggle mirror), then:
+
+```bash
+# 1. Verify the downloaded archives are intact and identical across GitHub/Kaggle:
+shasum -a 256 -c ARCHIVES.sha256
+
+# 2. Reconstruct the dataset (parts are concatenated, not separate archives):
+cat fleetcan-sim-3.0-observable.tar.part-* | tar xf -       # -> observable/
+cat fleetcan-sim-3.0-labels.tar.part-*     | tar xf -       # -> labels/
+zstd -dc fleetcan-sim-3.0-docs-truth-meta.tar.zst | tar xf - # -> truth/ deployment_metadata/ configs/ splits/ docs/ README.md ...
+
+# 3. Verify every one of the 97,766 files byte-for-byte:
+shasum -a 256 -c RELEASE_FILES.sha256
+```
+
+- **GitHub:** https://github.com/iyadsec/fleet-can-dataset — release tag `dataset-fleetcan-sim-dataset-3.0`.
+- **Kaggle:** https://www.kaggle.com/datasets/iyadatieh/fleetcan-sim-dataset-3-0 (same frozen archives, CC BY 4.0).
+- **License:** data + documentation **CC BY 4.0** (`LICENSE-DATASET`); generator code **Apache 2.0** (`LICENSE`).
+- **Citation:** see `CITATION.cff`. Atieh, Iyad. "FleetCAN-Sim Dataset 3.0: A synthetic multi-vehicle CAN
+  benchmark for coordinated attack-correlation research," v3.0, 2026.
 
 ## Dataset: fleetcan-sim-2.0
 
