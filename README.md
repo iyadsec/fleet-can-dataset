@@ -18,8 +18,9 @@ re-designed correlation benchmark with its own format (see below), published und
 
 **Licensing (dual).** The generator/testbed **source code** in this repository is **Apache 2.0** (`LICENSE`).
 The **Dataset 3.0 data + documentation** are **CC BY 4.0** (`LICENSE-DATASET`). Dataset 1.0/2.0 were released
-under Apache 2.0 and remain so. Dataset 3.0 is published as a **separate** Kaggle dataset, so the 1.0/2.0
-Kaggle listing and its Apache-2.0 licensing are unchanged.
+under Apache 2.0 and remain so. Dataset 3.0 is distributed from **this GitHub repository** (release
+`dataset-fleetcan-sim-dataset-3.0`); the existing Dataset 1.0/2.0 Kaggle listing and its Apache-2.0 licensing
+are unchanged.
 
 ## Dataset: fleetcan-sim-3.0
 
@@ -85,7 +86,7 @@ hard/weak family; do not claim real-world generalisability beyond the E-R eviden
 
 ### Download, extraction and verification (fleetcan-sim-3.0)
 
-Download all **18 assets** from the `dataset-fleetcan-sim-dataset-3.0` release (or the Kaggle mirror), then:
+Download all **18 assets** from the `dataset-fleetcan-sim-dataset-3.0` release, then:
 
 ```bash
 # 1. Verify the downloaded archives are intact and identical across GitHub/Kaggle:
@@ -100,8 +101,7 @@ zstd -dc fleetcan-sim-3.0-docs-truth-meta.tar.zst | tar xf - # -> truth/ deploym
 shasum -a 256 -c RELEASE_FILES.sha256
 ```
 
-- **GitHub:** https://github.com/iyadsec/fleet-can-dataset — release tag `dataset-fleetcan-sim-dataset-3.0`.
-- **Kaggle:** https://www.kaggle.com/datasets/iyadatieh/fleetcan-sim-dataset-3-0 (same frozen archives, CC BY 4.0).
+- **GitHub (sole distribution point):** https://github.com/iyadsec/fleet-can-dataset — release tag `dataset-fleetcan-sim-dataset-3.0`.
 - **License:** data + documentation **CC BY 4.0** (`LICENSE-DATASET`); generator code **Apache 2.0** (`LICENSE`).
 - **Citation:** see `CITATION.cff`. Atieh, Iyad. "FleetCAN-Sim Dataset 3.0: A synthetic multi-vehicle CAN
   benchmark for coordinated attack-correlation research," v3.0, 2026.
