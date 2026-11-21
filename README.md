@@ -89,7 +89,7 @@ hard/weak family; do not claim real-world generalisability beyond the E-R eviden
 Download all **18 assets** from the `dataset-fleetcan-sim-dataset-3.0` release, then:
 
 ```bash
-# 1. Verify the downloaded archives are intact and identical across GitHub/Kaggle:
+# 1. Verify the downloaded archives are intact:
 shasum -a 256 -c ARCHIVES.sha256
 
 # 2. Reconstruct the dataset (parts are concatenated, not separate archives):
